@@ -10,7 +10,7 @@ import TransferMarket from './components/screens/TransferMarket';
 import BoardRoom from './components/screens/BoardRoom';
 import ClubMarket from './components/screens/ClubMarket';
 import Onboarding from './components/screens/Onboarding';
-import StaffMarket from './components/screens/StaffMarket';
+import StaffScreen from './components/screens/StaffScreen';
 import Schedule from './components/screens/Schedule';
 import Scouting from './components/screens/Scouting';
 import NewsFeed from './components/screens/NewsFeed';
@@ -66,7 +66,7 @@ const App: React.FC = () => {
       case 'news': return <NewsFeed />;
       case 'leagues': return <LeagueTable />;
       case 'clubmarket': return <ClubMarket />;
-      case 'staff': return <StaffMarket />;
+      case 'staff': return <StaffScreen />;
       case 'transfer': return <TransferMarket />;
       case 'schedule': return <Schedule />;
       case 'boardroom': return <BoardRoom />;
@@ -108,7 +108,7 @@ const App: React.FC = () => {
                 if (match) {
                   setActiveMatchSimulation(match);
                 } else {
-                  advanceWeek();
+                  advanceDay();
                 }
               }}
               className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 shadow-lg shadow-indigo-600/20"

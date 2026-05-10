@@ -40,7 +40,7 @@ const ManagerScreen: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-black text-white tracking-tight">{manager.name}</h1>
-              <p className="text-indigo-400 font-bold tracking-widest uppercase text-xs mt-1">First Team Manager • Contracted until 2026</p>
+              <p className="text-indigo-400 font-bold tracking-widest uppercase text-xs mt-1">First Team Manager • Contracted for {manager.contractYears} Years</p>
             </div>
             <Button 
               variant="destructive" 

@@ -11,7 +11,7 @@ import { cn } from '../../lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
 const StaffScreen: React.FC = () => {
-  const { userClubId, clubs, staff, advertiseStaffRole, hireStaffApplicant, dismissStaff } = useGameStore();
+  const { userClubId, clubs, staff, advertiseStaffRole, hireStaffApplicant, dismissStaff, hireStaff } = useGameStore();
 
   const club = clubs.find(c => c.id === userClubId);
   const clubStaff = staff.filter(s => s.clubId === userClubId);
@@ -185,7 +185,10 @@ const StaffScreen: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <Button className="bg-white/5 hover:bg-white/10 text-white font-black px-6 h-12 uppercase text-[10px] tracking-widest border border-white/10">
+                <Button 
+                  onClick={() => hireStaff(club.id, s as any)}
+                  className="bg-white/5 hover:bg-white/10 text-white font-black px-6 h-12 uppercase text-[10px] tracking-widest border border-white/10"
+                >
                   Negotiate
                 </Button>
               </div>

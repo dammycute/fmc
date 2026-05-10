@@ -6,7 +6,7 @@ import { MapPin, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const LeagueTable: React.FC = () => {
-  const { userClubId, clubs, leagues, matches } = useGameStore();
+  const { userClubId, clubs, leagues, matches, currentSeason } = useGameStore();
   
   const userClub = clubs.find(c => c.id === userClubId);
   if (!userClub) return null;
@@ -59,7 +59,7 @@ const LeagueTable: React.FC = () => {
         </div>
         <div className="text-right">
           <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Season</p>
-          <p className="text-xl font-black text-white">2024/25</p>
+          <p className="text-xl font-black text-white">{currentSeason}/{currentSeason + 1}</p>
         </div>
       </div>
 

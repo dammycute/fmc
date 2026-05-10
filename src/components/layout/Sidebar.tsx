@@ -22,6 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, pendingReque
     { id: 'facilities', icon: GraduationCap, label: 'Facilities' },
     { id: 'leagues', icon: Trophy, label: 'League Table' },
     { id: 'scouting', icon: Search, label: 'Scouting' },
+    { id: 'clubmarket', icon: Briefcase, label: 'Club Market' },
     { id: 'news', icon: Newspaper, label: 'News' },
   ];
 
@@ -63,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, pendingReque
       </nav>
 
       <div className="p-4 mt-auto border-t border-white/5">
-        <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-500 hover:text-white transition-colors">
+        <button onClick={() => alert('Settings coming soon')} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-500 hover:text-white transition-colors">
           <Settings className="w-5 h-5" />
           Settings
         </button>

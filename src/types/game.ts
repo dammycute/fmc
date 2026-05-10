@@ -64,6 +64,7 @@ export interface Club {
   activeSponsors: Sponsor[];
   valuation: number;
   isForSale: boolean;
+  formation: Formation;
 }
 
 export interface Player {
@@ -81,6 +82,10 @@ export interface Player {
     vision: number;
     finishing: number;
     handling?: number; // GK only
+    commandOfArea?: number; // GK only
+    eccentricity?: number; // GK only
+    reflexes?: number; // GK only
+    rushingOut?: number; // GK only
   };
   physical: {
     pace: number;
@@ -163,6 +168,7 @@ export interface Manager {
   coachingAbility: number;
   tacticalIntelligence: number;
   salary: number;
+  contractYears?: number;
   clubId: string;
   relationshipWithChairman: number;
   morale: number;
@@ -245,7 +251,7 @@ export interface Match {
   awayScore: number;
   played: boolean;
   leagueId: string;
-  week: number;
+  date: string; // YYYY-MM-DD
   season: number;
   events: MatchEvent[];
 }
@@ -322,7 +328,7 @@ export interface LeagueTableEntry {
 }
 
 export interface GameState {
-  currentWeek: number;
+  currentDate: string; // YYYY-MM-DD
   currentSeason: number;
   isTransferWindowOpen: boolean;
   clubs: Club[];

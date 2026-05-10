@@ -22,22 +22,57 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
   const position = getRandomElement(['GK', 'DEF', 'MID', 'ATT'] as Position[]);
   const playerTierMultiplier = [1, 0.7, 0.5, 0.3, 0.15][leagueTier - 1] || 0.15;
 
+  // Position-specific attribute adjustments
+  let technicalAttrs = {
+    passing: getRandomRating(rating - 5, rating + 5),
+    shooting: getRandomRating(rating - 5, rating + 5),
+    dribbling: getRandomRating(rating - 5, rating + 5),
+    tackling: getRandomRating(rating - 5, rating + 5),
+    positioning: getRandomRating(rating - 5, rating + 5),
+    vision: getRandomRating(rating - 5, rating + 5),
+    finishing: getRandomRating(rating - 5, rating + 5),
+  };
+
+  let gkAttrs = {};
+
+  if (position === 'GK') {
+    technicalAttrs = {
+      passing: getRandomRating(rating - 8, rating - 2), // Lower passing for GK
+      shooting: getRandomRating(rating - 10, rating - 5), // Lower shooting
+      dribbling: getRandomRating(rating - 8, rating - 2), // Lower dribbling
+      tackling: getRandomRating(rating - 8, rating - 2), // Lower tackling
+      positioning: getRandomRating(rating - 3, rating + 7), // Higher positioning
+      vision: getRandomRating(rating - 5, rating + 3),
+      finishing: getRandomRating(rating - 10, rating - 5), // Lower finishing
+    };
+    gkAttrs = {
+      handling: getRandomRating(rating - 3, rating + 7),
+      commandOfArea: getRandomRating(rating - 3, rating + 7),
+      eccentricity: getRandomRating(20, 80), // GK personality trait
+      reflexes: getRandomRating(rating - 3, rating + 7),
+      rushingOut: getRandomRating(rating - 5, rating + 5),
+    };
+  } else if (position === 'DEF') {
+    technicalAttrs.tackling = getRandomRating(rating - 3, rating + 7); // Higher tackling for DEF
+    technicalAttrs.positioning = getRandomRating(rating - 3, rating + 7); // Higher positioning
+    technicalAttrs.passing = getRandomRating(rating - 3, rating + 7); // Higher passing
+  } else if (position === 'MID') {
+    technicalAttrs.passing = getRandomRating(rating - 3, rating + 7); // Higher passing for MID
+    technicalAttrs.vision = getRandomRating(rating - 3, rating + 7); // Higher vision
+    technicalAttrs.dribbling = getRandomRating(rating - 3, rating + 7); // Higher dribbling
+  } else if (position === 'ATT') {
+    technicalAttrs.shooting = getRandomRating(rating - 3, rating + 7); // Higher shooting for ATT
+    technicalAttrs.finishing = getRandomRating(rating - 3, rating + 7); // Higher finishing
+    technicalAttrs.dribbling = getRandomRating(rating - 3, rating + 7); // Higher dribbling
+  }
+
   return {
     id: Math.random().toString(36).substring(2, 11),
     firstName: getRandomElement(FIRST_NAMES),
     lastName: getRandomElement(LAST_NAMES),
     age,
     position,
-    technical: {
-      passing: getRandomRating(rating - 5, rating + 5),
-      shooting: getRandomRating(rating - 5, rating + 5),
-      dribbling: getRandomRating(rating - 5, rating + 5),
-      tackling: getRandomRating(rating - 5, rating + 5),
-      positioning: getRandomRating(rating - 5, rating + 5),
-      vision: getRandomRating(rating - 5, rating + 5),
-      finishing: getRandomRating(rating - 5, rating + 5),
-      ...(position === 'GK' ? { handling: getRandomRating(rating - 5, rating + 5) } : {}),
-    },
+    technical: { ...technicalAttrs, ...gkAttrs },
     physical: {
       pace: getRandomRating(rating - 5, rating + 10),
       strength: getRandomRating(rating - 5, rating + 5),
@@ -187,6 +222,7 @@ export const generateInitialData = (): GameState => {
         staffApplicants: [],
         scoutAssignments: [],
         scoutReports: [],
+        formation: '4-4-2' as Formation,
         history: [`Club founded in ${league.name}`]
       };
 
@@ -202,28 +238,29 @@ export const generateInitialData = (): GameState => {
       club.finances.expenses.playerWages = playerWages;
 
       // Generate Manager
+      const managerRatingBase = 40 + (5 - tier) * 10; // Higher tier = better managers
       const manager: Manager = {
         id: `m-${clubId}`,
         name: `${getRandomElement(FIRST_NAMES)} ${getRandomElement(LAST_NAMES)}`,
         coaching: {
-          attacking: getRandomRating(40, 90),
-          defensive: getRandomRating(40, 90),
-          tactical: getRandomRating(40, 90),
-          mental: getRandomRating(40, 90),
-          workingWithYouth: getRandomRating(40, 90),
+          attacking: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+          defensive: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+          tactical: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+          mental: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+          workingWithYouth: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
         },
         philosophy: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
-        pressing: getRandomRating(30, 95),
-        creativeFreedom: getRandomRating(30, 95),
+        pressing: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        creativeFreedom: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
         personality: {
-          discipline: getRandomRating(40, 95),
-          loyalty: getRandomRating(40, 95),
-          ambition: getRandomRating(40, 95),
-          mediaHandling: getRandomRating(40, 95),
-          playerManagement: getRandomRating(40, 95),
+          discipline: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+          loyalty: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+          ambition: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+          mediaHandling: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+          playerManagement: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
         },
-        coachingAbility: getRandomRating(40, 90),
-        tacticalIntelligence: getRandomRating(40, 90),
+        coachingAbility: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        tacticalIntelligence: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
         salary: Math.floor(5000 * tierMultiplier),
         clubId: clubId,
         relationshipWithChairman: 70,

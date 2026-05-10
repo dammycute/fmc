@@ -1,0 +1,6 @@
+I want the remaining amount after I bought a club to be added as the clubs balance. Players in the transfer market should reflect the leagues standard player. Each player category should have what a standard player attribute of that category should have. The goalkeeper should have goalkeeper attributes handling, eccentricity, etc.. 
+
+The game should follow proper callendar date, 1,2,3,4,... of the month and the matches should be based on date and when I press continue it shouldnt automatically take ne to the match it should skip the calendar day by day and when its a match day, it should show match. 
+
+When the match finishes, there is no way to go to the dashboard. I should be abble to set the formation on the boardroom. Manager shouldnt come with the team, managers in the market should march the league reputation. 
+All the numbers should be 2 decimal places, I should be able to set the tactics to whether possession or counterattack, etc..

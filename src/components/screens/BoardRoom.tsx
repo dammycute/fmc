@@ -10,10 +10,10 @@ import {
   Briefcase, Handshake, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import type { SeasonTarget } from '../../types/game';
+import type { SeasonTarget, Formation } from '../../types/game';
 
 const BoardRoom: React.FC = () => {
-  const { userClubId, clubs, managers, setSeasonTarget, setTransferBudget, acceptSponsor, renameClub } = useGameStore();
+  const { userClubId, clubs, managers, setSeasonTarget, setTransferBudget, acceptSponsor, renameClub, setFormation } = useGameStore();
   const [newClubName, setNewClubName] = useState('');
   const club = clubs.find(c => c.id === userClubId);
   const manager = managers.find(m => m.clubId === userClubId);
@@ -34,7 +34,7 @@ const BoardRoom: React.FC = () => {
         </div>
         <div className="flex gap-3">
           <Badge className="bg-zinc-800 text-zinc-400 px-4 py-2 border-none font-black uppercase text-[10px] tracking-widest">
-            {board.type} OWNERSHIP
+            {board.type.replace('_', ' ')} OWNERSHIP
           </Badge>
           <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2">
             <DollarSign className="w-3 h-3 text-emerald-400" />
@@ -90,6 +90,32 @@ const BoardRoom: React.FC = () => {
                 <p className="text-[10px] text-zinc-500 font-medium leading-relaxed italic">
                   * Changing objectives mid-season significantly impacts board confidence if targets are lowered.
                 </p>
+              </div>
+
+              {/* Formation Setting */}
+              <div className="space-y-6 pt-10 border-t border-white/5">
+                <div className="flex justify-between items-end">
+                  <h3 className="text-sm font-black text-white uppercase tracking-tight">Tactical Formation</h3>
+                  <Badge className="bg-emerald-600 text-white font-black text-[10px] px-3 py-1 uppercase">{club.formation}</Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {(['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-4-1', '4-4-2_DIAMOND'] as Formation[]).map(formation => (
+                    <button
+                      key={formation}
+                      onClick={() => setFormation(club.id, formation)}
+                      className={cn(
+                        "p-4 rounded-2xl border text-center transition-all",
+                        club.formation === formation 
+                          ? "bg-emerald-600 border-emerald-500 shadow-lg shadow-emerald-600/20" 
+                          : "bg-white/5 border-white/5 hover:border-white/10 text-zinc-500 hover:text-zinc-300"
+                      )}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-tighter whitespace-nowrap">
+                        {formation.replace('_', ' ')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Transfer Budget */}

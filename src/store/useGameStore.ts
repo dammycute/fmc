@@ -11,17 +11,20 @@ import { generateInitialData } from '../utils/dataGenerator';
 import { processAITransfers } from '../utils/transferEngine';
 
 const randomId = (length = 9) => Math.random().toString(36).substring(2, 2 + length);
-const isTransferWindowWeek = (week: number) => (week >= 1 && week <= 4) || (week >= 20 && week <= 24);
-const calcSponsorWeeklyIncome = (sponsors: Sponsor[]) => sponsors
+const isTransferWindowOpen = (date: string) => {
+  const month = new Date(date).getMonth() + 1; // 1-12
+  return (month >= 1 && month <= 2) || (month >= 7 && month <= 9);
+};
+const calcSponsorDailyIncome = (sponsors: Sponsor[]) => sponsors
   .filter((s) => s.status === 'ACTIVE')
-  .reduce((sum, sponsor) => sum + sponsor.amount / Math.max(1, sponsor.duration) / 38, 0);
+  .reduce((sum, sponsor) => sum + sponsor.amount / Math.max(1, sponsor.duration) / 38 / 7, 0);
 
 interface GameStore extends GameState {
   initializeGame: () => void;
   setGameState: (state: Partial<GameState>) => void;
   updateClub: (clubId: string, updates: Partial<Club>) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
-  advanceWeek: () => void;
+  advanceDay: () => void;
   respondToTransferRequest: (requestId: string, status: 'APPROVED' | 'REJECTED' | 'DELAYED', budgetLimit?: number) => void;
   sackManager: (managerId: string) => void;
   hireManager: (clubId: string, manager: Manager) => void;
@@ -35,6 +38,8 @@ interface GameStore extends GameState {
   generateNews: (story: Omit<NewsStory, 'id' | 'date'>) => void;
   negotiateBid: (bidId: string, counterAmount: number) => void;
   respondToTransferBid: (bidId: string, status: 'ACCEPTED' | 'REJECTED' | 'CANCELLED') => void;
+  finalizeTransfer: (bidId: string) => void;
+  makeTransferBid: (playerId: string, clubId: string, amount: number) => void;
   prepareMatchday: () => Match | null;
   finalizeMatchday: (userMatch: Match) => void;
   setSeasonTarget: (clubId: string, target: SeasonTarget) => void;
@@ -43,12 +48,11 @@ interface GameStore extends GameState {
   buyClub: (clubId: string) => void;
   sellClub: (clubId: string) => void;
   renameClub: (clubId: string, newName: string) => void;
-  skipWeeks: (weeks: number) => void;
-  resetGame: () => void;
+  skipWeeks: (weeks: number) => void;  setFormation: (clubId: string, formation: Formation) => void;  resetGame: () => void;
 }
 
 const initialState: GameState = {
-  currentWeek: 0,
+  currentDate: '2024-08-01',
   currentSeason: 2024,
   isTransferWindowOpen: false,
   clubs: [],
@@ -73,7 +77,7 @@ export const useGameStore = create<GameStore>()(
         const data = generateInitialData();
         set({
           ...data,
-          currentWeek: 1,
+          currentDate: '2024-08-01',
           currentSeason: 2024,
           userClubId: data.clubs.find(c => c.isUserControlled)?.id || null,
         });
@@ -252,26 +256,27 @@ export const useGameStore = create<GameStore>()(
         }));
       },
 
-      advanceWeek: () => {
+      advanceDay: () => {
         const state = get();
-        const { currentWeek, currentSeason, clubs, players, leagues, userClubId } = state;
-        const transferWindowOpen = isTransferWindowWeek(currentWeek);
+        const { currentDate, currentSeason, clubs, players, leagues, userClubId } = state;
+        const transferWindowOpen = isTransferWindowOpen(currentDate);
 
         const transferUpdates = processAITransfers({ ...state, isTransferWindowOpen: transferWindowOpen });
         const clubsAfterTransfers = transferUpdates.clubs || clubs;
         const playersAfterTransfers = transferUpdates.players || players;
 
-        const userMatch = userClubId ? state.matches.find(m => (m.homeClubId === userClubId || m.awayClubId === userClubId) && m.week === currentWeek && !m.played) : undefined;
-        const fixtures = state.matches.filter(m => m.week === currentWeek && !m.played && m.id !== userMatch?.id);
+        // Check if there's a match today
+        const todayMatch = state.matches.find(m => m.date === currentDate && !m.played);
+        let playedMatches: Match[] = [];
 
-        const playedMatches = fixtures.map((fixture) => {
-          const homeClub = clubsAfterTransfers.find(c => c.id === fixture.homeClubId)!;
-          const awayClub = clubsAfterTransfers.find(c => c.id === fixture.awayClubId)!;
+        if (todayMatch) {
+          const homeClub = clubsAfterTransfers.find(c => c.id === todayMatch.homeClubId)!;
+          const awayClub = clubsAfterTransfers.find(c => c.id === todayMatch.awayClubId)!;
           const homePlayers = playersAfterTransfers.filter(p => p.clubId === homeClub.id);
           const awayPlayers = playersAfterTransfers.filter(p => p.clubId === awayClub.id);
-          const result = simulateMatch(homeClub, awayClub, homePlayers, awayPlayers, currentWeek, currentSeason);
-          return { ...result, id: fixture.id, week: fixture.week, season: fixture.season, homeClubId: fixture.homeClubId, awayClubId: fixture.awayClubId, played: true };
-        });
+          const result = simulateMatch(homeClub, awayClub, homePlayers, awayPlayers, 1, currentSeason); // week not used anymore
+          playedMatches = [{ ...result, id: todayMatch.id, date: todayMatch.date, season: todayMatch.season, homeClubId: todayMatch.homeClubId, awayClubId: todayMatch.awayClubId, played: true }];
+        }
 
         const matchResults = new Map(playedMatches.map(m => [m.id, m]));
         const updatedMatches = state.matches.map((fixture) => matchResults.has(fixture.id) ? matchResults.get(fixture.id)! : fixture);
@@ -285,11 +290,11 @@ export const useGameStore = create<GameStore>()(
           let boardConfidence = club.boardConfidence;
           const history = [...club.history];
 
-          const sponsorIncome = calcSponsorWeeklyIncome(club.activeSponsors);
+          const sponsorIncome = calcSponsorDailyIncome(club.activeSponsors);
           finances.revenue.sponsorship = sponsorIncome;
-          const tvRights = tier === 1 ? 240000 : tier === 2 ? 120000 : tier === 3 ? 75000 : tier === 4 ? 42000 : 22000;
+          const tvRights = (tier === 1 ? 240000 : tier === 2 ? 120000 : tier === 3 ? 75000 : tier === 4 ? 42000 : 22000) / 7;
           finances.revenue.tvRights = tvRights;
-          const merchandise = Math.max(0, Math.floor(club.reputation * 350 + (20 - tier) * 250));
+          const merchandise = Math.max(0, Math.floor(club.reputation * 350 + (20 - tier) * 250)) / 7;
           finances.revenue.merchandise = merchandise;
           finances.revenue.prizeMoney = finances.revenue.prizeMoney || 0;
 
@@ -338,9 +343,9 @@ export const useGameStore = create<GameStore>()(
           if (!club) return player;
 
           const updatedPlayer = { ...player };
-          updatedPlayer.fatigue = Math.max(0, updatedPlayer.fatigue - 15);
-          updatedPlayer.fitness = Math.min(100, updatedPlayer.fitness + 10);
-          if (Math.random() < 0.07) updatedPlayer.overallRating = Math.min(updatedPlayer.potentialRating, updatedPlayer.overallRating + 0.2);
+          updatedPlayer.fatigue = Math.max(0, updatedPlayer.fatigue - 2);
+          updatedPlayer.fitness = Math.min(100, updatedPlayer.fitness + 1.5);
+          if (Math.random() < 0.01) updatedPlayer.overallRating = Math.min(updatedPlayer.potentialRating, updatedPlayer.overallRating + 0.2 / 7);
 
           if (updatedPlayer.form.length >= 5) {
             updatedPlayer.form = [...updatedPlayer.form.slice(1), 6 + Math.random() * 3];
@@ -658,10 +663,17 @@ export const useGameStore = create<GameStore>()(
         const club = state.clubs.find(c => c.id === clubId);
         if (!club || state.personalBalance < club.valuation) return;
 
+        const remainingBalance = state.personalBalance - club.valuation;
+
         set({
           userClubId: clubId,
-          personalBalance: state.personalBalance - club.valuation,
-          clubs: state.clubs.map(c => c.id === clubId ? { ...c, isUserControlled: true, history: [...c.history, `Club acquired by new owner`] } : c)
+          personalBalance: 0,
+          clubs: state.clubs.map(c => c.id === clubId ? { 
+            ...c, 
+            isUserControlled: true, 
+            finances: { ...c.finances, balance: c.finances.balance + remainingBalance },
+            history: [...c.history, `Club acquired by new owner`] 
+          } : c)
         });
       },
 
@@ -734,6 +746,70 @@ export const useGameStore = create<GameStore>()(
             transferBids: state.transferBids.map(b => b.id === bidId ? { ...b, amount: newAiBid, negotiationCount: b.negotiationCount + 1 } : b)
           });
         }
+      },
+
+      respondToTransferBid: (bidId, status) => {
+        set((state) => ({
+          transferBids: state.transferBids.map(b => b.id === bidId ? { ...b, status } : b)
+        }));
+      },
+
+      finalizeTransfer: (bidId) => {
+        const state = get();
+        const bid = state.transferBids.find(b => b.id === bidId);
+        if (!bid || bid.status !== 'ACCEPTED') return;
+        const player = state.players.find(p => p.id === bid.playerId);
+        if (!player) return;
+
+        set({
+          transferBids: state.transferBids.filter(b => b.id !== bidId),
+          players: state.players.map(p => p.id === bid.playerId ? { ...p, clubId: bid.fromClubId, isTransferListed: false } : p),
+          clubs: state.clubs.map(c => {
+            if (c.id === bid.fromClubId) {
+              return { 
+                ...c, 
+                finances: { ...c.finances, balance: c.finances.balance - bid.amount },
+                transferBudget: Math.max(0, c.transferBudget - bid.amount),
+                history: [...c.history, `Signed ${player.firstName} ${player.lastName} for £${(bid.amount / 1000000).toFixed(1)}M`]
+              };
+            }
+            if (c.id === bid.toClubId) {
+              return { 
+                ...c, 
+                finances: { ...c.finances, balance: c.finances.balance + bid.amount },
+                history: [...c.history, `Sold ${player.firstName} ${player.lastName} for £${(bid.amount / 1000000).toFixed(1)}M`]
+              };
+            }
+            return c;
+          })
+        });
+      },
+
+      makeTransferBid: (playerId, clubId, amount) => {
+        const state = get();
+        const player = state.players.find(p => p.id === playerId);
+        if (!player) return;
+        const bid: TransferBid = {
+          id: randomId(),
+          playerId,
+          fromClubId: clubId,
+          toClubId: player.clubId,
+          amount,
+          status: 'PENDING',
+          week: state.currentWeek,
+          season: state.currentSeason,
+          isPlayerInterested: true,
+          negotiationCount: 0
+        };
+        set({
+          transferBids: [...state.transferBids, bid]
+        });
+      },
+
+      setFormation: (clubId, formation) => {
+        set((state) => ({
+          clubs: state.clubs.map(c => c.id === clubId ? { ...c, formation } : c)
+        }));
       },
 
       resetGame: () => set(initialState),

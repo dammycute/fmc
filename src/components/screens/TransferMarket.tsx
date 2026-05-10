@@ -19,7 +19,7 @@ import {
 } from "../ui/dialog";
 
 const TransferMarket: React.FC = () => {
-  const { players, clubs, userClubId, transferBids, negotiateBid } = useGameStore();
+  const { players, clubs, userClubId, transferBids, negotiateBid, respondToTransferBid, finalizeTransfer, makeTransferBid } = useGameStore();
   const [activeTab, setActiveTab] = useState<'market' | 'inbox'>('market');
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [counterAmount, setCounterAmount] = useState<string>('');
@@ -136,7 +136,10 @@ const TransferMarket: React.FC = () => {
                       </div>
                     </div>
 
-                    <Button className="w-full bg-white/5 hover:bg-indigo-600 text-white font-black h-10 rounded-xl transition-all uppercase tracking-widest text-[10px]">
+                    <Button 
+                      onClick={() => makeTransferBid(player.id, userClubId, player.value)}
+                      className="w-full bg-white/5 hover:bg-indigo-600 text-white font-black h-10 rounded-xl transition-all uppercase tracking-widest text-[10px]"
+                    >
                       Make Inquiry
                     </Button>
                   </div>
@@ -208,6 +211,7 @@ const TransferMarket: React.FC = () => {
                               Negotiate
                             </Button>
                             <Button 
+                              onClick={() => respondToTransferBid(bid.id, 'REJECTED')}
                               variant="destructive"
                               className="font-black h-12 px-6 rounded-xl uppercase tracking-widest text-[10px]"
                             >
@@ -216,7 +220,10 @@ const TransferMarket: React.FC = () => {
                           </>
                         )}
                         {bid.status === 'ACCEPTED' && (
-                          <Button className="bg-emerald-600 hover:bg-emerald-500 text-white font-black h-12 px-8 rounded-xl uppercase tracking-widest text-[10px]">
+                          <Button 
+                            onClick={() => finalizeTransfer(bid.id)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-black h-12 px-8 rounded-xl uppercase tracking-widest text-[10px]"
+                          >
                             Finalize Deal
                           </Button>
                         )}

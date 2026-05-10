@@ -10,7 +10,7 @@ import {
 import { cn } from '../../lib/utils';
 
 const Schedule: React.FC = () => {
-  const { userClubId, clubs, matches, currentWeek } = useGameStore();
+  const { userClubId, clubs, matches, currentWeek, currentSeason } = useGameStore();
   
   const userClub = clubs.find(c => c.id === userClubId);
   if (!userClub) return null;
@@ -28,7 +28,7 @@ const Schedule: React.FC = () => {
       <div className="flex justify-between items-end border-b border-white/5 pb-8">
         <div>
           <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">Fixture Schedule</h1>
-          <p className="text-zinc-500 font-medium mt-1">2024/25 League Campaign • Week {currentWeek} of 38</p>
+          <p className="text-zinc-500 font-medium mt-1">{currentSeason}/{currentSeason + 1} League Campaign • Week {currentWeek} of 38</p>
         </div>
         <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-4 py-2 rounded-xl">
           <Calendar className="w-3 h-3" /> FULL CALENDAR
