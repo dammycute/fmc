@@ -1,13 +1,15 @@
 import { type GameState, type Player, type TransferBid } from '../types/game';
 
+const getRandomElement = <T>(arr: T[]): T | undefined => arr[Math.floor(Math.random() * arr.length)];
+
 export const processAITransfers = (state: GameState): Partial<GameState> => {
   const { currentWeek, currentSeason, clubs, players, transferBids, isTransferWindowOpen, userClubId } = state;
 
   if (!isTransferWindowOpen) return {};
 
   const newBids: TransferBid[] = [...transferBids];
-  const updatedPlayers = [...players];
-  const updatedClubs = [...clubs];
+  const updatedPlayers = players.map(p => ({ ...p }));
+  const updatedClubs = clubs.map(c => ({ ...c, finances: { ...c.finances } }));
 
   // 1. Process existing pending bids (AI to AI)
   newBids.forEach(bid => {
@@ -25,62 +27,53 @@ export const processAITransfers = (state: GameState): Partial<GameState> => {
     const isGoodDeal = bid.amount >= valuation;
     
     if (isGoodDeal || (toClub.finances.balance < 0 && bid.amount > player.value * 0.8)) {
-      // Accept deal
       bid.status = 'ACCEPTED';
       
-      // Execute Transfer
+      // Execute transfer and keep wage obligations accurate.
+      const oldClub = toClub;
+      const newClub = fromClub;
       player.clubId = bid.fromClubId;
-      toClub.finances.balance += bid.amount;
-      fromClub.finances.balance -= bid.amount;
+      oldClub.finances.balance += bid.amount;
+      newClub.finances.balance -= bid.amount;
+
+      oldClub.finances.weeklyWages = Math.max(0, oldClub.finances.weeklyWages - player.wage);
+      oldClub.finances.expenses.playerWages = oldClub.finances.weeklyWages;
+      newClub.finances.weeklyWages += player.wage;
+      newClub.finances.expenses.playerWages = newClub.finances.weeklyWages;
       
-      // Update history
-      toClub.history.push(`Sold ${player.lastName} to ${fromClub.name} for £${(bid.amount / 1000000).toFixed(1)}M`);
-      fromClub.history.push(`Signed ${player.lastName} from ${toClub.name} for £${(bid.amount / 1000000).toFixed(1)}M`);
+      oldClub.history.push(`Sold ${player.lastName} to ${newClub.name} for £${(bid.amount / 1000000).toFixed(1)}M`);
+      newClub.history.push(`Signed ${player.lastName} from ${oldClub.name} for £${(bid.amount / 1000000).toFixed(1)}M`);
     } else {
       bid.status = 'REJECTED';
     }
   });
 
-  // 2. Generate New AI Bids
+  // 2. Generate new AI bids using broader target pools and preventing repeated targeting.
   clubs.forEach(club => {
     if (club.isUserControlled) return;
-    if (club.finances.balance < 5000000) return; // Need some cash to bid
+    if (club.finances.balance < 5000000) return;
 
-    // Logic for "Elite" vs "Small" clubs
+    const pendingPlayerIds = new Set(newBids.filter(b => b.status === 'PENDING').map(b => b.playerId));
+    const candidatePool = updatedPlayers.filter(p => p.clubId !== club.id && !pendingPlayerIds.has(p.id));
+    if (!candidatePool.length) return;
+
     const isElite = club.reputation > 80;
     const isSmall = club.reputation < 40;
 
-    // Search for targets
-    let target: Player | undefined;
-
+    let targets: Player[] = [];
     if (isElite) {
-      // Elite clubs poach wonderkids from lower leagues
-      target = updatedPlayers.find(p => 
-        p.clubId !== club.id && 
-        p.potentialRating > 85 && 
-        p.age < 21 &&
-        !newBids.some(b => b.playerId === p.id && b.status === 'PENDING')
-      );
+      targets = candidatePool.filter(p => p.potentialRating > 84 && p.age < 22 && p.value < club.finances.balance * 0.6);
     } else if (isSmall) {
-      // Small clubs look for cheap veterans or transfer listed
-      target = updatedPlayers.find(p => 
-        p.clubId !== club.id && 
-        (p.isTransferListed || p.age > 30) && 
-        p.value < club.finances.balance * 0.2
-      );
+      targets = candidatePool.filter(p => (p.isTransferListed || p.age > 30) && p.value < club.finances.balance * 0.25);
     } else {
-      // Mid-table logic
-      target = updatedPlayers.find(p => 
-        p.clubId !== club.id && 
-        p.overallRating > 75 && 
-        p.value < club.finances.balance * 0.4
-      );
+      targets = candidatePool.filter(p => p.overallRating > 72 && p.value < club.finances.balance * 0.4);
     }
 
-    if (target && Math.random() > 0.95) { // Small chance each week
-      const bidAmount = target.value * (1.1 + Math.random() * 0.4);
+    const target = getRandomElement(targets);
+    if (target && Math.random() > 0.92) {
+      const bidAmount = Math.floor(target.value * (1.05 + Math.random() * 0.3));
       newBids.push({
-        id: Math.random().toString(36).substr(2, 9),
+        id: Math.random().toString(36).substring(2, 11),
         playerId: target.id,
         fromClubId: club.id,
         toClubId: target.clubId,

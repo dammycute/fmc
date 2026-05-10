@@ -12,18 +12,18 @@ const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.
 const getRandomRating = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 export const generatePlayer = (clubId: string, leagueTier: number, isYouth = false): Player => {
-  const baseMin = 80 - (leagueTier * 10);
-  const baseMax = 90 - (leagueTier * 10);
+  const baseMin = 72 - (leagueTier - 1) * 6;
+  const baseMax = 82 - (leagueTier - 1) * 6;
   const age = isYouth ? 16 + Math.floor(Math.random() * 4) : 18 + Math.floor(Math.random() * 15);
   
-  const rating = getRandomRating(Math.max(30, baseMin), Math.min(95, baseMax));
-  const potential = Math.min(99, rating + Math.floor(Math.random() * 15));
+  const rating = getRandomRating(Math.max(30, baseMin), Math.min(92, baseMax));
+  const potential = Math.min(99, rating + Math.floor(Math.random() * 18));
 
   const position = getRandomElement(['GK', 'DEF', 'MID', 'ATT'] as Position[]);
-  const playerTierMultiplier = [1, 0.25, 0.05, 0.01, 0.005][leagueTier - 1] || 0.005;
+  const playerTierMultiplier = [1, 0.7, 0.5, 0.3, 0.15][leagueTier - 1] || 0.15;
 
   return {
-    id: Math.random().toString(36).substr(2, 9),
+    id: Math.random().toString(36).substring(2, 11),
     firstName: getRandomElement(FIRST_NAMES),
     lastName: getRandomElement(LAST_NAMES),
     age,
@@ -98,6 +98,16 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
 
 const clubSuffixes = ['United', 'FC', 'City', 'Town', 'Athletic', 'Wanderers', 'Rovers', 'Albion', 'County', 'Harriers', 'Swifts', 'Sporting', 'Rangers', 'Strollers'];
 const placeNames = ['Bromley', 'Dorking', 'Sutton', 'Boreham', 'Ebbsfleet', 'Solihull', 'Maidenhead', 'Wealdstone', 'Altrincham', 'Eastleigh', 'Dartford', 'Havant', 'Chelmsford', 'Maidstone', 'Tonbridge', 'St Albans', 'Hemel', 'Worthing', 'Braintree', 'Chippenham', 'Weymouth', 'Slough'];
+const usedClubNames = new Set<string>();
+
+const generateClubName = (): string => {
+  let name = `${getRandomElement(placeNames)} ${getRandomElement(clubSuffixes)}`;
+  while (usedClubNames.has(name)) {
+    name = `${getRandomElement(placeNames)} ${getRandomElement(clubSuffixes)}`;
+  }
+  usedClubNames.add(name);
+  return name;
+};
 
 export const generateInitialData = (): GameState => {
   const leagues: League[] = [
@@ -121,7 +131,7 @@ export const generateInitialData = (): GameState => {
       const ownerType: OwnershipType = getRandomElement(['LOCAL', 'BILLIONAIRE', 'CORPORATE', 'FAN_OWNED']);
       const expectations: BoardExpectation = league.tier === 1 ? 'QUALIFY_EUROPE' : league.tier === 2 ? 'PROMOTION' : 'MID_TABLE';
       const culture: ClubCultureType[] = [getRandomElement(['YOUTH_DEVELOPMENT', 'WINNING', 'SELLING', 'PRAGMATIC', 'LUXURY_FOOTBALL'])];
-      const clubName = `${getRandomElement(placeNames)} ${getRandomElement(clubSuffixes)}`;
+      const clubName = generateClubName();
 
       const club: Club = {
         id: clubId,
@@ -187,7 +197,9 @@ export const generateInitialData = (): GameState => {
         squad.push(player);
         allPlayers.push(player);
       }
-      club.finances.weeklyWages = squad.reduce((sum, p) => sum + p.wage, 0);
+      const playerWages = squad.reduce((sum, p) => sum + p.wage, 0);
+      club.finances.weeklyWages = playerWages;
+      club.finances.expenses.playerWages = playerWages;
 
       // Generate Manager
       const manager: Manager = {
@@ -225,6 +237,40 @@ export const generateInitialData = (): GameState => {
       managers.push(manager);
     }
   });
+
+  // Create a small pool of free managers for the staff market
+  for (let i = 0; i < 10; i++) {
+    managers.push({
+      id: `free-manager-${i}`,
+      name: `${getRandomElement(FIRST_NAMES)} ${getRandomElement(LAST_NAMES)}`,
+      coaching: {
+        attacking: getRandomRating(40, 90),
+        defensive: getRandomRating(40, 90),
+        tactical: getRandomRating(40, 90),
+        mental: getRandomRating(40, 90),
+        workingWithYouth: getRandomRating(40, 90),
+      },
+      philosophy: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
+      pressing: getRandomRating(30, 95),
+      creativeFreedom: getRandomRating(30, 95),
+      personality: {
+        discipline: getRandomRating(40, 95),
+        loyalty: getRandomRating(40, 95),
+        ambition: getRandomRating(40, 95),
+        mediaHandling: getRandomRating(40, 95),
+        playerManagement: getRandomRating(40, 95),
+      },
+      coachingAbility: getRandomRating(40, 90),
+      tacticalIntelligence: getRandomRating(40, 90),
+      salary: Math.floor(5000 + Math.random() * 10000),
+      clubId: '',
+      relationshipWithChairman: 50,
+      morale: 70,
+      preferredStyle: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
+      preferredFormation: getRandomElement(['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-4-1'] as Formation[]),
+      history: [`Available for hire from day one`]
+    });
+  }
 
   const allMatches: Match[] = [];
   

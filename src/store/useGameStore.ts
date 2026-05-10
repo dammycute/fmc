@@ -4,11 +4,17 @@ import {
   type GameState, type Club, type Player, type Match, 
   type Manager, type Staff, type StaffRole, 
   type SeasonTarget, type TransferBid, type NewsStory,
-  type OwnershipType
+  type Sponsor
 } from '../types/game';
 import { simulateMatch } from '../utils/matchEngine';
 import { generateInitialData } from '../utils/dataGenerator';
 import { processAITransfers } from '../utils/transferEngine';
+
+const randomId = (length = 9) => Math.random().toString(36).substring(2, 2 + length);
+const isTransferWindowWeek = (week: number) => (week >= 1 && week <= 4) || (week >= 20 && week <= 24);
+const calcSponsorWeeklyIncome = (sponsors: Sponsor[]) => sponsors
+  .filter((s) => s.status === 'ACTIVE')
+  .reduce((sum, sponsor) => sum + sponsor.amount / Math.max(1, sponsor.duration) / 38, 0);
 
 interface GameStore extends GameState {
   initializeGame: () => void;
@@ -55,7 +61,7 @@ const initialState: GameState = {
   transferBids: [],
   news: [],
   userClubId: null,
-  personalBalance: 250000,
+  personalBalance: 500000,
 };
 
 export const useGameStore = create<GameStore>()(
@@ -93,7 +99,7 @@ export const useGameStore = create<GameStore>()(
         const manager = state.managers.find(m => m.id === request.managerId);
         if (!manager) return;
 
-        let relationshipImpact = status === 'APPROVED' ? 10 : status === 'REJECTED' ? -15 : -2;
+        const relationshipImpact = status === 'APPROVED' ? 10 : status === 'REJECTED' ? -15 : -2;
 
         set({
           transferRequests: state.transferRequests.map(r => r.id === requestId ? { ...r, status, budgetLimit } : r),
@@ -126,19 +132,22 @@ export const useGameStore = create<GameStore>()(
         if (!club) return;
 
         const facility = club.facilities[type];
-        if (club.finances.balance < facility.upgradeCost) return;
+        const tier = state.leagues.find(l => l.id === club.leagueId)?.tier || 3;
+        const tierMultiplier = tier === 1 ? 4 : tier === 2 ? 2.5 : tier === 3 ? 1.6 : 1.2;
+        const upgradeCost = Math.floor(facility.upgradeCost * tierMultiplier);
+        if (club.finances.balance < upgradeCost) return;
 
         set({
           clubs: state.clubs.map(c => c.id === clubId ? {
             ...c,
-            finances: { ...c.finances, balance: c.finances.balance - facility.upgradeCost },
+            finances: { ...c.finances, balance: c.finances.balance - upgradeCost },
             facilities: {
               ...c.facilities,
               [type]: {
                 ...facility,
                 level: facility.level + 1,
-                upgradeCost: Math.floor(facility.upgradeCost * 1.5),
-                ...(type === 'stadium' ? { capacity: Math.floor((facility as any).capacity * 1.1) } : {})
+                upgradeCost: Math.floor(upgradeCost * 1.4),
+                ...(type === 'stadium' ? { capacity: Math.floor(c.facilities.stadium.capacity * 1.15) } : {})
               }
             },
             history: [...c.history, `Upgraded ${type} to level ${facility.level + 1}`]
@@ -245,177 +254,162 @@ export const useGameStore = create<GameStore>()(
 
       advanceWeek: () => {
         const state = get();
-        const { currentWeek, currentSeason, clubs, players, leagues, managers } = state;
+        const { currentWeek, currentSeason, clubs, players, leagues, userClubId } = state;
+        const transferWindowOpen = isTransferWindowWeek(currentWeek);
 
-        const isTransferWindowOpen = (currentWeek >= 1 && currentWeek <= 4) || (currentWeek >= 20 && currentWeek <= 24);
-
-        const transferUpdates = processAITransfers({ ...state, isTransferWindowOpen });
+        const transferUpdates = processAITransfers({ ...state, isTransferWindowOpen: transferWindowOpen });
         const clubsAfterTransfers = transferUpdates.clubs || clubs;
         const playersAfterTransfers = transferUpdates.players || players;
 
-        const newMatches: Match[] = [];
-        leagues.forEach(league => {
-          const leagueClubs = clubsAfterTransfers.filter(c => c.leagueId === league.id);
-          const shuffledClubs = [...leagueClubs].sort(() => Math.random() - 0.5);
-          for (let i = 0; i < shuffledClubs.length; i += 2) {
-            const home = shuffledClubs[i];
-            const away = shuffledClubs[i + 1];
-            if (home && away) {
-              const match = simulateMatch(home, away, playersAfterTransfers.filter(p => p.clubId === home.id), playersAfterTransfers.filter(p => p.clubId === away.id), currentWeek, currentSeason);
-              newMatches.push(match);
-            }
-          }
+        const userMatch = userClubId ? state.matches.find(m => (m.homeClubId === userClubId || m.awayClubId === userClubId) && m.week === currentWeek && !m.played) : undefined;
+        const fixtures = state.matches.filter(m => m.week === currentWeek && !m.played && m.id !== userMatch?.id);
+
+        const playedMatches = fixtures.map((fixture) => {
+          const homeClub = clubsAfterTransfers.find(c => c.id === fixture.homeClubId)!;
+          const awayClub = clubsAfterTransfers.find(c => c.id === fixture.awayClubId)!;
+          const homePlayers = playersAfterTransfers.filter(p => p.clubId === homeClub.id);
+          const awayPlayers = playersAfterTransfers.filter(p => p.clubId === awayClub.id);
+          const result = simulateMatch(homeClub, awayClub, homePlayers, awayPlayers, currentWeek, currentSeason);
+          return { ...result, id: fixture.id, week: fixture.week, season: fixture.season, homeClubId: fixture.homeClubId, awayClubId: fixture.awayClubId, played: true };
         });
 
-        const updatedClubs = clubsAfterTransfers.map(club => {
-          const league = leagues.find(l => l.id === club.leagueId);
-          const tier = league?.tier || 3;
-          const tierMult = tier === 1 ? 5 : tier === 2 ? 2.5 : 1;
+        const matchResults = new Map(playedMatches.map(m => [m.id, m]));
+        const updatedMatches = state.matches.map((fixture) => matchResults.has(fixture.id) ? matchResults.get(fixture.id)! : fixture);
 
+        const updatedClubs = clubsAfterTransfers.map((club) => {
+          const league = leagues.find((l) => l.id === club.leagueId);
+          const tier = league?.tier || 3;
           const finances = { ...club.finances };
           const board = { ...club.board };
           let fanConfidence = club.fanConfidence;
           let boardConfidence = club.boardConfidence;
-          let history = [...club.history];
+          const history = [...club.history];
 
-          const maintenanceCost = (finances.expenses.facilityMaintenance || 5000) * tierMult;
-          const totalExpenses = (finances.weeklyWages + finances.weeklyStaffWages + maintenanceCost);
+          const sponsorIncome = calcSponsorWeeklyIncome(club.activeSponsors);
+          finances.revenue.sponsorship = sponsorIncome;
+          const tvRights = tier === 1 ? 240000 : tier === 2 ? 120000 : tier === 3 ? 75000 : tier === 4 ? 42000 : 22000;
+          finances.revenue.tvRights = tvRights;
+          const merchandise = Math.max(0, Math.floor(club.reputation * 350 + (20 - tier) * 250));
+          finances.revenue.merchandise = merchandise;
+          finances.revenue.prizeMoney = finances.revenue.prizeMoney || 0;
+
+          const match = playedMatches.find((m) => m.homeClubId === club.id || m.awayClubId === club.id);
+          const ticketPrice = tier === 1 ? 60 : tier === 2 ? 40 : 25;
+          let ticketIncome = 0;
+
+          if (match && match.homeClubId === club.id) {
+            const won = match.homeScore > match.awayScore;
+            const drew = match.homeScore === match.awayScore;
+            const performanceBonus = won ? 1.2 : drew ? 1.0 : 0.7;
+            ticketIncome = Math.min(club.facilities.stadium.capacity, club.reputation * 90 * performanceBonus + Math.random() * 1000) * ticketPrice;
+            finances.revenue.tickets = ticketIncome;
+          } else {
+            finances.revenue.tickets = 0;
+          }
+
+          finances.balance += sponsorIncome + tvRights + merchandise + ticketIncome;
+          finances.expenses.playerWages = finances.weeklyWages;
+          finances.expenses.staffWages = finances.weeklyStaffWages;
+          const maintenanceCost = (finances.expenses.facilityMaintenance || 5000) * (tier === 1 ? 2.8 : tier === 2 ? 2.0 : 1.3);
+          const totalExpenses = finances.expenses.playerWages + finances.expenses.staffWages + maintenanceCost + (finances.expenses.loanRepayments || 0);
           finances.balance -= totalExpenses;
-
-          const baseSponsorship = (finances.revenue.sponsorship || 50000) * tierMult;
-          finances.balance += (baseSponsorship / 4);
-
-          const match = newMatches.find(m => m.homeClubId === club.id || m.awayClubId === club.id);
 
           if (match) {
             const isHome = match.homeClubId === club.id;
             const won = isHome ? match.homeScore > match.awayScore : match.awayScore > match.homeScore;
             const drew = match.homeScore === match.awayScore;
-
-            if (isHome) {
-              const ticketPrice = tier === 1 ? 60 : tier === 2 ? 40 : 25;
-              const performanceBonus = won ? 1.2 : drew ? 1.0 : 0.7;
-              const attendance = Math.min(club.facilities.stadium.capacity, (club.reputation * 100) * performanceBonus + (Math.random() * 1000));
-              const ticketIncome = attendance * ticketPrice;
-              finances.revenue.tickets = ticketIncome;
-              finances.balance += ticketIncome;
-            }
-
             const confidenceChange = won ? 5 : drew ? 1 : -8;
             fanConfidence = Math.max(0, Math.min(100, fanConfidence + confidenceChange));
             const impatienceMult = (100 - board.patience) / 50;
-            boardConfidence = Math.max(0, Math.min(100, boardConfidence + (confidenceChange * impatienceMult)));
-
+            boardConfidence = Math.max(0, Math.min(100, boardConfidence + confidenceChange * impatienceMult));
             if (fanConfidence < 20 && Math.random() < 0.1) {
               history.push(`FAN PROTEST: Supporters gather outside ${club.stadiumName} demanding change!`);
-              boardConfidence -= 5;
+              boardConfidence = Math.max(0, boardConfidence - 5);
             }
           }
 
-          let staffApplicants = [...(club.staffApplicants || [])];
-          let staffAds = (club.staffAds || []).map(ad => ({ ...ad, weeksRemaining: ad.weeksRemaining - 1 }));
+          board.confidence = boardConfidence;
 
-          staffAds.forEach(ad => {
-            if (ad.weeksRemaining <= 0) {
-              const count = Math.floor(Math.random() * 3) + 1;
-              for (let i = 0; i < count; i++) {
-                const baseRating = Math.floor(club.reputation + (Math.random() * 20));
-                staffApplicants.push({
-                  id: Math.random().toString(36).substr(2, 9),
-                  name: `Candidate ${Math.random().toString(36).substr(2, 4)}`,
-                  role: ad.role,
-                  rating: Math.min(99, baseRating),
-                  salary: Math.floor(baseRating * 150),
-                  clubId: club.id,
-                  isApplicant: true
-                });
-              }
-            }
-          });
-          staffAds = staffAds.filter(ad => ad.weeksRemaining > 0);
-
-          let scoutAssignments = (club.scoutAssignments || []).map(a => {
-            const progress = Math.min(100, a.progress + 15 + Math.random() * 10);
-            const playersFound = [...a.playersFound];
-            if (progress >= 100 && Math.random() < 0.4) {
-              const potentialPlayer = playersAfterTransfers[Math.floor(Math.random() * playersAfterTransfers.length)];
-              if (!playersFound.includes(potentialPlayer.id)) playersFound.push(potentialPlayer.id);
-            }
-            return { ...a, progress, playersFound };
-          });
-
-          if (Math.random() < 0.001) {
-            const newType: OwnershipType = Math.random() > 0.7 ? 'BILLIONAIRE' : 'CORPORATE';
-            board.type = newType;
-            board.funds = newType === 'BILLIONAIRE' ? 100000000 : 0;
-            board.patience = newType === 'BILLIONAIRE' ? 30 : 60;
-            history.push(`TAKEOVER: ${club.name} has been acquired by a ${newType} consortium!`);
-          }
-
-          return { ...club, finances, board, fanConfidence, boardConfidence, history, staffAds, staffApplicants, scoutAssignments };
+          return { ...club, finances, board, fanConfidence, boardConfidence, history };
         });
 
-        const updatedPlayers = playersAfterTransfers.map(player => {
-          const club = updatedClubs.find(c => c.id === player.clubId);
-          const manager = managers.find(m => m.clubId === player.clubId);
+        const updatedPlayers = playersAfterTransfers.map((player) => {
+          const club = updatedClubs.find((c) => c.id === player.clubId);
           if (!club) return player;
 
-          let { overallRating, fitness, fatigue, morale, chemistry, potentialRating, hidden, happiness } = { ...player };
+          const updatedPlayer = { ...player };
+          updatedPlayer.fatigue = Math.max(0, updatedPlayer.fatigue - 15);
+          updatedPlayer.fitness = Math.min(100, updatedPlayer.fitness + 10);
+          if (Math.random() < 0.07) updatedPlayer.overallRating = Math.min(updatedPlayer.potentialRating, updatedPlayer.overallRating + 0.2);
 
-          const recoveryMod = (hidden.professionalism / 100) + 0.5;
-          fatigue = Math.max(0, fatigue - (15 * recoveryMod));
-          fitness = Math.min(100, fitness + (10 * recoveryMod));
+          if (updatedPlayer.form.length >= 5) {
+            updatedPlayer.form = [...updatedPlayer.form.slice(1), 6 + Math.random() * 3];
+          }
 
-          const teammates = updatedPlayers.filter(p => p.clubId === player.clubId && p.id !== player.id);
-          teammates.forEach(tm => {
-            const currentChem = chemistry[tm.id] || 0;
-            if (Math.random() < 0.1) chemistry[tm.id] = Math.min(100, currentChem + 1);
+          const teammates = playersAfterTransfers.filter((p) => p.clubId === player.clubId && p.id !== player.id);
+          teammates.forEach((tm) => {
+            const currentChem = updatedPlayer.chemistry[tm.id] || 0;
+            if (Math.random() < 0.08) updatedPlayer.chemistry[tm.id] = Math.min(100, currentChem + 1);
           });
 
-          if (happiness.adaptation < 100) {
-            happiness.adaptation += 1;
-            if (happiness.adaptation < 50) morale -= 5;
+          if (updatedPlayer.happiness.adaptation < 100) {
+            updatedPlayer.happiness.adaptation += 1;
+            if (updatedPlayer.happiness.adaptation < 50) updatedPlayer.morale = Math.max(0, updatedPlayer.morale - 5);
           }
 
-          const coachingBonus = manager ? (manager.coachingAbility / 100) : 0.5;
-          const trainingLevel = club.facilities.trainingGround.level;
-          
-          if (Math.random() < 0.05 * coachingBonus * (trainingLevel / 5)) {
-            overallRating = Math.min(potentialRating, overallRating + 0.2);
-          }
-
-          return { ...player, overallRating, fitness, fatigue, morale, happiness, chemistry, potentialRating };
+          return updatedPlayer;
         });
 
+        const pendingBids = new Set(state.transferBids.filter((b) => b.status === 'PENDING').map((b) => b.playerId));
         const newBids: TransferBid[] = [...state.transferBids];
-        updatedPlayers.filter(p => p.isTransferListed).forEach(player => {
-          const hasPending = newBids.some(b => b.playerId === player.id && b.status === 'PENDING');
-          if (!hasPending && Math.random() < 0.2) {
-            const buyer = updatedClubs.find(c => c.id !== player.clubId && c.finances.balance > player.value);
-            if (buyer) {
-              newBids.push({
-                id: `bid-${Date.now()}-${player.id}`, playerId: player.id,
-                fromClubId: buyer.id, toClubId: player.clubId,
-                amount: Math.floor(player.value * (0.8 + Math.random() * 0.3)),
-                status: 'PENDING', week: currentWeek + 1, season: currentSeason,
-                isPlayerInterested: true, negotiationCount: 0
-              });
-            }
+        updatedPlayers.filter((p) => p.isTransferListed && !pendingBids.has(p.id)).forEach((player) => {
+          const buyer = updatedClubs.find((c) => c.id !== player.clubId && c.finances.balance > player.value);
+          if (buyer && Math.random() < 0.18) {
+            newBids.push({
+              id: randomId(),
+              playerId: player.id,
+              fromClubId: buyer.id,
+              toClubId: player.clubId,
+              amount: Math.floor(player.value * (0.8 + Math.random() * 0.3)),
+              status: 'PENDING',
+              week: currentWeek + 1,
+              season: currentSeason,
+              isPlayerInterested: true,
+              negotiationCount: 0
+            });
           }
         });
+
+        const nextWeek = currentWeek < 38 ? currentWeek + 1 : 1;
+        const nextSeason = currentWeek < 38 ? currentSeason : currentSeason + 1;
+        const nextTransferWindowOpen = isTransferWindowWeek(nextWeek);
+        const clubsAfterSponsorExpiry = nextWeek === 1 ? updatedClubs.map((club) => ({
+          ...club,
+          activeSponsors: club.activeSponsors
+            .map((sponsor) => ({ ...sponsor, duration: sponsor.duration - 1 }))
+            .filter((sponsor) => sponsor.duration > 0)
+        })) : updatedClubs;
 
         set({
-          currentWeek: currentWeek + 1,
-          isTransferWindowOpen,
-          matches: [...state.matches, ...newMatches],
-          clubs: updatedClubs,
+          currentWeek: nextWeek,
+          currentSeason: nextSeason,
+          isTransferWindowOpen: nextTransferWindowOpen,
+          matches: updatedMatches,
+          clubs: clubsAfterSponsorExpiry.map((club) => {
+            if (nextWeek === 1) {
+              return {
+                ...club,
+                availableSponsors: [
+                  { id: `sp-${club.id}-${randomId()}`, name: 'Elite Motors', type: 'MAIN', amount: Math.max(200000, Math.floor(club.reputation * 15000)), duration: 2, reputationRequired: Math.max(15, club.reputation - 5), status: 'PENDING' },
+                  { id: `sp-${club.id}-${randomId()}`, name: 'Peak Nutrition', type: 'SLEEVE', amount: Math.max(50000, Math.floor(club.reputation * 6000)), duration: 1, reputationRequired: Math.max(10, club.reputation - 10), status: 'PENDING' }
+                ]
+              };
+            }
+            return club;
+          }),
           players: updatedPlayers,
           transferBids: newBids,
         });
-
-        if (currentWeek >= 38) {
-          set({ currentWeek: 1, currentSeason: currentSeason + 1 });
-        }
       },
 
       prepareMatchday: () => {
@@ -423,20 +417,29 @@ export const useGameStore = create<GameStore>()(
         const userClubId = state.userClubId;
         if (!userClubId) return null;
 
-        const userMatch = state.matches.find(m => 
-          (m.homeClubId === userClubId || m.awayClubId === userClubId) && 
-          m.week === state.currentWeek && 
+        const fixture = state.matches.find((m) =>
+          (m.homeClubId === userClubId || m.awayClubId === userClubId) &&
+          m.week === state.currentWeek &&
           !m.played
         );
 
-        if (!userMatch) return null;
+        if (!fixture) return null;
 
-        const homeClub = state.clubs.find(c => c.id === userMatch.homeClubId)!;
-        const awayClub = state.clubs.find(c => c.id === userMatch.awayClubId)!;
-        const homePlayers = state.players.filter(p => p.clubId === homeClub.id);
-        const awayPlayers = state.players.filter(p => p.clubId === awayClub.id);
+        const homeClub = state.clubs.find((c) => c.id === fixture.homeClubId)!;
+        const awayClub = state.clubs.find((c) => c.id === fixture.awayClubId)!;
+        const homePlayers = state.players.filter((p) => p.clubId === homeClub.id);
+        const awayPlayers = state.players.filter((p) => p.clubId === awayClub.id);
 
-        return simulateMatch(homeClub, awayClub, homePlayers, awayPlayers, state.currentWeek, state.currentSeason);
+        const result = simulateMatch(homeClub, awayClub, homePlayers, awayPlayers, state.currentWeek, state.currentSeason);
+        return {
+          ...result,
+          id: fixture.id,
+          homeClubId: fixture.homeClubId,
+          awayClubId: fixture.awayClubId,
+          week: fixture.week,
+          season: fixture.season,
+          played: false,
+        };
       },
 
       finalizeMatchday: (userMatch) => {
@@ -444,141 +447,167 @@ export const useGameStore = create<GameStore>()(
         const { currentWeek, currentSeason, clubs, players, leagues, userClubId } = state;
         if (!userClubId) return;
 
-        const isTransferWindowOpen = (currentWeek >= 1 && currentWeek <= 4) || (currentWeek >= 20 && currentWeek <= 24);
-
-        const transferUpdates = processAITransfers({ ...state, isTransferWindowOpen });
+        const transferWindowOpen = isTransferWindowWeek(currentWeek);
+        const transferUpdates = processAITransfers({ ...state, isTransferWindowOpen: transferWindowOpen });
         const clubsAfterTransfers = transferUpdates.clubs || clubs;
         const playersAfterTransfers = transferUpdates.players || players;
 
-        const weeklyMatches = state.matches.filter(m => m.week === currentWeek && m.id !== userMatch.id);
-        const results = weeklyMatches.map(m => {
-          const hClub = clubsAfterTransfers.find(c => c.id === m.homeClubId)!;
-          const aClub = clubsAfterTransfers.find(c => c.id === m.awayClubId)!;
-          return simulateMatch(hClub, aClub, playersAfterTransfers.filter(p => p.clubId === hClub.id), playersAfterTransfers.filter(p => p.clubId === aClub.id), currentWeek, currentSeason);
+        const weeklyFixtures = state.matches.filter((m) => m.week === currentWeek && !m.played && m.id !== userMatch.id);
+        const results = weeklyFixtures.map((fixture) => {
+          const homeClub = clubsAfterTransfers.find((c) => c.id === fixture.homeClubId)!;
+          const awayClub = clubsAfterTransfers.find((c) => c.id === fixture.awayClubId)!;
+          const homePlayers = playersAfterTransfers.filter((p) => p.clubId === homeClub.id);
+          const awayPlayers = playersAfterTransfers.filter((p) => p.clubId === awayClub.id);
+          const result = simulateMatch(homeClub, awayClub, homePlayers, awayPlayers, currentWeek, currentSeason);
+          return {
+            ...result,
+            id: fixture.id,
+            homeClubId: fixture.homeClubId,
+            awayClubId: fixture.awayClubId,
+            week: fixture.week,
+            season: fixture.season,
+            played: true,
+          };
         });
 
-        const matchResults = [userMatch, ...results];
-        
-        const updatedMatches = state.matches.map(m => {
-          const result = matchResults.find(r => (r.homeClubId === m.homeClubId && r.awayClubId === m.awayClubId && r.week === m.week));
-          return result ? { ...result, played: true } : m;
-        });
+        const matchResults = [
+          { ...userMatch, played: true },
+          ...results,
+        ];
 
-        const updatedClubs = clubsAfterTransfers.map(club => {
-          const league = leagues.find(l => l.id === club.leagueId);
+        const resultMap = new Map(matchResults.map((m) => [m.id, m]));
+        const updatedMatches = state.matches.map((fixture) => resultMap.has(fixture.id) ? resultMap.get(fixture.id)! : fixture);
+
+        const updatedClubs = clubsAfterTransfers.map((club) => {
+          const league = leagues.find((l) => l.id === club.leagueId);
           const tier = league?.tier || 3;
-          const tierMult = tier === 1 ? 5 : tier === 2 ? 2.5 : 1;
-
           const finances = { ...club.finances };
           const board = { ...club.board };
           let fanConfidence = club.fanConfidence;
           let boardConfidence = club.boardConfidence;
+          const history = [...club.history];
 
-          const maintenanceCost = (finances.expenses.facilityMaintenance || 5000) * tierMult;
-          const totalExpenses = (finances.weeklyWages + finances.weeklyStaffWages + maintenanceCost);
+          const sponsorIncome = calcSponsorWeeklyIncome(club.activeSponsors);
+          finances.revenue.sponsorship = sponsorIncome;
+          const tvRights = tier === 1 ? 240000 : tier === 2 ? 120000 : tier === 3 ? 75000 : tier === 4 ? 42000 : 22000;
+          finances.revenue.tvRights = tvRights;
+          const merchandise = Math.max(0, Math.floor(club.reputation * 350 + (20 - tier) * 250));
+          finances.revenue.merchandise = merchandise;
+          finances.revenue.prizeMoney = finances.revenue.prizeMoney || 0;
+
+          const match = matchResults.find((m) => m.homeClubId === club.id || m.awayClubId === club.id);
+          const ticketPrice = tier === 1 ? 60 : tier === 2 ? 40 : 25;
+          let ticketIncome = 0;
+
+          if (match && match.homeClubId === club.id) {
+            const won = match.homeScore > match.awayScore;
+            const drew = match.homeScore === match.awayScore;
+            const performanceBonus = won ? 1.2 : drew ? 1.0 : 0.7;
+            ticketIncome = Math.min(club.facilities.stadium.capacity, club.reputation * 90 * performanceBonus + Math.random() * 1000) * ticketPrice;
+            finances.revenue.tickets = ticketIncome;
+          } else {
+            finances.revenue.tickets = 0;
+          }
+
+          finances.balance += sponsorIncome + tvRights + merchandise + ticketIncome;
+          finances.expenses.playerWages = finances.weeklyWages;
+          finances.expenses.staffWages = finances.weeklyStaffWages;
+          const maintenanceCost = (finances.expenses.facilityMaintenance || 5000) * (tier === 1 ? 2.8 : tier === 2 ? 2.0 : 1.3);
+          const totalExpenses = finances.expenses.playerWages + finances.expenses.staffWages + maintenanceCost + (finances.expenses.loanRepayments || 0);
           finances.balance -= totalExpenses;
-
-          const baseSponsorship = (finances.revenue.sponsorship || 50000) * tierMult;
-          finances.balance += (baseSponsorship / 4);
-
-          const match = matchResults.find(m => m.homeClubId === club.id || m.awayClubId === club.id);
 
           if (match) {
             const isHome = match.homeClubId === club.id;
             const won = isHome ? match.homeScore > match.awayScore : match.awayScore > match.homeScore;
             const drew = match.homeScore === match.awayScore;
-
-            if (isHome) {
-              const ticketPrice = tier === 1 ? 60 : tier === 2 ? 40 : 25;
-              const performanceBonus = won ? 1.2 : drew ? 1.0 : 0.7;
-              const attendance = Math.min(club.facilities.stadium.capacity, (club.reputation * 100) * performanceBonus + (Math.random() * 1000));
-              const ticketIncome = attendance * ticketPrice;
-              finances.revenue.tickets = ticketIncome;
-              finances.balance += ticketIncome;
-            }
-
             const confidenceChange = won ? 5 : drew ? 1 : -8;
             fanConfidence = Math.max(0, Math.min(100, fanConfidence + confidenceChange));
             const impatienceMult = (100 - board.patience) / 50;
-            boardConfidence = Math.max(0, Math.min(100, boardConfidence + (confidenceChange * impatienceMult)));
+            boardConfidence = Math.max(0, Math.min(100, boardConfidence + confidenceChange * impatienceMult));
+            if (fanConfidence < 20 && Math.random() < 0.1) {
+              history.push(`FAN PROTEST: Supporters gather outside ${club.stadiumName} demanding change!`);
+              boardConfidence = Math.max(0, boardConfidence - 5);
+            }
           }
 
-          let staffApplicants = [...(club.staffApplicants || [])];
-          let staffAds = (club.staffAds || []).map(ad => ({ ...ad, weeksRemaining: ad.weeksRemaining - 1 }));
-          staffAds.forEach(ad => {
-             if (ad.weeksRemaining <= 0) {
-                for (let i = 0; i < (Math.floor(Math.random() * 3) + 1); i++) {
-                  const baseRating = Math.floor(club.reputation + (Math.random() * 20));
-                  staffApplicants.push({
-                    id: Math.random().toString(36).substr(2, 9),
-                    name: `Candidate ${Math.random().toString(36).substr(2, 4)}`,
-                    role: ad.role, rating: Math.min(99, baseRating),
-                    salary: Math.floor(baseRating * 150), clubId: club.id, isApplicant: true
-                  });
-                }
-             }
-          });
-          staffAds = staffAds.filter(ad => ad.weeksRemaining > 0);
+          board.confidence = boardConfidence;
 
-          let scoutAssignments = (club.scoutAssignments || []).map(a => {
-            const progress = Math.min(100, a.progress + 15 + Math.random() * 10);
-            const playersFound = [...a.playersFound];
-            if (progress >= 100 && Math.random() < 0.4) {
-              const potentialPlayer = playersAfterTransfers[Math.floor(Math.random() * playersAfterTransfers.length)];
-              if (!playersFound.includes(potentialPlayer.id)) playersFound.push(potentialPlayer.id);
-            }
-            return { ...a, progress, playersFound };
-          });
-
-          return { ...club, finances, board, fanConfidence, boardConfidence, staffAds, staffApplicants, scoutAssignments };
+          return { ...club, finances, board, fanConfidence, boardConfidence, history };
         });
 
-        const updatedPlayers = playersAfterTransfers.map(player => {
-          const club = updatedClubs.find(c => c.id === player.clubId);
+        const updatedPlayers = playersAfterTransfers.map((player) => {
+          const club = updatedClubs.find((c) => c.id === player.clubId);
           if (!club) return player;
-          let { overallRating, fitness, fatigue, morale, chemistry, potentialRating } = { ...player };
-          fatigue = Math.max(0, fatigue - 15);
-          fitness = Math.min(100, fitness + 10);
-          if (Math.random() < 0.05) overallRating = Math.min(potentialRating, overallRating + 0.1);
-          return { ...player, overallRating, fitness, fatigue, morale, chemistry, potentialRating };
+
+          const updatedPlayer = { ...player };
+          updatedPlayer.fatigue = Math.max(0, updatedPlayer.fatigue - 15);
+          updatedPlayer.fitness = Math.min(100, updatedPlayer.fitness + 10);
+          if (Math.random() < 0.06) updatedPlayer.overallRating = Math.min(updatedPlayer.potentialRating, updatedPlayer.overallRating + 0.2);
+
+          if (updatedPlayer.form.length >= 5) {
+            updatedPlayer.form = [...updatedPlayer.form.slice(1), 6 + Math.random() * 3];
+          }
+
+          const teammates = playersAfterTransfers.filter((p) => p.clubId === player.clubId && p.id !== player.id);
+          teammates.forEach((tm) => {
+            const currentChem = updatedPlayer.chemistry[tm.id] || 0;
+            if (Math.random() < 0.08) updatedPlayer.chemistry[tm.id] = Math.min(100, currentChem + 1);
+          });
+
+          if (updatedPlayer.happiness.adaptation < 100) {
+            updatedPlayer.happiness.adaptation += 1;
+            if (updatedPlayer.happiness.adaptation < 50) updatedPlayer.morale = Math.max(0, updatedPlayer.morale - 5);
+          }
+
+          return updatedPlayer;
         });
 
+        const pendingBids = new Set(state.transferBids.filter((b) => b.status === 'PENDING').map((b) => b.playerId));
         const newBids: TransferBid[] = [...state.transferBids];
-        updatedPlayers.filter(p => p.isTransferListed).forEach(player => {
-          const hasPending = newBids.some(b => b.playerId === player.id && b.status === 'PENDING');
-          if (!hasPending && Math.random() < 0.2) {
-             const buyer = updatedClubs.find(c => c.id !== player.clubId && c.finances.balance > player.value);
-             if (buyer) {
-                newBids.push({
-                  id: `bid-${Date.now()}-${player.id}`, playerId: player.id,
-                  fromClubId: buyer.id, toClubId: player.clubId,
-                  amount: Math.floor(player.value * (0.8 + Math.random() * 0.3)),
-                  status: 'PENDING', week: currentWeek + 1, season: currentSeason,
-                  isPlayerInterested: true, negotiationCount: 0
-                });
-             }
+        updatedPlayers.filter((p) => p.isTransferListed && !pendingBids.has(p.id)).forEach((player) => {
+          const buyer = updatedClubs.find((c) => c.id !== player.clubId && c.finances.balance > player.value);
+          if (buyer && Math.random() < 0.18) {
+            newBids.push({
+              id: randomId(),
+              playerId: player.id,
+              fromClubId: buyer.id,
+              toClubId: player.clubId,
+              amount: Math.floor(player.value * (0.8 + Math.random() * 0.3)),
+              status: 'PENDING',
+              week: currentWeek + 1,
+              season: currentSeason,
+              isPlayerInterested: true,
+              negotiationCount: 0
+            });
           }
         });
 
         const nextWeek = currentWeek < 38 ? currentWeek + 1 : 1;
         const nextSeason = currentWeek < 38 ? currentSeason : currentSeason + 1;
+        const nextTransferWindowOpen = isTransferWindowWeek(nextWeek);
+        const clubsAfterSponsorExpiry = nextWeek === 1 ? updatedClubs.map((club) => ({
+          ...club,
+          activeSponsors: club.activeSponsors
+            .map((sponsor) => ({ ...sponsor, duration: sponsor.duration - 1 }))
+            .filter((sponsor) => sponsor.duration > 0)
+        })) : updatedClubs;
 
         set({
           currentWeek: nextWeek,
           currentSeason: nextSeason,
-          isTransferWindowOpen,
+          isTransferWindowOpen: nextTransferWindowOpen,
           matches: updatedMatches,
-          clubs: updatedClubs.map(c => {
+          clubs: clubsAfterSponsorExpiry.map((club) => {
             if (nextWeek === 1) {
-               return {
-                 ...c,
-                 availableSponsors: [
-                    { id: `sp-${c.id}-w1-${Date.now()}`, name: 'Elite Motors', type: 'MAIN', amount: Math.floor(c.reputation * 20000), duration: 2, reputationRequired: c.reputation - 5, status: 'PENDING' },
-                    { id: `sp-${c.id}-w2-${Date.now()}`, name: 'Peak Nutrition', type: 'SLEEVE', amount: Math.floor(c.reputation * 5000), duration: 1, reputationRequired: c.reputation - 10, status: 'PENDING' },
-                 ]
-               };
+              return {
+                ...club,
+                availableSponsors: [
+                  { id: `sp-${club.id}-${randomId()}`, name: 'Elite Motors', type: 'MAIN', amount: Math.max(200000, Math.floor(club.reputation * 15000)), duration: 2, reputationRequired: Math.max(15, club.reputation - 5), status: 'PENDING' },
+                  { id: `sp-${club.id}-${randomId()}`, name: 'Peak Nutrition', type: 'SLEEVE', amount: Math.max(50000, Math.floor(club.reputation * 6000)), duration: 1, reputationRequired: Math.max(10, club.reputation - 10), status: 'PENDING' }
+                ]
+              };
             }
-            return c;
+            return club;
           }),
           players: updatedPlayers,
           transferBids: newBids,
@@ -605,6 +634,10 @@ export const useGameStore = create<GameStore>()(
         const club = state.clubs.find(c => c.id === clubId);
         const sponsor = club?.availableSponsors.find(s => s.id === sponsorId);
         if (!club || !sponsor) return;
+        if (club.activeSponsors.length >= 3) return;
+        if (club.reputation < sponsor.reputationRequired) return;
+
+        const weeklySponsorship = sponsor.amount / Math.max(1, sponsor.duration) / 38;
 
         set({
           clubs: state.clubs.map(c => c.id === clubId ? {
@@ -613,8 +646,7 @@ export const useGameStore = create<GameStore>()(
             activeSponsors: [...c.activeSponsors, { ...sponsor, status: 'ACTIVE' }],
             finances: { 
               ...c.finances, 
-              balance: c.finances.balance + sponsor.amount, 
-              revenue: { ...c.finances.revenue, sponsorship: c.finances.revenue.sponsorship + (sponsor.amount / sponsor.duration / 38) } 
+              revenue: { ...c.finances.revenue, sponsorship: (c.finances.revenue.sponsorship || 0) + weeklySponsorship } 
             },
             history: [...c.history, `Signed sponsorship deal with ${sponsor.name}`]
           } : c)
@@ -665,7 +697,13 @@ export const useGameStore = create<GameStore>()(
       negotiateBid: (bidId, counterAmount) => {
         const state = get();
         const bid = state.transferBids.find(b => b.id === bidId);
-        if (!bid || bid.negotiationCount >= 3) return;
+        if (!bid) return;
+        if (bid.negotiationCount >= 3) {
+          set({
+            transferBids: state.transferBids.map(b => b.id === bidId ? { ...b, status: 'CANCELLED' } : b)
+          });
+          return;
+        }
 
         const player = state.players.find(p => p.id === bid.playerId);
         if (!player) return;
@@ -686,7 +724,6 @@ export const useGameStore = create<GameStore>()(
         }
 
         const willAccept = counterAmount <= (player.value * 1.05) && Math.random() > 0.4;
-        
         if (willAccept) {
           set({
             transferBids: state.transferBids.map(b => b.id === bidId ? { ...b, amount: counterAmount, status: 'ACCEPTED' } : b)

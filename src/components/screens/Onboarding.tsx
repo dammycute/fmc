@@ -383,7 +383,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
                                     <div className="space-y-3 pt-4 border-t border-white/5">
                                         {[
-                                            { label: 'Purchase Price', value: `£${(selectedClub?.valuation || 0 / 1000).toFixed(0)}K`, color: 'text-rose-400' },
+                                            { label: 'Purchase Price', value: `£${((selectedClub?.valuation || 0) / 1000).toFixed(0)}K`, color: 'text-rose-400' },
                                             { label: 'Club Balance (inherited)', value: `£${((selectedClub?.finances.balance || 0) / 1000).toFixed(0)}K`, color: 'text-emerald-400' },
                                             { label: 'Weekly Wages Bill', value: `£${((selectedClub?.finances.weeklyWages || 0) / 1000).toFixed(1)}K`, color: 'text-amber-400' },
                                             { label: 'Remaining Personal Wealth', value: `£${((personalBalance - (selectedClub?.valuation || 0)) / 1000).toFixed(0)}K`, color: 'text-zinc-300' },
