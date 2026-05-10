@@ -32,7 +32,7 @@ const ClubMarket: React.FC = () => {
           <Wallet className="w-6 h-6 text-indigo-200" />
           <div>
             <p className="text-[10px] font-black uppercase text-indigo-200 tracking-widest">Personal Wealth</p>
-            <p className="text-2xl font-black tracking-tighter italic">£{(personalBalance / 1000000).toFixed(2)}M</p>
+            <p className="text-2xl font-black tracking-tighter italic">£{(personalBalance / 1000000).toFixed(1)}M</p>
           </div>
         </Card>
       </div>
@@ -82,7 +82,7 @@ const ClubMarket: React.FC = () => {
                     <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{league?.name}</p>
                   </div>
                   <Badge className="bg-white/5 text-zinc-400 border-none px-2 py-1 text-[8px] font-black uppercase">
-                    Rep: {club.reputation.toFixed(0)}
+                    Rep: {club.reputation.toFixed(1)}
                   </Badge>
                 </div>
 
@@ -102,7 +102,7 @@ const ClubMarket: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Market Value</p>
-                    <p className="text-2xl font-black text-white italic">£{(club.valuation / 1000000).toFixed(2)}M</p>
+                    <p className="text-2xl font-black text-white italic">£{(club.valuation / 1000000).toFixed(1)}M</p>
                   </div>
                   <Button 
                     disabled={!canAfford}

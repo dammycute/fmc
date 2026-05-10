@@ -2,7 +2,6 @@ import React from 'react';
 import { type Player, type Club } from '../../types/game';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
-import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { 
   Zap, Heart, Brain, Lock, History, Trophy,
@@ -30,7 +29,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose
         <span className={cn(
           "font-mono",
           value > 85 ? "text-emerald-400" : value > 70 ? "text-sky-400" : value > 50 ? "text-zinc-300" : "text-rose-400"
-        )}>{value.toFixed(0)}</span>
+        )}>{value.toFixed(1)}</span>
       </div>
       <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
         <div 
@@ -137,11 +136,23 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose
                         <Target className="w-4 h-4" /> Technical Proficiency
                       </h4>
                       <div className="space-y-5">
-                        {renderStat('Passing', player.technical.passing)}
-                        {renderStat('Shooting', player.technical.shooting)}
-                        {renderStat('Dribbling', player.technical.dribbling)}
-                        {renderStat('Tackling', player.technical.tackling)}
-                        {renderStat('Vision', player.technical.vision)}
+                        {player.position === 'GK' ? (
+                          <>
+                            {renderStat('Handling', player.technical.handling || 50)}
+                            {renderStat('Reflexes', player.technical.reflexes || 50)}
+                            {renderStat('Area Command', player.technical.commandOfArea || 50)}
+                            {renderStat('Eccentricity', player.technical.eccentricity || 50)}
+                            {renderStat('Rushing Out', player.technical.rushingOut || 50)}
+                          </>
+                        ) : (
+                          <>
+                            {renderStat('Passing', player.technical.passing)}
+                            {renderStat('Shooting', player.technical.shooting)}
+                            {renderStat('Dribbling', player.technical.dribbling)}
+                            {renderStat('Tackling', player.technical.tackling)}
+                            {renderStat('Vision', player.technical.vision)}
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -207,9 +218,15 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose
                           <h5 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] group-hover:text-indigo-400 transition-colors">{key.replace(/([A-Z])/g, ' $1')}</h5>
                           <span className="text-xs font-black text-white">{val}%</span>
                         </div>
-                        <Progress value={val} className="h-1 bg-white/5" indicatorClassName={cn(
-                          val > 80 ? "bg-emerald-500" : val > 40 ? "bg-amber-500" : "bg-rose-500"
-                        )} />
+                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full transition-all duration-1000",
+                              val > 80 ? "bg-emerald-500" : val > 40 ? "bg-amber-500" : "bg-rose-500"
+                            )} 
+                            style={{ width: `${val}%` }} 
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -221,7 +238,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose
                     <div className="grid grid-cols-3 gap-8 pt-4">
                       {['Professionalism', 'Ambition', 'Loyalty'].map((trait) => (
                         <div key={trait} className="space-y-2 text-center">
-                          <div className="text-lg font-black text-white">{(player.hidden as any)[trait.toLowerCase()]}/100</div>
+                          <div className="text-lg font-black text-white">{(player.personality as any)[trait.toLowerCase()] || 70}/100</div>
                           <div className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">{trait}</div>
                         </div>
                       ))}
@@ -233,17 +250,17 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose
                   <div className="grid grid-cols-3 gap-6">
                     <div className="p-8 rounded-[2rem] bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/10 text-center space-y-2">
                       <Trophy className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                      <div className="text-4xl font-black text-white">{player.history.trophies}</div>
+                      <div className="text-4xl font-black text-white">{player.history.trophies || 0}</div>
                       <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Major Trophies</div>
                     </div>
                     <div className="p-8 rounded-[2rem] bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/10 text-center space-y-2">
                       <History className="w-8 h-8 text-indigo-500 mx-auto mb-2" />
-                      <div className="text-4xl font-black text-white">{player.history.appearances}</div>
+                      <div className="text-4xl font-black text-white">{player.history.appearances || 0}</div>
                       <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Total Apps</div>
                     </div>
                     <div className="p-8 rounded-[2rem] bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/10 text-center space-y-2">
                       <Zap className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                      <div className="text-4xl font-black text-white">{player.history.goals}</div>
+                      <div className="text-4xl font-black text-white">{player.history.goals || 0}</div>
                       <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Goals Scored</div>
                     </div>
                   </div>
@@ -255,7 +272,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose
                         <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-zinc-500">24</div>
                         <div className="flex-1">
                           <p className="text-sm font-bold text-white">Joined {club?.name}</p>
-                          <p className="text-[10px] text-zinc-500 uppercase font-black">Official Transfer • {player.history.joinedDate}</p>
+                          <p className="text-[10px] text-zinc-500 uppercase font-black">Official Transfer • Season {player.history.joinedSeason} Week {player.history.joinedWeek}</p>
                         </div>
                         <ChevronRight className="w-4 h-4 text-zinc-800" />
                       </div>

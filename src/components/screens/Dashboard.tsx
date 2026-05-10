@@ -162,7 +162,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                     <div>
                       <div className="flex items-center gap-3 mb-0.5">
                         <span className="text-[9px] font-black text-indigo-400 tracking-widest uppercase">{story.category}</span>
-                        <span className="text-[9px] text-zinc-600 font-bold uppercase">{story.date}</span>
+                        <span className="text-[9px] text-zinc-600 font-bold uppercase">S{story.season} W{story.week}</span>
                       </div>
                       <p className="text-sm text-zinc-200 font-black tracking-tight group-hover:text-white transition-colors">{story.title}</p>
                     </div>
@@ -190,11 +190,11 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
               <div className="flex justify-between items-end border-b border-white/5 pb-6">
                 <div>
                   <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest mb-1">Weekly Wages</p>
-                  <p className="text-xl font-black text-white tracking-tighter">£{((club.finances.weeklyWages || 0) / 1000).toFixed(0)}K</p>
+                  <p className="text-xl font-black text-white tracking-tighter">£{((club.finances.weeklyWages || 0) / 1000).toFixed(1)}K</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest mb-1">Infrastructure</p>
-                  <p className="text-xl font-black text-white tracking-tighter">£{((club.finances.expenses.facilityMaintenance || 0) / 1000).toFixed(0)}K</p>
+                  <p className="text-xl font-black text-white tracking-tighter">£{((club.finances.expenses.facilityMaintenance || 0) / 1000).toFixed(1)}K</p>
                 </div>
               </div>
               <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-between">

@@ -132,7 +132,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                             <Wallet className="w-5 h-5 text-amber-400" />
                             <div>
                                 <p className="text-[10px] font-black text-amber-400/60 uppercase tracking-widest">Available Funds</p>
-                                <p className="text-xl font-black text-amber-400">£{(personalBalance / 1000).toFixed(0)}K</p>
+                                <p className="text-xl font-black text-amber-400">£{(personalBalance / 1000).toFixed(1)}K</p>
                             </div>
                         </div>
                     </div>
@@ -214,7 +214,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                                                 "text-[8px] font-black uppercase border-none",
                                                 club.reputation > 50 ? "bg-emerald-500/10 text-emerald-400" : "bg-zinc-800 text-zinc-500"
                                             )}>
-                                                Rep: {club.reputation.toFixed(0)}
+                                                Rep: {club.reputation.toFixed(1)}
                                             </Badge>
                                         </div>
 
@@ -225,7 +225,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                                             </div>
                                             <div>
                                                 <p className="text-[8px] font-black text-zinc-600 uppercase">Balance</p>
-                                                <p className="text-xs font-black text-emerald-400 mt-0.5">£{(club.finances.balance / 1000).toFixed(0)}k</p>
+                                                <p className="text-xs font-black text-emerald-400 mt-0.5">£{(club.finances.balance / 1000).toFixed(1)}k</p>
                                             </div>
                                             <div>
                                                 <p className="text-[8px] font-black text-zinc-600 uppercase">Wages/wk</p>
@@ -237,7 +237,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                                             <div>
                                                 <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">Purchase Price</p>
                                                 <p className={cn("text-xl font-black italic", affordable ? "text-white" : "text-zinc-600")}>
-                                                    £{(club.valuation / 1000).toFixed(0)}K
+                                                    £{(club.valuation / 1000).toFixed(1)}K
                                                 </p>
                                             </div>
                                             {!affordable && (
@@ -307,7 +307,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                             </div>
                             <div className="flex justify-between items-center border-t border-white/5 pt-3">
                                 <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Acquisition Cost</span>
-                                <span className="text-sm font-black text-amber-400">£{(selectedClub?.valuation || 0 / 1000).toFixed(0)}K</span>
+                                <span className="text-sm font-black text-amber-400">£{((selectedClub?.valuation || 0) / 1000).toFixed(1)}K</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -383,10 +383,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
                                     <div className="space-y-3 pt-4 border-t border-white/5">
                                         {[
-                                            { label: 'Purchase Price', value: `£${((selectedClub?.valuation || 0) / 1000).toFixed(0)}K`, color: 'text-rose-400' },
-                                            { label: 'Club Balance (inherited)', value: `£${((selectedClub?.finances.balance || 0) / 1000).toFixed(0)}K`, color: 'text-emerald-400' },
+                                            { label: 'Purchase Price', value: `£${((selectedClub?.valuation || 0) / 1000).toFixed(1)}K`, color: 'text-rose-400' },
+                                            { label: 'Club Balance (inherited)', value: `£${((selectedClub?.finances.balance || 0) / 1000).toFixed(1)}K`, color: 'text-emerald-400' },
                                             { label: 'Weekly Wages Bill', value: `£${((selectedClub?.finances.weeklyWages || 0) / 1000).toFixed(1)}K`, color: 'text-amber-400' },
-                                            { label: 'Remaining Personal Wealth', value: `£${((personalBalance - (selectedClub?.valuation || 0)) / 1000).toFixed(0)}K`, color: 'text-zinc-300' },
+                                            { label: 'Remaining Personal Wealth', value: `£${((personalBalance - (selectedClub?.valuation || 0)) / 1000).toFixed(1)}K`, color: 'text-zinc-300' },
                                         ].map((item, i) => (
                                             <div key={i} className="flex justify-between items-center">
                                                 <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{item.label}</span>

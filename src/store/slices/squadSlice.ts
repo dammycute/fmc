@@ -1,0 +1,196 @@
+import type { StateCreator } from 'zustand';
+import type { Player, Manager, Staff, StaffRole, TransferBid, TransferRequest } from '../../types/game';
+
+export interface SquadSlice {
+  players: Player[];
+  managers: Manager[];
+  staff: Staff[];
+  transferBids: TransferBid[];
+  transferRequests: TransferRequest[];
+  updatePlayer: (playerId: string, updates: Partial<Player>) => void;
+  sackManager: (managerId: string) => void;
+  hireManager: (clubId: string, manager: Manager) => void;
+  hireStaff: (clubId: string, staffMember: Staff) => void;
+  dismissStaff: (staffId: string) => void;
+  hireStaffApplicant: (clubId: string, applicantId: string) => void;
+  advertiseStaffRole: (clubId: string, role: StaffRole) => void;
+  toggleTransferList: (playerId: string) => void;
+  assignScout: (clubId: string, scoutId: string, region: string) => void;
+  respondToTransferRequest: (requestId: string, status: 'APPROVED' | 'REJECTED' | 'DELAYED', budgetLimit?: number) => void;
+  makeTransferBid: (playerId: string, clubId: string, amount: number) => void;
+  respondToTransferBid: (bidId: string, status: 'ACCEPTED' | 'REJECTED' | 'CANCELLED') => void;
+  negotiateBid: (bidId: string, counterAmount: number) => void;
+  finalizeTransfer: (bidId: string) => void;
+}
+
+export const createSquadSlice: StateCreator<
+  SquadSlice & any,
+  [],
+  [],
+  SquadSlice
+> = (set, get) => ({
+  players: [],
+  managers: [],
+  staff: [],
+  transferBids: [],
+  transferRequests: [],
+
+  updatePlayer: (playerId, updates) =>
+    set((state) => ({
+      players: state.players.map((player) => player.id === playerId ? { ...player, ...updates } : player),
+    })),
+
+  sackManager: (managerId) =>
+    set((state) => ({
+      managers: state.managers.map((m) => m.id === managerId ? { ...m, clubId: '', relationshipWithChairman: 0 } : m),
+      clubs: state.clubs.map(c => c.id === state.userClubId ? { ...c, history: [...c.history, `Manager sacked by the chairman`] } : c)
+    })),
+
+  hireManager: (clubId, manager) =>
+    set((state) => ({
+      managers: state.managers.map((m) => m.id === manager.id ? { ...m, clubId, relationshipWithChairman: 70 } : m),
+      clubs: state.clubs.map(c => c.id === clubId ? {
+        ...c,
+        history: [...c.history, `Hired new manager: ${manager.name}`],
+        formation: manager.preferredFormation,
+        tactics: manager.preferredStyle
+      } : c)
+    })),
+
+  hireStaff: (clubId, staffMember) =>
+    set((state) => ({
+      staff: [...state.staff, { ...staffMember, clubId }]
+    })),
+
+  dismissStaff: (staffId) =>
+    set((state) => ({
+      staff: state.staff.filter(s => s.id !== staffId)
+    })),
+
+  hireStaffApplicant: (clubId, applicantId) => {
+    const state = get();
+    const club = state.clubs.find(c => c.id === clubId);
+    if (!club) return;
+    const applicant = club.staffApplicants.find(a => a.id === applicantId);
+    if (!applicant) return;
+
+    set({
+      staff: [...state.staff, { ...applicant, clubId, isApplicant: false }],
+      clubs: state.clubs.map(c => c.id === clubId ? {
+        ...c,
+        staffApplicants: c.staffApplicants.filter(a => a.id !== applicantId)
+      } : c)
+    });
+  },
+
+  advertiseStaffRole: (clubId, role) => {
+    const state = get();
+    const club = state.clubs.find(c => c.id === clubId);
+    if (!club) return;
+
+    const adCost = 10000;
+    if (club.finances.balance < adCost) return;
+
+    set({
+      clubs: state.clubs.map(c => c.id === clubId ? {
+        ...c,
+        finances: { ...c.finances, balance: c.finances.balance - adCost },
+        staffAds: [...c.staffAds, { id: Math.random().toString(36).substring(2, 11), role, weeksRemaining: 2, cost: adCost }]
+      } : c)
+    });
+  },
+
+  toggleTransferList: (playerId) =>
+    set((state) => ({
+      players: state.players.map(p => p.id === playerId ? { ...p, isTransferListed: !p.isTransferListed } : p)
+    })),
+
+  assignScout: (clubId, scoutId, region) => {
+    set((state) => ({
+      clubs: state.clubs.map(c => c.id === clubId ? {
+        ...c,
+        scoutAssignments: [...c.scoutAssignments, { scoutId, region, progress: 0, playersFound: [] }]
+      } : c)
+    }));
+  },
+
+  respondToTransferRequest: (requestId, status, budgetLimit) => {
+    const state = get();
+    const request = state.transferRequests.find(r => r.id === requestId);
+    if (!request) return;
+
+    set({
+      transferRequests: state.transferRequests.map(r => r.id === requestId ? { ...r, status, budgetLimit } : r)
+    });
+  },
+
+  makeTransferBid: (playerId, clubId, amount) => {
+    const state = get();
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const bid: TransferBid = {
+      id: Math.random().toString(36).substring(2, 11),
+      playerId,
+      fromClubId: clubId,
+      toClubId: player.clubId,
+      amount,
+      status: 'PENDING',
+      week: state.currentWeek,
+      season: state.currentSeason,
+      isPlayerInterested: true,
+      negotiationCount: 0
+    };
+
+    set({ transferBids: [...state.transferBids, bid] });
+  },
+
+  respondToTransferBid: (bidId, status) => {
+    set((state) => ({
+      transferBids: state.transferBids.map(b => b.id === bidId ? { ...b, status } : b)
+    }));
+  },
+
+  negotiateBid: (bidId, counterAmount) => {
+    set((state) => ({
+      transferBids: state.transferBids.map(b => b.id === bidId ? {
+        ...b,
+        amount: counterAmount,
+        negotiationCount: b.negotiationCount + 1
+      } : b)
+    }));
+  },
+
+  finalizeTransfer: (bidId) => {
+    const state = get();
+    const bid = state.transferBids.find(b => b.id === bidId);
+    if (!bid || bid.status !== 'ACCEPTED') return;
+
+    const player = state.players.find(p => p.id === bid.playerId);
+    const seller = state.clubs.find(c => c.id === bid.toClubId);
+    const buyer = state.clubs.find(c => c.id === bid.fromClubId);
+    if (!player || !buyer) return;
+
+    set({
+      players: state.players.map(p => p.id === bid.playerId ? { ...p, clubId: bid.fromClubId, isTransferListed: false } : p),
+      clubs: state.clubs.map(c => {
+        if (c.id === buyer.id) {
+          return {
+            ...c,
+            finances: { ...c.finances, balance: c.finances.balance - bid.amount },
+            history: [...c.history, `Signed ${player.firstName} ${player.lastName} for £${(bid.amount / 1000000).toFixed(1)}M`]
+          };
+        }
+        if (seller && c.id === seller.id) {
+          return {
+            ...c,
+            finances: { ...c.finances, balance: c.finances.balance + bid.amount },
+            history: [...c.history, `Sold ${player.firstName} ${player.lastName} for £${(bid.amount / 1000000).toFixed(1)}M`]
+          };
+        }
+        return c;
+      }),
+      transferBids: state.transferBids.filter(b => b.id !== bidId)
+    });
+  },
+});

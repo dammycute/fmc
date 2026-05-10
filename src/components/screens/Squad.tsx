@@ -54,7 +54,7 @@ const Squad: React.FC = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/5 bg-white/[0.01] overflow-hidden">
+      <div className="rounded-2xl border border-white/5 glass-card overflow-hidden animate-fade-in-up">
         <Table>
           <TableHeader className="bg-white/[0.02]">
             <TableRow className="border-white/5 hover:bg-transparent">
@@ -104,7 +104,7 @@ const Squad: React.FC = () => {
                 <TableCell>
                   <div className="flex flex-col">
                     <span className={cn("text-sm font-black", getRatingColor(player.overallRating))}>
-                      {(player.overallRating || 0).toFixed(0)}
+                      {(player.overallRating || 0).toFixed(1)}
                     </span>
                     <span className="text-[9px] text-zinc-500 font-bold">POT: {player.potentialRating}</span>
                   </div>
@@ -124,12 +124,12 @@ const Squad: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <span className={cn("text-xs font-bold", (player.fatigue || 0) > 50 ? "text-orange-400" : "text-zinc-400")}>
-                    {(player.fatigue || 0).toFixed(0)}%
+                    {(player.fatigue || 0).toFixed(1)}%
                   </span>
                 </TableCell>
                 <TableCell>
                   <span className={cn("text-xs font-bold", (player.injuryRisk || 0) > 15 ? "text-rose-500" : "text-zinc-500")}>
-                    {(player.injuryRisk || 0).toFixed(0)}%
+                    {(player.injuryRisk || 0).toFixed(1)}%
                   </span>
                 </TableCell>
                 <TableCell>
@@ -149,7 +149,7 @@ const Squad: React.FC = () => {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     {player.morale > 75 ? <TrendingUp className="w-4 h-4 text-emerald-500" /> : player.morale > 40 ? <Minus className="w-4 h-4 text-zinc-600" /> : <TrendingDown className="w-4 h-4 text-rose-500" />}
-                    <span className="text-[10px] font-black text-zinc-500">{(player.morale || 0).toFixed(0)}%</span>
+                    <span className="text-[10px] font-black text-zinc-500">{(player.morale || 0).toFixed(1)}%</span>
                   </div>
                 </TableCell>
               </TableRow>

@@ -68,7 +68,7 @@ const NewsFeed: React.FC = () => {
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] font-black text-zinc-600 uppercase tracking-widest">
-                    <Clock className="w-3 h-3" /> {story.date}
+                    <Clock className="w-3 h-3" /> S{story.season} W{story.week}
                   </div>
                 </div>
 

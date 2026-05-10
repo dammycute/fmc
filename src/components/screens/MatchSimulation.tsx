@@ -58,7 +58,7 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
       // Update scores if it's a goal
       minuteEvents.forEach(e => {
         if (e.type === 'GOAL') {
-          if (e.description.includes(homeClub?.name || '')) {
+          if (e.clubId === match.homeClubId) {
              setCurrentHomeScore(prev => prev + 1);
           } else {
              setCurrentAwayScore(prev => prev + 1);

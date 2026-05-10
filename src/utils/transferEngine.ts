@@ -3,7 +3,7 @@ import { type GameState, type Player, type TransferBid } from '../types/game';
 const getRandomElement = <T>(arr: T[]): T | undefined => arr[Math.floor(Math.random() * arr.length)];
 
 export const processAITransfers = (state: GameState): Partial<GameState> => {
-  const { currentWeek, currentSeason, clubs, players, transferBids, isTransferWindowOpen, userClubId } = state;
+  const { currentDate, currentSeason, clubs, players, transferBids, isTransferWindowOpen, userClubId } = state;
 
   if (!isTransferWindowOpen) return {};
 
@@ -79,7 +79,7 @@ export const processAITransfers = (state: GameState): Partial<GameState> => {
         toClubId: target.clubId,
         amount: bidAmount,
         status: 'PENDING',
-        week: currentWeek,
+        week: 1,
         season: currentSeason,
         isPlayerInterested: true,
         negotiationCount: 0

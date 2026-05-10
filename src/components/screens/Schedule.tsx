@@ -15,12 +15,12 @@ const Schedule: React.FC = () => {
   const userClub = clubs.find(c => c.id === userClubId);
   if (!userClub) return null;
 
-  // Filter matches for user club, sorted by week
+  // Filter matches for user club, sorted by season and week
   const userMatches = matches
     .filter(m => m.homeClubId === userClubId || m.awayClubId === userClubId)
-    .sort((a, b) => a.week - b.week);
+    .sort((a, b) => a.season !== b.season ? a.season - b.season : a.week - b.week);
 
-  const upcomingMatches = userMatches.filter(m => !m.played && m.week >= currentWeek);
+  const upcomingMatches = userMatches.filter(m => !m.played && (m.season > currentSeason || (m.season === currentSeason && m.week >= currentWeek)));
   const completedMatches = userMatches.filter(m => m.played).reverse();
 
   return (
@@ -28,7 +28,7 @@ const Schedule: React.FC = () => {
       <div className="flex justify-between items-end border-b border-white/5 pb-8">
         <div>
           <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">Fixture Schedule</h1>
-          <p className="text-zinc-500 font-medium mt-1">{currentSeason}/{currentSeason + 1} League Campaign • Week {currentWeek} of 38</p>
+          <p className="text-zinc-500 font-medium mt-1">{currentSeason}/{currentSeason + 1} League Campaign • Week {currentWeek}</p>
         </div>
         <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-4 py-2 rounded-xl">
           <Calendar className="w-3 h-3" /> FULL CALENDAR
@@ -50,7 +50,7 @@ const Schedule: React.FC = () => {
                 const isHome = match.homeClubId === userClubId;
                 const opponentId = isHome ? match.awayClubId : match.homeClubId;
                 const opponent = clubs.find(c => c.id === opponentId);
-                const isNextMatch = match.week === currentWeek;
+                const isNextMatch = match.week === currentWeek && match.season === currentSeason;
 
                 return (
                   <Card key={match.id} className={cn(
@@ -60,11 +60,11 @@ const Schedule: React.FC = () => {
                     <CardContent className="p-0">
                       <div className="flex flex-col md:flex-row items-stretch">
                         <div className={cn(
-                          "w-full md:w-24 flex flex-col items-center justify-center p-4 border-b md:border-b-0 md:border-r border-white/5",
+                          "w-full md:w-32 flex flex-col items-center justify-center p-4 border-b md:border-b-0 md:border-r border-white/5",
                           isNextMatch ? "bg-indigo-500/5" : "bg-white/[0.01]"
                         )}>
                           <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Week</span>
-                          <span className={cn("text-2xl font-black italic", isNextMatch ? "text-indigo-400" : "text-white")}>{match.week}</span>
+                          <span className={cn("text-sm font-black italic", isNextMatch ? "text-indigo-400" : "text-white")}>{match.week}</span>
                         </div>
                         
                         <div className="flex-1 p-6 flex items-center justify-between gap-8">
