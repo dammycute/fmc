@@ -1,7 +1,7 @@
-import { type GameState, type Club, type Player, type TransferBid, type League } from '../types/game';
+import { type GameState, type Player, type TransferBid } from '../types/game';
 
 export const processAITransfers = (state: GameState): Partial<GameState> => {
-  const { currentWeek, currentSeason, clubs, players, leagues, transferBids, isTransferWindowOpen, userClubId } = state;
+  const { currentWeek, currentSeason, clubs, players, transferBids, isTransferWindowOpen, userClubId } = state;
 
   if (!isTransferWindowOpen) return {};
 
@@ -88,7 +88,8 @@ export const processAITransfers = (state: GameState): Partial<GameState> => {
         status: 'PENDING',
         week: currentWeek,
         season: currentSeason,
-        isPlayerInterested: true
+        isPlayerInterested: true,
+        negotiationCount: 0
       });
     }
   });

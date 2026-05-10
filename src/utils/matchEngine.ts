@@ -100,7 +100,7 @@ export function simulateMatch(
       const teamName = isHomeCard ? homeClub.name : awayClub.name;
       events.push({
         minute,
-        type: 'YELLOW_CARD',
+        type: 'CARD',
         description: `Yellow Card: A reckless challenge from a ${teamName} player.`,
       });
     }

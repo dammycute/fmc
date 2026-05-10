@@ -1,8 +1,8 @@
 import { 
   type Club, type Player, type Manager, type League, type Position, 
-  type ClubFinances, type ClubFacilities, type PersonalityStyle,
-  type TacticalPhilosophy, type Formation, type OwnershipType,
-  type BoardExpectation, type ClubCultureType
+  type ClubFinances, type TacticalPhilosophy, type Formation, 
+  type OwnershipType, type BoardExpectation, type ClubCultureType, 
+  type GameState, type Match, type PersonalityStyle
 } from '../types/game';
 
 const FIRST_NAMES = ['John', 'David', 'Michael', 'Chris', 'James', 'Robert', 'Mark', 'Paul', 'Kevin', 'Steven', 'Thomas', 'Daniel', 'Gary', 'William', 'Richard', 'Joseph', 'Andrew', 'Ryan', 'Luke', 'Adam', 'Mateo', 'Luka', 'Santi', 'Theo', 'Marco'];
@@ -130,7 +130,6 @@ export const generateInitialData = (): GameState => {
         fanConfidence: 70,
         boardConfidence: 70,
         leagueId: league.id,
-        history: ['Club founded'],
         board: {
           type: ownerType,
           expectations,
@@ -194,7 +193,6 @@ export const generateInitialData = (): GameState => {
           workingWithYouth: getRandomRating(40, 90),
         },
         philosophy: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
-        preferredFormation: getRandomElement(['4-4-2', '4-3-3', '3-5-2', '4-2-3-1'] as Formation[]),
         pressing: getRandomRating(30, 95),
         creativeFreedom: getRandomRating(30, 95),
         personality: {
@@ -265,5 +263,20 @@ export const generateInitialData = (): GameState => {
     }
   });
 
-  return { clubs, players: allPlayers, managers, leagues, matches: allMatches, transferRequests: [], staff: [], transferBids: [], news: [] };
+  return { 
+    currentWeek: 1,
+    currentSeason: 2024,
+    isTransferWindowOpen: true,
+    clubs, 
+    players: allPlayers, 
+    managers, 
+    leagues, 
+    matches: allMatches, 
+    transferRequests: [], 
+    staff: [], 
+    transferBids: [], 
+    news: [],
+    userClubId: null,
+    personalBalance: 500000 // Non-league level starting wealth
+  };
 };

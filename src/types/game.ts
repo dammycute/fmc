@@ -67,6 +67,8 @@ export interface Club {
   seasonTarget: SeasonTarget;
   availableSponsors: Sponsor[];
   activeSponsors: Sponsor[];
+  valuation: number;
+  isForSale: boolean;
 }
 
 export interface Player {
@@ -185,6 +187,7 @@ export interface Manager {
   clubId: string;
   relationshipWithChairman: number;
   morale: number;
+  preferredStyle: TacticalPhilosophy;
   history: string[];
 }
 
@@ -326,4 +329,5 @@ export interface GameState {
   transferBids: TransferBid[];
   news: NewsStory[];
   userClubId: string | null;
+  personalBalance: number;
 }
