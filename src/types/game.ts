@@ -65,6 +65,7 @@ export interface Club {
   valuation: number;
   isForSale: boolean;
   formation: Formation;
+  tactics: TacticalPhilosophy;
 }
 
 export interface Player {
@@ -140,7 +141,8 @@ export interface Player {
     appearances: number;
     goals: number;
     trophies: number;
-    joinedDate: string;
+    joinedSeason: number;
+    joinedWeek: number;
   };
 }
 
@@ -217,23 +219,32 @@ export interface ClubFacilities {
 
 export interface ClubFinances {
   balance: number;
+  transferBudget: number;
+  wageBudget: number;
   weeklyWages: number;
   weeklyStaffWages: number;
+  overdraftLimit: number;
   revenue: {
     tickets: number;
     sponsorship: number;
-    prizeMoney: number;
     merchandise: number;
     tvRights: number;
-    playerSales: number;
+    prizeMoney: number;
   };
   expenses: {
     playerWages: number;
     staffWages: number;
-    transfers: number;
     facilityMaintenance: number;
     loanRepayments: number;
+    transfers: number;
   };
+  loans: Array<{
+    id: string;
+    amount: number;
+    remainingAmount: number;
+    weeklyRepayment: number;
+    interestRate: number;
+  }>;
 }
 
 export interface League {
@@ -251,8 +262,8 @@ export interface Match {
   awayScore: number;
   played: boolean;
   leagueId: string;
-  date: string; // YYYY-MM-DD
   season: number;
+  week: number;
   events: MatchEvent[];
 }
 
@@ -261,6 +272,7 @@ export interface MatchEvent {
   type: 'GOAL' | 'CARD' | 'INJURY' | 'COMMENTARY';
   description: string;
   playerId?: string;
+  clubId?: string;
 }
 
 export interface TransferRequest {
@@ -293,10 +305,11 @@ export interface TransferBid {
 
 export interface NewsStory {
   id: string;
-  date: string;
+  week: number;
+  season: number;
   title: string;
   content: string;
-  category: 'MATCH' | 'TRANSFER' | 'CLUB' | 'WORLD' | 'RUMOUR';
+  category: 'MATCH' | 'TRANSFER' | 'CLUB' | 'WORLD' | 'RUMOUR' | 'FINANCE' | 'BOARD';
   importance: 'LOW' | 'MEDIUM' | 'HIGH' | 'BREAKING';
   clubId?: string;
 }
@@ -328,8 +341,8 @@ export interface LeagueTableEntry {
 }
 
 export interface GameState {
-  currentDate: string; // YYYY-MM-DD
   currentSeason: number;
+  currentWeek: number;
   isTransferWindowOpen: boolean;
   clubs: Club[];
   players: Player[];

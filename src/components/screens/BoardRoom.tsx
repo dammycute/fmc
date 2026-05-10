@@ -13,7 +13,7 @@ import { cn } from '../../lib/utils';
 import type { SeasonTarget, Formation } from '../../types/game';
 
 const BoardRoom: React.FC = () => {
-  const { userClubId, clubs, managers, setSeasonTarget, setTransferBudget, acceptSponsor, renameClub, setFormation } = useGameStore();
+  const { userClubId, clubs, managers, setSeasonTarget, setTransferBudget, acceptSponsor, renameClub, setFormation, setTactics } = useGameStore();
   const [newClubName, setNewClubName] = useState('');
   const club = clubs.find(c => c.id === userClubId);
   const manager = managers.find(m => m.clubId === userClubId);
@@ -112,6 +112,32 @@ const BoardRoom: React.FC = () => {
                     >
                       <p className="text-[10px] font-black uppercase tracking-tighter whitespace-nowrap">
                         {formation.replace('_', ' ')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tactical Philosophy */}
+              <div className="space-y-6 pt-10 border-t border-white/5">
+                <div className="flex justify-between items-end">
+                  <h3 className="text-sm font-black text-white uppercase tracking-tight">Tactical Approach</h3>
+                  <Badge className="bg-sky-600 text-white font-black text-[10px] px-3 py-1 uppercase">{club.tactics?.replace('_', ' ')}</Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as any[]).map(tactic => (
+                    <button
+                      key={tactic}
+                      onClick={() => setTactics(club.id, tactic)}
+                      className={cn(
+                        "p-4 rounded-2xl border text-center transition-all",
+                        club.tactics === tactic 
+                          ? "bg-sky-600 border-sky-500 shadow-lg shadow-sky-600/20" 
+                          : "bg-white/5 border-white/5 hover:border-white/10 text-zinc-500 hover:text-zinc-300"
+                      )}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-tighter whitespace-nowrap">
+                        {tactic.replace('_', ' ')}
                       </p>
                     </button>
                   ))}
@@ -240,7 +266,7 @@ const BoardRoom: React.FC = () => {
                             <Badge className="bg-white/5 text-zinc-500 text-[8px] font-black uppercase mt-1 px-1.5">{sponsor.type} PARTNER</Badge>
                           </div>
                           <div className="text-right">
-                             <p className="text-sm font-black text-emerald-400">£{(sponsor.amount / 1000).toFixed(0)}K</p>
+                             <p className="text-sm font-black text-emerald-400">£{(sponsor.amount / 1000).toFixed(1)}K</p>
                              <p className="text-[8px] font-black text-zinc-600 uppercase">{sponsor.duration} SEASONS</p>
                           </div>
                         </div>

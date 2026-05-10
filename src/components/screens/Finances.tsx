@@ -20,7 +20,7 @@ const Finances: React.FC = () => {
         <Card className="bg-indigo-600 border-none shadow-xl shadow-indigo-600/20">
           <CardContent className="p-6">
             <p className="text-[10px] font-black text-indigo-100/60 uppercase tracking-widest mb-1">Total Balance</p>
-            <h2 className="text-4xl font-black text-white">£{((club.finances.balance || 0) / 1000000).toFixed(2)}M</h2>
+            <h2 className="text-4xl font-black text-white">£{((club.finances.balance || 0) / 1000000).toFixed(1)}M</h2>
             <div className="flex items-center gap-2 mt-4 text-indigo-100/80 text-xs font-bold">
               <span className="px-2 py-0.5 rounded bg-white/20">HEALTHY</span>
               <span>No active loans</span>
@@ -28,12 +28,12 @@ const Finances: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-white/[0.03] border-white/5">
+        <Card className="bg-white/[0.03] border-white/5 glass-card hover-lift">
           <CardContent className="p-6">
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Weekly Profit/Loss</p>
             <div className="flex items-center gap-2">
               <h2 className={cn("text-3xl font-black", profitLoss >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                £{((Math.abs(profitLoss) || 0) / 1000).toFixed(0)}K
+                £{((Math.abs(profitLoss) || 0) / 1000).toFixed(1)}K
               </h2>
               {profitLoss >= 0 ? <ArrowUpRight className="text-emerald-400" /> : <ArrowDownRight className="text-rose-400" />}
             </div>
@@ -41,7 +41,7 @@ const Finances: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-white/[0.03] border-white/5">
+        <Card className="bg-white/[0.03] border-white/5 glass-card hover-lift">
           <CardContent className="p-6">
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Annual Budget Left</p>
             <h2 className="text-3xl font-black text-white">£{(((club.finances.balance || 0) * 0.4) / 1000000).toFixed(1)}M</h2>
@@ -69,12 +69,12 @@ const Finances: React.FC = () => {
                   <item.icon className="w-4 h-4 text-zinc-500" />
                   <span className="text-sm font-bold text-zinc-300">{item.label}</span>
                 </div>
-                <span className="text-sm font-mono text-emerald-400">+£{((item.value || 0) / 1000).toFixed(0)}K</span>
+                <span className="text-sm font-mono text-emerald-400">+£{((item.value || 0) / 1000).toFixed(1)}K</span>
               </div>
             ))}
             <div className="bg-emerald-500/5 p-4 flex justify-between items-center">
               <span className="text-xs font-black text-emerald-400 uppercase">Total Revenue</span>
-              <span className="text-sm font-black text-emerald-400">£{((totalRevenue || 0) / 1000).toFixed(0)}K</span>
+              <span className="text-sm font-black text-emerald-400">£{((totalRevenue || 0) / 1000).toFixed(1)}K</span>
             </div>
           </div>
         </div>
@@ -96,12 +96,12 @@ const Finances: React.FC = () => {
                   <item.icon className="w-4 h-4 text-zinc-500" />
                   <span className="text-sm font-bold text-zinc-300">{item.label}</span>
                 </div>
-                <span className="text-sm font-mono text-rose-400">-£{((item.value || 0) / 1000).toFixed(0)}K</span>
+                <span className="text-sm font-mono text-rose-400">-£{((item.value || 0) / 1000).toFixed(1)}K</span>
               </div>
             ))}
             <div className="bg-rose-500/5 p-4 flex justify-between items-center">
               <span className="text-xs font-black text-rose-400 uppercase">Total Expenses</span>
-              <span className="text-sm font-black text-rose-400">£{((totalExpenses || 0) / 1000).toFixed(0)}K</span>
+              <span className="text-sm font-black text-rose-400">£{((totalExpenses || 0) / 1000).toFixed(1)}K</span>
             </div>
           </div>
         </div>

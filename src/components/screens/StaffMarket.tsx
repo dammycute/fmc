@@ -17,7 +17,10 @@ const StaffMarket: React.FC = () => {
 
   // For this demo, we'll generate some candidates if none are available
   // In a real loop, these would be populated by the store
-  const managerCandidates = managers.filter(m => !m.clubId);
+  const managerCandidates = managers
+    .filter(m => !m.clubId && Math.abs(m.coachingAbility - club.reputation) <= 20)
+    .sort((a, b) => b.coachingAbility - a.coachingAbility)
+    .slice(0, 5);
   const staffCandidates = staff.filter(s => !s.clubId);
 
   return (
@@ -68,7 +71,7 @@ const StaffMarket: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-black text-white">Rating: {manager.coachingAbility}</p>
-                    <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-1">£{(manager.salary / 1000).toFixed(0)}k / Week</p>
+                    <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-1">£{(manager.salary / 1000).toFixed(1)}k / Week</p>
                   </div>
                 </div>
 

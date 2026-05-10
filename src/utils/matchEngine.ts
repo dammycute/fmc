@@ -36,8 +36,10 @@ export function simulateMatch(
   awayClub: Club,
   homePlayers: Player[],
   awayPlayers: Player[],
-  week: number,
-  season: number
+  homeManager: any,
+  awayManager: any,
+  season: number,
+  week: number
 ): Match {
   const homeStats = calculateTeamStats(homePlayers);
   const awayStats = calculateTeamStats(awayPlayers);
@@ -46,28 +48,45 @@ export function simulateMatch(
   let awayScore = 0;
   const events: MatchEvent[] = [];
 
+  // Tactical factors
+  const getPhilosophyBonus = (philosophy: string, isAttacking: boolean) => {
+    if (philosophy === 'TIKI_TAKA') return isAttacking ? 1.1 : 0.9;
+    if (philosophy === 'GEGENPRESSING') return 1.2;
+    if (philosophy === 'PARK_THE_BUS') return isAttacking ? 0.7 : 1.4;
+    if (philosophy === 'COUNTER_ATTACK') return 1.15;
+    return 1.0;
+  };
+
+  const homeTacticalMod = getPhilosophyBonus(homeManager.philosophy, true);
+  const awayTacticalMod = getPhilosophyBonus(awayManager.philosophy, true);
+
   // Home advantage
   const homeBonus = 5;
 
   // Simulate 90 minutes in 5-minute chunks
   for (let minute = 5; minute <= 90; minute += 5) {
+    // Pressing impacts fatigue (Gegenpressing is taxing)
+    const homePressingFactor = (homeManager.pressing || 50) / 100;
+    const awayPressingFactor = (awayManager.pressing || 50) / 100;
+    
     // Second half fatigue impact
-    const fatigueMod = minute > 60 ? 0.9 : 1.0;
+    const fatigueMod = minute > 60 ? 0.85 : 1.0;
     
     // Morale & Leadership momentum
     const homeMomentum = (homeStats.morale / 100) + (homeStats.leadership / 200);
     const awayMomentum = (awayStats.morale / 100) + (awayStats.leadership / 200);
 
-    const homeStrength = (homeStats.overall + homeBonus) * homeMomentum * (1 - (homeStats.fatigue / 500)) * fatigueMod;
-    const awayStrength = awayStats.overall * awayMomentum * (1 - (awayStats.fatigue / 500)) * fatigueMod;
+    const homeStrength = (homeStats.overall + homeBonus) * homeMomentum * homeTacticalMod * (1 - (homeStats.fatigue / 400)) * fatigueMod;
+    const awayStrength = awayStats.overall * awayMomentum * awayTacticalMod * (1 - (awayStats.fatigue / 400)) * fatigueMod;
 
     // Probability of a goal-scoring opportunity
-    if (Math.random() < 0.28) {
+    const baseChance = 0.28;
+    if (Math.random() < baseChance) {
       const isHomeChance = Math.random() * (homeStrength + awayStrength) < homeStrength;
       
       if (isHomeChance) {
         const avgComposure = homePlayers.filter(p => p.position === 'ATT').reduce((sum, p) => sum + p.mental.composure, 0) / (homePlayers.filter(p => p.position === 'ATT').length || 1);
-        const conversionChance = (homeStats.attack + (avgComposure / 2)) / (homeStats.attack + awayStats.defense + 15);
+        const conversionChance = (homeStats.attack * homeTacticalMod + (avgComposure / 2)) / (homeStats.attack + awayStats.defense + 20);
         
         if (Math.random() < conversionChance) {
           homeScore++;
@@ -75,12 +94,13 @@ export function simulateMatch(
           events.push({
             minute,
             type: 'GOAL',
+            clubId: homeClub.id,
             description: `GOAL! ${goalTypes[Math.floor(Math.random() * goalTypes.length)]} puts ${homeClub.name} ahead!`,
           });
         }
       } else {
         const avgComposure = awayPlayers.filter(p => p.position === 'ATT').reduce((sum, p) => sum + p.mental.composure, 0) / (awayPlayers.filter(p => p.position === 'ATT').length || 1);
-        const conversionChance = (awayStats.attack + (avgComposure / 2)) / (awayStats.attack + homeStats.defense + 15);
+        const conversionChance = (awayStats.attack * awayTacticalMod + (avgComposure / 2)) / (awayStats.attack + homeStats.defense + 20);
 
         if (Math.random() < conversionChance) {
           awayScore++;
@@ -88,20 +108,22 @@ export function simulateMatch(
           events.push({
             minute,
             type: 'GOAL',
+            clubId: awayClub.id,
             description: `GOAL! ${goalTypes[Math.floor(Math.random() * goalTypes.length)]} for ${awayClub.name}!`,
           });
         }
       }
     }
 
-    // Yellow Cards
-    if (Math.random() < 0.08) {
+    // Bookings influenced by pressing intensity
+    if (Math.random() < (0.05 + (homePressingFactor + awayPressingFactor) * 0.05)) {
       const isHomeCard = Math.random() > 0.5;
       const teamName = isHomeCard ? homeClub.name : awayClub.name;
       events.push({
         minute,
         type: 'CARD',
-        description: `Yellow Card: A reckless challenge from a ${teamName} player.`,
+        clubId: isHomeCard ? homeClub.id : awayClub.id,
+        description: `Yellow Card: High intensity challenge from a ${teamName} player.`,
       });
     }
 
@@ -112,6 +134,7 @@ export function simulateMatch(
       events.push({
         minute,
         type: 'INJURY',
+        clubId: isHomeInjury ? homeClub.id : awayClub.id,
         description: `Injury blow for ${clubName}. Player forced off.`,
       });
     }
@@ -125,8 +148,8 @@ export function simulateMatch(
     awayScore,
     played: true,
     leagueId: homeClub.leagueId,
-    week,
     season,
+    week,
     events,
   };
 }

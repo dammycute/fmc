@@ -30,10 +30,14 @@ const Scouting: React.FC = () => {
         </div>
         <div className="flex gap-4">
           <Button 
-            onClick={() => skipWeeks(4)}
+            onClick={() => {
+              if (window.confirm('Skip 4 weeks? You will miss intermediate match results.')) {
+                skipWeeks(4);
+              }
+            }}
             className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black text-[10px] uppercase tracking-widest px-6 h-12 rounded-xl border border-white/5"
           >
-            SKIP 1 MONTH
+            SKIP 4 WEEKS
           </Button>
           <Badge className="bg-indigo-600 text-white px-4 py-2 font-black uppercase text-[10px] tracking-widest border-none">
             SEASON {currentSeason}
@@ -81,7 +85,7 @@ const Scouting: React.FC = () => {
                           <div className="w-48 space-y-2">
                             <div className="flex justify-between text-[9px] font-black text-zinc-500 uppercase tracking-widest">
                               <span>Discovery Progress</span>
-                              <span className="text-white">{assignment.progress.toFixed(0)}%</span>
+                              <span className="text-white">{assignment.progress.toFixed(1)}%</span>
                             </div>
                             <Progress value={assignment.progress} className="h-1.5" />
                           </div>
@@ -170,7 +174,7 @@ const Scouting: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-zinc-500 font-bold">Network Reach</span>
-                <span className="text-white font-black">{((scouts.length / 5) * 100).toFixed(0)}%</span>
+                <span className="text-white font-black">{((scouts.length / 5) * 100).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                 <div className="h-full bg-indigo-500" style={{ width: `${(scouts.length / 5) * 100}%` }} />

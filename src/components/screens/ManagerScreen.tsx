@@ -64,7 +64,7 @@ const ManagerScreen: React.FC = () => {
             ].map((stat, i) => (
               <div key={i} className="p-3 bg-white/[0.02] border border-white/5 rounded-lg">
                 <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">{stat.label}</p>
-                <p className={cn("text-xl font-black mt-1", stat.color)}>{(stat.value || 0).toFixed(0)}%</p>
+                <p className={cn("text-xl font-black mt-1", stat.color)}>{(stat.value || 0).toFixed(1)}%</p>
               </div>
             ))}
           </div>
@@ -173,7 +173,7 @@ const ManagerScreen: React.FC = () => {
                   <div key={i} className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                       <span>{tactic.label}</span>
-                      <span>{(tactic.value || 0).toFixed(0)}%</span>
+                      <span>{(tactic.value || 0).toFixed(1)}%</span>
                     </div>
                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
                       <div className="h-full bg-indigo-500" style={{ width: `${tactic.value}%` }} />

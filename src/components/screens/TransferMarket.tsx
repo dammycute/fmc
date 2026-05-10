@@ -3,13 +3,13 @@ import { useGameStore } from '../../store/useGameStore';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { 
-  DollarSign, ArrowRightLeft, 
+import {
+  DollarSign, ArrowRightLeft,
   Search, Filter,
   MessageCircle, Scale, ShieldAlert, Zap
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,17 +19,27 @@ import {
 } from "../ui/dialog";
 
 const TransferMarket: React.FC = () => {
-  const { players, clubs, userClubId, transferBids, negotiateBid, respondToTransferBid, finalizeTransfer, makeTransferBid } = useGameStore();
+  const { 
+    players, 
+    clubs, 
+    userClubId, 
+    transferBids, 
+    negotiateBid, 
+    respondToTransferBid, 
+    finalizeTransfer, 
+    makeTransferBid 
+  } = useGameStore();
   const [activeTab, setActiveTab] = useState<'market' | 'inbox'>('market');
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [counterAmount, setCounterAmount] = useState<string>('');
-  
+
   const userClub = clubs.find(c => c.id === userClubId);
   if (!userClub) return null;
 
   // Market List: Discovered players or top talent
+  // Assuming player overall rating is comparable to club reputation
   const marketPlayers = players
-    .filter(p => p.clubId !== userClubId)
+    .filter(p => p.clubId !== userClubId && Math.abs(p.overallRating - userClub.reputation) <= 15)
     .sort((a, b) => b.overallRating - a.overallRating)
     .slice(0, 20);
 
@@ -40,7 +50,7 @@ const TransferMarket: React.FC = () => {
     if (!selectedBid || !counterAmount) return;
     const amount = parseInt(counterAmount);
     if (isNaN(amount)) return;
-    
+
     negotiateBid(selectedBid.id, amount);
     setSelectedBid(null);
     setCounterAmount('');
@@ -65,7 +75,7 @@ const TransferMarket: React.FC = () => {
         </div>
 
         <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-white/5">
-          <button 
+          <button
             onClick={() => setActiveTab('market')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
@@ -74,7 +84,7 @@ const TransferMarket: React.FC = () => {
           >
             Market pool
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('inbox')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative",
@@ -102,7 +112,7 @@ const TransferMarket: React.FC = () => {
               </Button>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {marketPlayers.map(player => {
               const club = clubs.find(c => c.id === player.clubId);
@@ -120,7 +130,7 @@ const TransferMarket: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-black text-indigo-400">{(player.overallRating || 0).toFixed(0)}</div>
+                        <div className="text-lg font-black text-indigo-400">{(player.overallRating || 0).toFixed(1)}</div>
                         <div className="text-[8px] font-black text-zinc-600 uppercase tracking-tighter">Rating</div>
                       </div>
                     </div>
@@ -132,11 +142,11 @@ const TransferMarket: React.FC = () => {
                       </div>
                       <div className="p-3 bg-white/[0.02] border border-white/5 rounded-xl">
                         <p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Weekly Wage</p>
-                        <p className="text-sm font-black text-white mt-0.5">£{(player.wage / 1000).toFixed(0)}K</p>
+                        <p className="text-sm font-black text-white mt-0.5">£{(player.wage / 1000).toFixed(1)}K</p>
                       </div>
                     </div>
 
-                    <Button 
+                    <Button
                       onClick={() => makeTransferBid(player.id, userClubId, player.value)}
                       className="w-full bg-white/5 hover:bg-indigo-600 text-white font-black h-10 rounded-xl transition-all uppercase tracking-widest text-[10px]"
                     >
@@ -193,8 +203,8 @@ const TransferMarket: React.FC = () => {
                           <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Status</p>
                           <Badge className={cn(
                             "px-3 py-1 font-black text-[9px] uppercase tracking-tighter",
-                            bid.status === 'PENDING' ? "bg-indigo-500/10 text-indigo-400" : 
-                            bid.status === 'ACCEPTED' ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                            bid.status === 'PENDING' ? "bg-indigo-500/10 text-indigo-400" :
+                              bid.status === 'ACCEPTED' ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
                           )}>
                             {bid.status === 'PENDING' ? `PENDING (${bid.negotiationCount}/3)` : bid.status}
                           </Badge>
@@ -204,13 +214,13 @@ const TransferMarket: React.FC = () => {
                       <div className="flex gap-3">
                         {bid.status === 'PENDING' && (
                           <>
-                            <Button 
+                            <Button
                               onClick={() => setSelectedBid(bid)}
                               className="bg-indigo-600 hover:bg-indigo-500 text-white font-black h-12 px-8 rounded-xl shadow-lg shadow-indigo-600/20 uppercase tracking-widest text-[10px]"
                             >
                               Negotiate
                             </Button>
-                            <Button 
+                            <Button
                               onClick={() => respondToTransferBid(bid.id, 'REJECTED')}
                               variant="destructive"
                               className="font-black h-12 px-6 rounded-xl uppercase tracking-widest text-[10px]"
@@ -220,7 +230,7 @@ const TransferMarket: React.FC = () => {
                           </>
                         )}
                         {bid.status === 'ACCEPTED' && (
-                          <Button 
+                          <Button
                             onClick={() => finalizeTransfer(bid.id)}
                             className="bg-emerald-600 hover:bg-emerald-500 text-white font-black h-12 px-8 rounded-xl uppercase tracking-widest text-[10px]"
                           >
@@ -266,7 +276,7 @@ const TransferMarket: React.FC = () => {
               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Your Counter-Offer (£)</label>
               <div className="relative">
                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <input 
+                <input
                   type="number"
                   value={counterAmount}
                   onChange={(e) => setCounterAmount(e.target.value)}
@@ -295,15 +305,15 @@ const TransferMarket: React.FC = () => {
           </div>
 
           <DialogFooter className="flex flex-col gap-3">
-            <Button 
+            <Button
               onClick={handleNegotiate}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black h-14 rounded-2xl uppercase tracking-widest text-xs shadow-xl shadow-indigo-600/20"
             >
               Submit Counter-Offer
             </Button>
-            <Button 
+            <Button
               onClick={() => setSelectedBid(null)}
-              variant="ghost" 
+              variant="ghost"
               className="w-full text-zinc-500 hover:text-white font-black h-12 rounded-2xl uppercase tracking-widest text-[10px]"
             >
               Cancel Negotiation
