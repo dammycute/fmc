@@ -20,6 +20,7 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
   const potential = Math.min(99, rating + Math.floor(Math.random() * 15));
 
   const position = getRandomElement(['GK', 'DEF', 'MID', 'ATT'] as Position[]);
+  const playerTierMultiplier = [1, 0.25, 0.05, 0.01, 0.005][leagueTier - 1] || 0.005;
 
   return {
     id: Math.random().toString(36).substr(2, 9),
@@ -63,8 +64,8 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
     },
     overallRating: rating,
     potentialRating: potential,
-    value: rating * rating * 1000 * (25 / leagueTier),
-    wage: rating * 100 * (5 / leagueTier),
+    value: rating * rating * 1000 * playerTierMultiplier,
+    wage: rating * 100 * playerTierMultiplier,
     morale: 70 + Math.floor(Math.random() * 30),
     fitness: 100,
     fatigue: 0,
@@ -103,6 +104,8 @@ export const generateInitialData = (): GameState => {
     { id: 'l1', name: 'Premier League', tier: 1, country: 'England' },
     { id: 'l2', name: 'Championship', tier: 2, country: 'England' },
     { id: 'l3', name: 'League One', tier: 3, country: 'England' },
+    { id: 'l4', name: 'League Two', tier: 4, country: 'England' },
+    { id: 'l5', name: 'National League', tier: 5, country: 'England' },
   ];
 
   const clubs: Club[] = [];
@@ -112,7 +115,8 @@ export const generateInitialData = (): GameState => {
   leagues.forEach(league => {
     for (let i = 0; i < 20; i++) {
       const clubId = `c-${league.id}-${i}`;
-      const isUser = league.tier === 3 && i === 0;
+      const isUser = false;
+      const tierMultiplier = [100, 10, 1, 0.1, 0.02][league.tier - 1] || 0.01;
       
       const ownerType: OwnershipType = getRandomElement(['LOCAL', 'BILLIONAIRE', 'CORPORATE', 'FAN_OWNED']);
       const expectations: BoardExpectation = league.tier === 1 ? 'QUALIFY_EUROPE' : league.tier === 2 ? 'PROMOTION' : 'MID_TABLE';
@@ -147,15 +151,15 @@ export const generateInitialData = (): GameState => {
           hallOfFame: []
         },
         facilities: {
-          stadium: { level: 1, name: 'Stadium', upgradeCost: 1000000, capacity: 5000 * (4 - league.tier) },
+          stadium: { level: 1, name: 'Stadium', upgradeCost: 1000000, capacity: Math.floor(20000 * Math.pow(0.5, league.tier - 1)) },
           trainingGround: { level: 1, name: 'Training Ground', upgradeCost: 500000 },
           medicalCenter: { level: 1, name: 'Medical Center', upgradeCost: 300000 },
           youthAcademy: { level: 1, name: 'Youth Academy', upgradeCost: 400000 },
         },
-        valuation: (5000000 + Math.random() * 10000000) * (4 - league.tier),
+        valuation: (5000000 + Math.random() * 5000000) * tierMultiplier,
         isForSale: true,
         finances: {
-          balance: (200000 + Math.random() * 500000) * (4 - league.tier),
+          balance: (200000 + Math.random() * 500000) * tierMultiplier,
           weeklyWages: 0,
           weeklyStaffWages: 0,
           revenue: { tickets: 0, sponsorship: 200000, prizeMoney: 0, merchandise: 10000, tvRights: 100000, playerSales: 0 },
@@ -208,7 +212,7 @@ export const generateInitialData = (): GameState => {
         },
         coachingAbility: getRandomRating(40, 90),
         tacticalIntelligence: getRandomRating(40, 90),
-        salary: 5000 * (4 - league.tier),
+        salary: Math.floor(5000 * tierMultiplier),
         clubId: clubId,
         relationshipWithChairman: 70,
         morale: 70,

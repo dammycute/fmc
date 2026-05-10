@@ -9,6 +9,7 @@ import Facilities from './components/screens/Facilities';
 import TransferMarket from './components/screens/TransferMarket';
 import BoardRoom from './components/screens/BoardRoom';
 import ClubMarket from './components/screens/ClubMarket';
+import Onboarding from './components/screens/Onboarding';
 import StaffMarket from './components/screens/StaffMarket';
 import Schedule from './components/screens/Schedule';
 import Scouting from './components/screens/Scouting';
@@ -31,6 +32,10 @@ const App: React.FC = () => {
   const userClub = clubs.find(c => c.id === userClubId);
   const pendingRequests = transferRequests.filter(r => r.clubId === userClubId && r.status === 'PENDING');
   const pendingBids = transferBids.filter(b => b.toClubId === userClubId && b.status === 'PENDING');
+
+  if (!userClubId) {
+    return <Onboarding onComplete={() => {}} />;
+  }
 
   if (!userClub || !userClub.finances) {
     return (
@@ -79,10 +84,7 @@ const App: React.FC = () => {
       />
       
       <main className="flex-1 ml-64 p-8 pb-24 overflow-y-auto">
-        {!userClubId ? (
-          <ClubMarket />
-        ) : (
-          <>
+        <>
             {/* Header Stats */}
         <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/5">
           <div>
@@ -118,7 +120,6 @@ const App: React.FC = () => {
 
             {renderContent()}
           </>
-        )}
       </main>
 
       {/* Global Footer / Ticker Placeholder */}

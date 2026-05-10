@@ -55,7 +55,7 @@ const initialState: GameState = {
   transferBids: [],
   news: [],
   userClubId: null,
-  personalBalance: 1000000,
+  personalBalance: 250000,
 };
 
 export const useGameStore = create<GameStore>()(
