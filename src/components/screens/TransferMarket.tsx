@@ -19,7 +19,7 @@ const TransferMarket: React.FC = () => {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Transfer Market</CardTitle>
-          <div className="text-sm font-bold">Budget: ${userClub?.balance.toLocaleString()}</div>
+          <div className="text-sm font-bold text-green-600">Budget: £{userClub?.balance.toLocaleString()}</div>
         </div>
       </CardHeader>
       <CardContent>
@@ -42,8 +42,8 @@ const TransferMarket: React.FC = () => {
                   <TableCell className="font-medium">{player.firstName} {player.lastName}</TableCell>
                   <TableCell>{player.position}</TableCell>
                   <TableCell>{playerClub?.name}</TableCell>
-                  <TableCell>{player.overallRating}</TableCell>
-                  <TableCell>${player.value.toLocaleString()}</TableCell>
+                  <TableCell>{player.overallRating.toFixed(0)}</TableCell>
+                  <TableCell>£{player.value.toLocaleString()}</TableCell>
                   <TableCell>
                     <Button 
                       size="sm" 

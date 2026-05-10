@@ -36,8 +36,13 @@ export function simulateMatch(
 
   // Home advantage
   const homeBonus = 5;
-  const homeStrength = homeStats.overall + homeBonus;
-  const awayStrength = awayStats.overall;
+
+  // Tactical Influence (Simplified)
+  const homeTacticalBonus = homeClub.philosophy === 'ATTACKING' ? 2 : 0;
+  const awayTacticalBonus = awayClub.philosophy === 'DEFENSIVE' ? 2 : 0;
+
+  const homeStrength = homeStats.overall + homeBonus + homeTacticalBonus;
+  const awayStrength = awayStats.overall + awayTacticalBonus;
 
   let homeScore = 0;
   let awayScore = 0;
