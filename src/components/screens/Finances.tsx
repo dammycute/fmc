@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { DollarSign, ArrowUpRight, ArrowDownRight, Building2, Ticket, Users2, Tv, ShoppingCart, Briefcase } from 'lucide-react';
 import { cn } from '../../lib/utils';
 

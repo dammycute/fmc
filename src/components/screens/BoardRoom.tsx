@@ -6,9 +6,8 @@ import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
 import { Input } from '../ui/input';
 import { 
-  Building2, Users, Trophy, History, TrendingUp, 
-  TrendingDown, Crown, Target, Zap, DollarSign,
-  Briefcase, Handshake, ShieldCheck, ChevronRight
+  History, Crown, Target, DollarSign,
+  Briefcase, Handshake, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { SeasonTarget } from '../../types/game';
@@ -23,7 +22,6 @@ const BoardRoom: React.FC = () => {
   if (!club) return null;
 
   const board = club.board;
-  const confidenceColor = club.boardConfidence > 70 ? 'text-emerald-400' : club.boardConfidence > 40 ? 'text-amber-400' : 'text-rose-400';
 
   const targets: SeasonTarget[] = ['CHAMPIONS', 'PROMOTION', 'PLAYOFFS', 'TOP_HALF', 'MID_TABLE', 'AVOID_RELEGATION'];
 

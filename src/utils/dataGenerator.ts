@@ -1,8 +1,8 @@
 import { 
   type Club, type Player, type Manager, type League, type Position, 
-  type ClubFinances, type TacticalPhilosophy, type Formation, 
+  type TacticalPhilosophy, type Formation, 
   type OwnershipType, type BoardExpectation, type ClubCultureType, 
-  type GameState, type Match, type PersonalityStyle
+  type GameState, type Match
 } from '../types/game';
 
 const FIRST_NAMES = ['John', 'David', 'Michael', 'Chris', 'James', 'Robert', 'Mark', 'Paul', 'Kevin', 'Steven', 'Thomas', 'Daniel', 'Gary', 'William', 'Richard', 'Joseph', 'Andrew', 'Ryan', 'Luke', 'Adam', 'Mateo', 'Luka', 'Santi', 'Theo', 'Marco'];
@@ -169,6 +169,10 @@ export const generateInitialData = (): GameState => {
           { id: `sp-${clubId}-3`, name: 'Apex Logistics', type: 'STADIUM', amount: 300000, duration: 3, reputationRequired: 40, status: 'PENDING' },
         ],
         activeSponsors: [],
+        staffAds: [],
+        staffApplicants: [],
+        scoutAssignments: [],
+        scoutReports: [],
         history: [`Club founded in ${league.name}`]
       };
 

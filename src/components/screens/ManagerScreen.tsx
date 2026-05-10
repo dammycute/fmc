@@ -59,8 +59,8 @@ const ManagerScreen: React.FC = () => {
             {[
               { label: 'Morale', value: manager.morale, color: 'text-emerald-400' },
               { label: 'Chairman Rel.', value: manager.relationshipWithChairman, color: 'text-sky-400' },
-              { label: 'Discipline', value: manager.discipline, color: 'text-amber-400' },
-              { label: 'Loyalty', value: manager.loyalty, color: 'text-rose-400' },
+              { label: 'Discipline', value: manager.personality.discipline, color: 'text-amber-400' },
+              { label: 'Loyalty', value: manager.personality.loyalty, color: 'text-rose-400' },
             ].map((stat, i) => (
               <div key={i} className="p-3 bg-white/[0.02] border border-white/5 rounded-lg">
                 <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">{stat.label}</p>
@@ -165,9 +165,9 @@ const ManagerScreen: React.FC = () => {
 
               <div className="space-y-4">
                 {[
-                  { label: 'Attacking', value: manager.attacking },
-                  { label: 'Defensive', value: manager.defensive },
-                  { label: 'Possession', value: manager.possession },
+                  { label: 'Attacking', value: manager.coaching.attacking },
+                  { label: 'Defensive', value: manager.coaching.defensive },
+                  { label: 'Possession', value: manager.coaching.tactical },
                   { label: 'Pressing', value: manager.pressing },
                 ].map((tactic, i) => (
                   <div key={i} className="space-y-1">

@@ -14,11 +14,6 @@ export interface StaffAdvertisement {
   cost: number;
 }
 
-export interface StaffApplicant extends Staff {
-  id: string;
-  isApplicant: boolean;
-}
-
 export interface Sponsor {
   id: string;
   name: string;
@@ -77,8 +72,6 @@ export interface Player {
   lastName: string;
   age: number;
   position: Position;
-  
-  // Technical
   technical: {
     passing: number;
     shooting: number;
@@ -89,8 +82,6 @@ export interface Player {
     finishing: number;
     handling?: number; // GK only
   };
-  
-  // Physical
   physical: {
     pace: number;
     strength: number;
@@ -98,8 +89,6 @@ export interface Player {
     agility: number;
     acceleration: number;
   };
-  
-  // Mental
   mental: {
     leadership: number;
     composure: number;
@@ -108,8 +97,6 @@ export interface Player {
     decisions: number;
     determination: number;
   };
-  
-  // Hidden
   hidden: {
     professionalism: number;
     ambition: number;
@@ -119,7 +106,6 @@ export interface Player {
     bigMatchMentality: number;
     consistency: number;
   };
-
   overallRating: number;
   potentialRating: number;
   value: number;
@@ -140,10 +126,10 @@ export interface Player {
     playingTime: number;
     manager: number;
     clubAmbition: number;
-    adaptation: number; // 0-100 (for foreign players)
-    cityLife: number; // 0-100
+    adaptation: number;
+    cityLife: number;
   };
-  chemistry: { [playerId: string]: number }; // Relationship with teammates
+  chemistry: { [playerId: string]: number };
   isLegend: boolean;
   history: {
     appearances: number;
@@ -156,8 +142,6 @@ export interface Player {
 export interface Manager {
   id: string;
   name: string;
-  
-  // Coaching Attributes
   coaching: {
     attacking: number;
     defensive: number;
@@ -165,14 +149,10 @@ export interface Manager {
     mental: number;
     workingWithYouth: number;
   };
-  
-  // Philosophy
   philosophy: TacticalPhilosophy;
   preferredFormation: Formation;
   pressing: number;
   creativeFreedom: number;
-  
-  // Personality
   personality: {
     discipline: number;
     loyalty: number;
@@ -180,7 +160,6 @@ export interface Manager {
     mediaHandling: number;
     playerManagement: number;
   };
-
   coachingAbility: number;
   tacticalIntelligence: number;
   salary: number;
@@ -189,6 +168,15 @@ export interface Manager {
   morale: number;
   preferredStyle: TacticalPhilosophy;
   history: string[];
+  
+  // Optional flattened properties for UI compatibility
+  agePreference?: { min: number; max: number };
+  ambition?: number;
+  discipline?: number;
+  loyalty?: number;
+  attacking?: number;
+  defensive?: number;
+  possession?: number;
 }
 
 export type StaffRole = 'SPORTING_DIRECTOR' | 'SCOUT' | 'PHYSIO' | 'ANALYST' | 'ACADEMY_COACH';
@@ -200,6 +188,12 @@ export interface Staff {
   rating: number;
   salary: number;
   clubId: string;
+  isApplicant?: boolean;
+}
+
+export interface StaffApplicant extends Staff {
+  id: string;
+  isApplicant: boolean;
 }
 
 export interface Facility {
@@ -288,7 +282,7 @@ export interface TransferBid {
   week: number;
   season: number;
   isPlayerInterested: boolean;
-  negotiationCount: number; // Max 3 bargaining rounds
+  negotiationCount: number;
 }
 
 export interface NewsStory {
@@ -305,14 +299,26 @@ export interface ScoutAssignment {
   scoutId: string;
   region: string;
   progress: number;
-  playersFound: string[]; // Player IDs
+  playersFound: string[];
 }
 
 export interface ScoutReport {
   playerId: string;
   scoutId: string;
-  knowledgeLevel: number; // 0-100
-  recommendation: number; // 1-5
+  knowledgeLevel: number;
+  recommendation: number;
+}
+
+export interface LeagueTableEntry {
+  clubId: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  gf: number;
+  ga: number;
+  gd: number;
+  points: number;
 }
 
 export interface GameState {

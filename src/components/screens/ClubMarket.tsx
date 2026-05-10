@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { 
-  Building2, Users, Trophy, History, TrendingUp, 
-  TrendingDown, Crown, Target, Zap, DollarSign,
-  Briefcase, Handshake, ShieldCheck, ChevronRight,
-  Search, Filter, Landmark, Wallet
+  Search, Landmark, Wallet
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 

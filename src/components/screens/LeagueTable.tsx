@@ -1,8 +1,8 @@
 import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Trophy, Globe, MapPin, ChevronRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { MapPin, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const LeagueTable: React.FC = () => {

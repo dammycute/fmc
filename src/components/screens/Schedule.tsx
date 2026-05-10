@@ -3,14 +3,14 @@ import { useGameStore } from '../../store/useGameStore';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { 
-  Calendar, Clock, MapPin, 
-  ChevronRight, Trophy, AlertCircle,
+  Calendar, MapPin, 
+  Trophy, 
   Activity, Star
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const Schedule: React.FC = () => {
-  const { userClubId, clubs, matches, currentWeek, currentSeason, skipWeeks } = useGameStore();
+  const { userClubId, clubs, matches, currentWeek } = useGameStore();
   
   const userClub = clubs.find(c => c.id === userClubId);
   if (!userClub) return null;
@@ -123,7 +123,7 @@ const Schedule: React.FC = () => {
                   <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">No results yet</p>
                 </div>
               ) : (
-                completedMatches.slice(0, 5).map((match, i) => {
+                completedMatches.slice(0, 5).map((match) => {
                   const isHome = match.homeClubId === userClubId;
                   const opponent = clubs.find(c => c.id === (isHome ? match.awayClubId : match.homeClubId));
                   const userScore = isHome ? match.homeScore : match.awayScore;
@@ -159,16 +159,16 @@ const Schedule: React.FC = () => {
               <Star className="w-3 h-3 text-indigo-400" /> Season Milestones
             </h3>
             <div className="space-y-4">
-               {[
-                 { date: 'Week 1', label: 'Season Launch' },
-                 { date: 'Week 19', label: 'Mid-Point Review' },
-                 { date: 'Week 38', label: 'Final Matchday' },
-               ].map((m, i) => (
-                 <div key={i} className="flex justify-between items-center text-[10px]">
-                   <span className="text-indigo-400 font-black uppercase">{m.date}</span>
-                   <span className="text-white font-bold">{m.label}</span>
-                 </div>
-               ))}
+              {[
+                { date: 'Week 1', label: 'Season Launch' },
+                { date: 'Week 19', label: 'Mid-Point Review' },
+                { date: 'Week 38', label: 'Final Matchday' },
+              ].map((m, _i) => (
+                <div key={_i} className="flex justify-between items-center text-[10px]">
+                  <span className="text-indigo-400 font-black uppercase">{m.date}</span>
+                  <span className="text-white font-bold">{m.label}</span>
+                </div>
+              ))}
             </div>
           </Card>
         </div>

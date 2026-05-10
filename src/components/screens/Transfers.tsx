@@ -10,7 +10,6 @@ const Transfers: React.FC = () => {
   const { userClubId, clubs, players, transferBids, respondToTransferBid, isTransferWindowOpen } = useGameStore();
 
   const userClubBids = transferBids.filter(b => b.toClubId === userClubId && b.status === 'PENDING');
-  const userPurchases = transferBids.filter(b => b.fromClubId === userClubId);
   const otherBids = transferBids.filter(b => b.toClubId !== userClubId).slice(-5);
 
   return (

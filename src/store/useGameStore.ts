@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { type GameState, type Club, type Player, type Match, type TransferRequest, type Position, type Manager, type Staff, type StaffRole, type OwnershipType, type BoardExpectation } from '../types/game';
+import { 
+  type GameState, type Club, type Player, type Match, 
+  type Manager, type Staff, type StaffRole, 
+  type SeasonTarget, type TransferBid, type NewsStory,
+  type OwnershipType
+} from '../types/game';
 import { simulateMatch } from '../utils/matchEngine';
 import { generateInitialData } from '../utils/dataGenerator';
 import { processAITransfers } from '../utils/transferEngine';
@@ -17,11 +22,13 @@ interface GameStore extends GameState {
   upgradeFacility: (clubId: string, facilityType: 'stadium' | 'trainingGround' | 'medicalCenter' | 'youthAcademy') => void;
   advertiseStaffRole: (clubId: string, role: StaffRole) => void;
   hireStaffApplicant: (clubId: string, applicantId: string) => void;
+  hireStaff: (clubId: string, staffMember: Staff) => void; 
   dismissStaff: (staffId: string) => void;
   toggleTransferList: (playerId: string) => void;
   assignScout: (clubId: string, scoutId: string, region: string) => void;
   generateNews: (story: Omit<NewsStory, 'id' | 'date'>) => void;
   negotiateBid: (bidId: string, counterAmount: number) => void;
+  respondToTransferBid: (bidId: string, status: 'ACCEPTED' | 'REJECTED' | 'CANCELLED') => void;
   prepareMatchday: () => Match | null;
   finalizeMatchday: (userMatch: Match) => void;
   setSeasonTarget: (clubId: string, target: SeasonTarget) => void;
@@ -144,18 +151,16 @@ export const useGameStore = create<GameStore>()(
         const club = state.clubs.find(c => c.id === clubId);
         if (!club || club.finances.balance < 50000) return;
 
-        const newAd: StaffAdvertisement = {
-          id: Math.random().toString(36).substr(2, 9),
-          role,
-          weeksRemaining: 2,
-          cost: 50000
-        };
-
         set({
           clubs: state.clubs.map(c => c.id === clubId ? {
             ...c,
             finances: { ...c.finances, balance: c.finances.balance - 50000 },
-            staffAds: [...(c.staffAds || []), newAd],
+            staffAds: [...(c.staffAds || []), {
+              id: Math.random().toString(36).substr(2, 9),
+              role,
+              weeksRemaining: 2,
+              cost: 50000
+            }],
             history: [...c.history, `Advertised for a new ${role}`]
           } : c)
         });
@@ -176,6 +181,17 @@ export const useGameStore = create<GameStore>()(
             history: [...c.history, `Hired ${applicant.name} as ${applicant.role}`]
           } : c)
         });
+      },
+
+      hireStaff: (clubId, staffMember) => {
+        set((state) => ({
+          staff: [...state.staff, { ...staffMember, clubId }],
+          clubs: state.clubs.map(c => c.id === clubId ? {
+            ...c,
+            finances: { ...c.finances, weeklyStaffWages: c.finances.weeklyStaffWages + staffMember.salary },
+            history: [...c.history, `Hired ${staffMember.name} as ${staffMember.role}`]
+          } : c)
+        }));
       },
 
       dismissStaff: (staffId) => {
@@ -229,12 +245,10 @@ export const useGameStore = create<GameStore>()(
 
       advanceWeek: () => {
         const state = get();
-        const { currentWeek, currentSeason, clubs, players, leagues, managers, staff, transferRequests } = state;
+        const { currentWeek, currentSeason, clubs, players, leagues, managers } = state;
 
-        // 1. Manage Transfer Window
         const isTransferWindowOpen = (currentWeek >= 1 && currentWeek <= 4) || (currentWeek >= 20 && currentWeek <= 24);
 
-        // 2. Process AI Transfers
         const transferUpdates = processAITransfers({ ...state, isTransferWindowOpen });
         const clubsAfterTransfers = transferUpdates.clubs || clubs;
         const playersAfterTransfers = transferUpdates.players || players;
@@ -253,7 +267,6 @@ export const useGameStore = create<GameStore>()(
           }
         });
 
-        // 3. Update Clubs (Board, Fans, Takeovers, Realistic Finances)
         const updatedClubs = clubsAfterTransfers.map(club => {
           const league = leagues.find(l => l.id === club.leagueId);
           const tier = league?.tier || 3;
@@ -265,26 +278,20 @@ export const useGameStore = create<GameStore>()(
           let boardConfidence = club.boardConfidence;
           let history = [...club.history];
 
-          // Realistic Expenditure Scaling
           const maintenanceCost = (finances.expenses.facilityMaintenance || 5000) * tierMult;
           const totalExpenses = (finances.weeklyWages + finances.weeklyStaffWages + maintenanceCost);
           finances.balance -= totalExpenses;
 
-          // Realistic Revenue Scaling
           const baseSponsorship = (finances.revenue.sponsorship || 50000) * tierMult;
-          finances.balance += (baseSponsorship / 4); // Weekly portion of sponsorship
+          finances.balance += (baseSponsorship / 4);
 
-          // Result Processing
-          const homeMatch = newMatches.find(m => m.homeClubId === club.id);
-          const awayMatch = newMatches.find(m => m.awayClubId === club.id);
-          const match = homeMatch || awayMatch;
+          const match = newMatches.find(m => m.homeClubId === club.id || m.awayClubId === club.id);
 
           if (match) {
             const isHome = match.homeClubId === club.id;
             const won = isHome ? match.homeScore > match.awayScore : match.awayScore > match.homeScore;
             const drew = match.homeScore === match.awayScore;
 
-            // Attendance
             if (isHome) {
               const ticketPrice = tier === 1 ? 60 : tier === 2 ? 40 : 25;
               const performanceBonus = won ? 1.2 : drew ? 1.0 : 0.7;
@@ -294,22 +301,17 @@ export const useGameStore = create<GameStore>()(
               finances.balance += ticketIncome;
             }
 
-            // Confidence logic
             const confidenceChange = won ? 5 : drew ? 1 : -8;
             fanConfidence = Math.max(0, Math.min(100, fanConfidence + confidenceChange));
-            
-            // Board Confidence (impatient boards lose confidence faster)
             const impatienceMult = (100 - board.patience) / 50;
             boardConfidence = Math.max(0, Math.min(100, boardConfidence + (confidenceChange * impatienceMult)));
 
-            // Check for Protests
             if (fanConfidence < 20 && Math.random() < 0.1) {
               history.push(`FAN PROTEST: Supporters gather outside ${club.stadiumName} demanding change!`);
               boardConfidence -= 5;
             }
           }
 
-          // 4. Staff Recruitment Processing
           let staffApplicants = [...(club.staffApplicants || [])];
           let staffAds = (club.staffAds || []).map(ad => ({ ...ad, weeksRemaining: ad.weeksRemaining - 1 }));
 
@@ -332,18 +334,16 @@ export const useGameStore = create<GameStore>()(
           });
           staffAds = staffAds.filter(ad => ad.weeksRemaining > 0);
 
-          // 5. Scouting & Discovery
           let scoutAssignments = (club.scoutAssignments || []).map(a => {
             const progress = Math.min(100, a.progress + 15 + Math.random() * 10);
             const playersFound = [...a.playersFound];
             if (progress >= 100 && Math.random() < 0.4) {
-              const potentialPlayer = state.players[Math.floor(Math.random() * state.players.length)];
+              const potentialPlayer = playersAfterTransfers[Math.floor(Math.random() * playersAfterTransfers.length)];
               if (!playersFound.includes(potentialPlayer.id)) playersFound.push(potentialPlayer.id);
             }
             return { ...a, progress, playersFound };
           });
 
-          // 6. News Generation (Takeovers, etc.)
           if (Math.random() < 0.001) {
             const newType: OwnershipType = Math.random() > 0.7 ? 'BILLIONAIRE' : 'CORPORATE';
             board.type = newType;
@@ -355,77 +355,50 @@ export const useGameStore = create<GameStore>()(
           return { ...club, finances, board, fanConfidence, boardConfidence, history, staffAds, staffApplicants, scoutAssignments };
         });
 
-        // 5. Update Players (Growth, Chemistry, Adaptation)
         const updatedPlayers = playersAfterTransfers.map(player => {
           const club = updatedClubs.find(c => c.id === player.clubId);
           const manager = managers.find(m => m.clubId === player.clubId);
           if (!club) return player;
 
-          let { 
-            overallRating, technical, physical, mental, hidden,
-            fitness, fatigue, injuryRisk, morale, tacticalFamiliarity,
-            happiness, form, chemistry, potentialRating
-          } = { ...player };
+          let { overallRating, fitness, fatigue, morale, chemistry, potentialRating, hidden, happiness } = { ...player };
 
-          // Recovery & Fatigue
           const recoveryMod = (hidden.professionalism / 100) + 0.5;
           fatigue = Math.max(0, fatigue - (15 * recoveryMod));
           fitness = Math.min(100, fitness + (10 * recoveryMod));
 
-          // Chemistry Building (Simulate playtime with teammates)
-          const teammates = playersAfterTransfers.filter(p => p.clubId === player.clubId && p.id !== player.id);
+          const teammates = updatedPlayers.filter(p => p.clubId === player.clubId && p.id !== player.id);
           teammates.forEach(tm => {
             const currentChem = chemistry[tm.id] || 0;
-            if (Math.random() < 0.1) {
-              chemistry[tm.id] = Math.min(100, currentChem + 1);
-            }
+            if (Math.random() < 0.1) chemistry[tm.id] = Math.min(100, currentChem + 1);
           });
 
-          // Adaptation & Social
           if (happiness.adaptation < 100) {
             happiness.adaptation += 1;
-            if (happiness.adaptation < 50) morale -= 5; // Homesickness penalty
+            if (happiness.adaptation < 50) morale -= 5;
           }
 
-          // Growth & Dynamic Potential
           const coachingBonus = manager ? (manager.coachingAbility / 100) : 0.5;
           const trainingLevel = club.facilities.trainingGround.level;
           
           if (Math.random() < 0.05 * coachingBonus * (trainingLevel / 5)) {
             overallRating = Math.min(potentialRating, overallRating + 0.2);
-            // Form can boost potential (Dynamic Potential)
-            const formArray = form || [];
-            const avgForm = formArray.length > 0 ? formArray.reduce((a, b) => a + b, 0) / formArray.length : 6.0;
-            if (avgForm > 7.5 && Math.random() < 0.01) {
-              potentialRating = Math.min(99, potentialRating + 1);
-            }
           }
 
-          return { ...player, overallRating, fitness, fatigue, injuryRisk, morale, happiness, chemistry, potentialRating };
+          return { ...player, overallRating, fitness, fatigue, morale, happiness, chemistry, potentialRating };
         });
 
-        // Transfer Market Bidding (Realistic)
         const newBids: TransferBid[] = [...state.transferBids];
-        const transferListed = updatedPlayers.filter(p => p.isTransferListed);
-        
-        transferListed.forEach(player => {
-          // If no pending bid, maybe someone bids
+        updatedPlayers.filter(p => p.isTransferListed).forEach(player => {
           const hasPending = newBids.some(b => b.playerId === player.id && b.status === 'PENDING');
           if (!hasPending && Math.random() < 0.2) {
-            const buyingClubs = updatedClubs.filter(c => c.id !== player.clubId && c.leagueId === club?.leagueId);
-            const buyer = buyingClubs[Math.floor(Math.random() * buyingClubs.length)];
-            if (buyer && buyer.finances.balance > player.value) {
+            const buyer = updatedClubs.find(c => c.id !== player.clubId && c.finances.balance > player.value);
+            if (buyer) {
               newBids.push({
-                id: `bid-${Date.now()}-${player.id}`,
-                playerId: player.id,
-                fromClubId: buyer.id,
-                toClubId: player.clubId,
+                id: `bid-${Date.now()}-${player.id}`, playerId: player.id,
+                fromClubId: buyer.id, toClubId: player.clubId,
                 amount: Math.floor(player.value * (0.8 + Math.random() * 0.3)),
-                status: 'PENDING',
-                week: currentWeek + 1,
-                season: currentSeason,
-                isPlayerInterested: true,
-                negotiationCount: 0
+                status: 'PENDING', week: currentWeek + 1, season: currentSeason,
+                isPlayerInterested: true, negotiationCount: 0
               });
             }
           }
@@ -440,7 +413,6 @@ export const useGameStore = create<GameStore>()(
           transferBids: newBids,
         });
 
-        // Season End Logic
         if (currentWeek >= 38) {
           set({ currentWeek: 1, currentSeason: currentSeason + 1 });
         }
@@ -469,18 +441,15 @@ export const useGameStore = create<GameStore>()(
 
       finalizeMatchday: (userMatch) => {
         const state = get();
-        const { currentWeek, currentSeason, clubs, players, leagues, managers, staff, userClubId } = state;
+        const { currentWeek, currentSeason, clubs, players, leagues, userClubId } = state;
         if (!userClubId) return;
 
-        // 1. Manage Transfer Window
         const isTransferWindowOpen = (currentWeek >= 1 && currentWeek <= 4) || (currentWeek >= 20 && currentWeek <= 24);
 
-        // 2. Process AI Transfers
         const transferUpdates = processAITransfers({ ...state, isTransferWindowOpen });
         const clubsAfterTransfers = transferUpdates.clubs || clubs;
         const playersAfterTransfers = transferUpdates.players || players;
 
-        // 3. Finalize User Match and Simulate Rest of League
         const weeklyMatches = state.matches.filter(m => m.week === currentWeek && m.id !== userMatch.id);
         const results = weeklyMatches.map(m => {
           const hClub = clubsAfterTransfers.find(c => c.id === m.homeClubId)!;
@@ -488,7 +457,6 @@ export const useGameStore = create<GameStore>()(
           return simulateMatch(hClub, aClub, playersAfterTransfers.filter(p => p.clubId === hClub.id), playersAfterTransfers.filter(p => p.clubId === aClub.id), currentWeek, currentSeason);
         });
 
-        // Merged matches for this week
         const matchResults = [userMatch, ...results];
         
         const updatedMatches = state.matches.map(m => {
@@ -496,7 +464,6 @@ export const useGameStore = create<GameStore>()(
           return result ? { ...result, played: true } : m;
         });
 
-        // 4. Update Clubs (Board, Fans, Finances)
         const updatedClubs = clubsAfterTransfers.map(club => {
           const league = leagues.find(l => l.id === club.leagueId);
           const tier = league?.tier || 3;
@@ -506,18 +473,14 @@ export const useGameStore = create<GameStore>()(
           const board = { ...club.board };
           let fanConfidence = club.fanConfidence;
           let boardConfidence = club.boardConfidence;
-          let history = [...club.history];
 
-          // Expenses
           const maintenanceCost = (finances.expenses.facilityMaintenance || 5000) * tierMult;
           const totalExpenses = (finances.weeklyWages + finances.weeklyStaffWages + maintenanceCost);
           finances.balance -= totalExpenses;
 
-          // Revenue
           const baseSponsorship = (finances.revenue.sponsorship || 50000) * tierMult;
           finances.balance += (baseSponsorship / 4);
 
-          // Result Processing
           const match = matchResults.find(m => m.homeClubId === club.id || m.awayClubId === club.id);
 
           if (match) {
@@ -540,20 +503,19 @@ export const useGameStore = create<GameStore>()(
             boardConfidence = Math.max(0, Math.min(100, boardConfidence + (confidenceChange * impatienceMult)));
           }
 
-          // Staff & Scouting
           let staffApplicants = [...(club.staffApplicants || [])];
           let staffAds = (club.staffAds || []).map(ad => ({ ...ad, weeksRemaining: ad.weeksRemaining - 1 }));
           staffAds.forEach(ad => {
              if (ad.weeksRemaining <= 0) {
-               for (let i = 0; i < (Math.floor(Math.random() * 3) + 1); i++) {
-                 const baseRating = Math.floor(club.reputation + (Math.random() * 20));
-                 staffApplicants.push({
-                   id: Math.random().toString(36).substr(2, 9),
-                   name: `Candidate ${Math.random().toString(36).substr(2, 4)}`,
-                   role: ad.role, rating: Math.min(99, baseRating),
-                   salary: Math.floor(baseRating * 150), clubId: club.id, isApplicant: true
-                 });
-               }
+                for (let i = 0; i < (Math.floor(Math.random() * 3) + 1); i++) {
+                  const baseRating = Math.floor(club.reputation + (Math.random() * 20));
+                  staffApplicants.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    name: `Candidate ${Math.random().toString(36).substr(2, 4)}`,
+                    role: ad.role, rating: Math.min(99, baseRating),
+                    salary: Math.floor(baseRating * 150), clubId: club.id, isApplicant: true
+                  });
+                }
              }
           });
           staffAds = staffAds.filter(ad => ad.weeksRemaining > 0);
@@ -568,30 +530,21 @@ export const useGameStore = create<GameStore>()(
             return { ...a, progress, playersFound };
           });
 
-          return { ...club, finances, board, fanConfidence, boardConfidence, history, staffAds, staffApplicants, scoutAssignments };
+          return { ...club, finances, board, fanConfidence, boardConfidence, staffAds, staffApplicants, scoutAssignments };
         });
 
-        // 5. Update Players
         const updatedPlayers = playersAfterTransfers.map(player => {
           const club = updatedClubs.find(c => c.id === player.clubId);
           if (!club) return player;
-          let { overallRating, fitness, fatigue, morale, chemistry, potentialRating, form } = { ...player };
-          
+          let { overallRating, fitness, fatigue, morale, chemistry, potentialRating } = { ...player };
           fatigue = Math.max(0, fatigue - 15);
           fitness = Math.min(100, fitness + 10);
-
-          // Dynamic growth
-          if (Math.random() < 0.05) {
-            overallRating = Math.min(potentialRating, overallRating + 0.1);
-          }
-
+          if (Math.random() < 0.05) overallRating = Math.min(potentialRating, overallRating + 0.1);
           return { ...player, overallRating, fitness, fatigue, morale, chemistry, potentialRating };
         });
 
-        // 6. Transfer Bids (AI bidding for player's players)
         const newBids: TransferBid[] = [...state.transferBids];
-        const transferListed = updatedPlayers.filter(p => p.isTransferListed);
-        transferListed.forEach(player => {
+        updatedPlayers.filter(p => p.isTransferListed).forEach(player => {
           const hasPending = newBids.some(b => b.playerId === player.id && b.status === 'PENDING');
           if (!hasPending && Math.random() < 0.2) {
              const buyer = updatedClubs.find(c => c.id !== player.clubId && c.finances.balance > player.value);
@@ -616,7 +569,6 @@ export const useGameStore = create<GameStore>()(
           isTransferWindowOpen,
           matches: updatedMatches,
           clubs: updatedClubs.map(c => {
-            // New season sponsorship refresh
             if (nextWeek === 1) {
                return {
                  ...c,
@@ -661,7 +613,7 @@ export const useGameStore = create<GameStore>()(
             activeSponsors: [...c.activeSponsors, { ...sponsor, status: 'ACTIVE' }],
             finances: { 
               ...c.finances, 
-              balance: c.finances.balance + sponsor.amount, // Upfront payment
+              balance: c.finances.balance + sponsor.amount, 
               revenue: { ...c.finances.revenue, sponsorship: c.finances.revenue.sponsorship + (sponsor.amount / sponsor.duration / 38) } 
             },
             history: [...c.history, `Signed sponsorship deal with ${sponsor.name}`]
@@ -700,20 +652,13 @@ export const useGameStore = create<GameStore>()(
       },
 
       skipWeeks: (weeks) => {
-        const state = get();
-        let currentState = { ...state };
-        
         for (let i = 0; i < weeks; i++) {
-          const match = currentState.prepareMatchday();
+          const match = get().prepareMatchday();
           if (match) {
-             currentState.finalizeMatchday(match);
+             get().finalizeMatchday(match);
           } else {
-             currentState.advanceWeek();
+             get().advanceWeek();
           }
-          // Refresh state from store because finalizeMatchday/advanceWeek call set()
-          // Actually, since skipWeeks is inside useGameStore, we can just call the actions.
-          // But actions call set(), so we need to be careful with loops.
-          // Better way: process one week at a time.
         }
       },
 
@@ -725,7 +670,6 @@ export const useGameStore = create<GameStore>()(
         const player = state.players.find(p => p.id === bid.playerId);
         if (!player) return;
 
-        // Ridiculous check
         const isRidiculous = counterAmount > (player.value * 1.5) || counterAmount > (bid.amount * 1.8);
         
         if (isRidiculous && Math.random() < 0.6) {
@@ -734,7 +678,7 @@ export const useGameStore = create<GameStore>()(
           });
           get().generateNews({
             title: `Transfer Talks Collapse: ${player.lastName}`,
-            content: `Negotiations between ${state.clubs.find(c => c.id === bid.fromClubId)?.name} and your club ended abruptly. Sources say your demands were "completely unrealistic".`,
+            content: `Negotiations between ${state.clubs.find(c => c.id === bid.fromClubId)?.name} and your club ended abruptly.`,
             category: 'TRANSFER',
             importance: 'MEDIUM'
           });
@@ -755,17 +699,11 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      toggleTransferList: (playerId: string) => {
-        set((state) => ({
-          players: state.players.map(p => p.id === playerId ? { ...p, isTransferListed: !p.isTransferListed } : p)
-        }));
-      },
-
       resetGame: () => set(initialState),
     }),
     {
       name: 'football-chairman-storage',
-      version: 10,
+      version: 11,
       storage: createJSONStorage(() => localStorage),
     }
   )

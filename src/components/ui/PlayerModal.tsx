@@ -6,8 +6,8 @@ import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { 
   Zap, Heart, Brain, Lock, History, Trophy,
-  TrendingUp, Activity, UserMinus, Star, 
-  MapPin, ShieldCheck, Target, ChevronRight
+  Activity, UserMinus, Star, 
+  ShieldCheck, Target, ChevronRight
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';

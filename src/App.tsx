@@ -6,7 +6,6 @@ import Squad from './components/screens/Squad';
 import ManagerScreen from './components/screens/ManagerScreen';
 import Finances from './components/screens/Finances';
 import Facilities from './components/screens/Facilities';
-import StaffScreen from './components/screens/StaffScreen';
 import TransferMarket from './components/screens/TransferMarket';
 import BoardRoom from './components/screens/BoardRoom';
 import ClubMarket from './components/screens/ClubMarket';

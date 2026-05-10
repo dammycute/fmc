@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { 
-  Trophy, Activity, Timer, 
+  Activity, Timer, 
   ChevronRight, AlertCircle, Zap,
   TrendingUp, TrendingDown, Users
 } from 'lucide-react';
@@ -21,7 +21,6 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
   const [minute, setMinute] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [visibleEvents, setVisibleEvents] = useState<MatchEvent[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const homeClub = clubs.find(c => c.id === match.homeClubId);
   const awayClub = clubs.find(c => c.id === match.awayClubId);

@@ -3,8 +3,7 @@ import { useGameStore } from '../../store/useGameStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Progress } from '../ui/progress';
-import { Trophy, Users, DollarSign, Activity, ChevronRight, MessageSquare, Newspaper, Clock } from 'lucide-react';
+import { Trophy, Users, DollarSign, Activity, ChevronRight, MessageSquare, Newspaper } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface DashboardProps {

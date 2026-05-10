@@ -1,18 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { 
-  Users2, Search, Briefcase, GraduationCap, HeartPulse, 
-  LineChart, UserPlus, X, Bell, Globe, UserCheck 
+  Search, Briefcase, GraduationCap, HeartPulse, 
+  LineChart, X, Bell, Globe, UserCheck 
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
 const StaffScreen: React.FC = () => {
   const { userClubId, clubs, staff, advertiseStaffRole, hireStaffApplicant, dismissStaff } = useGameStore();
-  const [activeTab, setActiveTab] = useState('overview');
 
   const club = clubs.find(c => c.id === userClubId);
   const clubStaff = staff.filter(s => s.clubId === userClubId);
@@ -49,7 +48,7 @@ const StaffScreen: React.FC = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
+      <Tabs defaultValue="overview" className="w-full">
         <TabsList className="bg-zinc-950/50 p-1 border border-white/5 rounded-2xl mb-8">
           <TabsTrigger value="overview" className="rounded-xl px-8 py-2.5 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all">My Team</TabsTrigger>
           <TabsTrigger value="applicants" className="rounded-xl px-8 py-2.5 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all">Applications</TabsTrigger>

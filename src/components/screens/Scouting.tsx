@@ -4,15 +4,14 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { 
-  Search, Globe, Target, UserPlus, 
-  ChevronRight, MapPin, Radar, Users 
+  Target, 
+  ChevronRight, MapPin, Radar, Users, Star 
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Progress } from '../ui/progress';
 
 const Scouting: React.FC = () => {
-  const { userClubId, clubs, staff, players, assignScout, skipWeeks } = useGameStore();
-  const [selectedRegion, setSelectedRegion] = useState('Europe');
+  const { userClubId, clubs, staff, players, assignScout, skipWeeks, currentSeason } = useGameStore();
   const [shortlist, setShortlist] = useState<string[]>([]);
 
   const club = clubs.find(c => c.id === userClubId);

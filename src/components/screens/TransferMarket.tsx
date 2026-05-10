@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { 
-  DollarSign, ArrowRightLeft, TrendingUp, 
-  Search, Filter, ChevronRight, AlertCircle,
+  DollarSign, ArrowRightLeft, 
+  Search, Filter,
   MessageCircle, Scale, ShieldAlert, Zap
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -19,7 +19,7 @@ import {
 } from "../ui/dialog";
 
 const TransferMarket: React.FC = () => {
-  const { players, clubs, userClubId, transferBids, negotiateBid, updatePlayer } = useGameStore();
+  const { players, clubs, userClubId, transferBids, negotiateBid } = useGameStore();
   const [activeTab, setActiveTab] = useState<'market' | 'inbox'>('market');
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [counterAmount, setCounterAmount] = useState<string>('');

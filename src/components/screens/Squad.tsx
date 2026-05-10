@@ -3,18 +3,17 @@ import { useGameStore } from '../../store/useGameStore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
-import { Search, Filter, TrendingUp, TrendingDown, Minus, SlidersHorizontal, UserMinus } from 'lucide-react';
+import { Search, Filter, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Input } from '../ui/input';
 import PlayerModal from '../ui/PlayerModal';
 
 const Squad: React.FC = () => {
-  const { userClubId, clubs, players, managers, toggleTransferList } = useGameStore();
+  const { userClubId, clubs, players, toggleTransferList } = useGameStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   const userClub = clubs.find(c => c.id === userClubId);
   const squad = players.filter(p => p.clubId === userClubId);
-  const manager = managers.find(m => m.clubId === userClubId);
 
   const selectedPlayer = players.find(p => p.id === selectedPlayerId) || null;
 
@@ -30,14 +29,6 @@ const Squad: React.FC = () => {
     return 'text-zinc-400';
   };
 
-  const calculateTacticFit = (player: any, manager: any) => {
-    if (!manager) return 70;
-    let score = 70;
-    if (manager.philosophy === 'POSSESSION' && player.technical.passing > 70) score += 15;
-    if (manager.philosophy === 'HIGH_PRESSING' && player.physical.stamina > 70) score += 15;
-    if (manager.philosophy === 'COUNTER_ATTACK' && player.physical.pace > 70) score += 15;
-    return Math.min(100, score);
-  };
 
   return (
     <div className="space-y-6">

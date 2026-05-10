@@ -63,11 +63,13 @@ const ManagerRequests: React.FC = () => {
             </div>
             <div className="bg-white/5 p-3 rounded-lg backdrop-blur-sm">
               <div className="text-xs text-slate-400 mb-1">Preferred Age</div>
-              <div className="text-sm font-bold">{manager.agePreference.min}-{manager.agePreference.max}</div>
+              <div className="text-sm font-bold">
+                {manager.agePreference ? `${manager.agePreference.min}-${manager.agePreference.max}` : 'Any'}
+              </div>
             </div>
             <div className="bg-white/5 p-3 rounded-lg backdrop-blur-sm">
               <div className="text-xs text-slate-400 mb-1">Ambition</div>
-              <div className="text-sm font-bold">{Math.round(manager.ambition)}/100</div>
+              <div className="text-sm font-bold">{Math.round(manager.personality.ambition)}/100</div>
             </div>
           </div>
         </CardContent>

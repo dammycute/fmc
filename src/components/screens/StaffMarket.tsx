@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { 
-  Users, Search, ShieldCheck, DollarSign, Star, 
-  Briefcase, GraduationCap, Zap, ChevronRight,
-  TrendingUp, Activity, UserPlus
+  Users, Briefcase
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import type { StaffRole, TacticalPhilosophy, Formation } from '../../types/game';
 
 const StaffMarket: React.FC = () => {
   const { userClubId, clubs, managers, staff, hireManager, hireStaff } = useGameStore();
@@ -21,7 +18,7 @@ const StaffMarket: React.FC = () => {
   // For this demo, we'll generate some candidates if none are available
   // In a real loop, these would be populated by the store
   const managerCandidates = managers.filter(m => !m.clubId);
-  const staffCandidates = staff.filter(s => !s.clubId && s.isApplicant);
+  const staffCandidates = staff.filter(s => !s.clubId);
 
   return (
     <div className="space-y-8 pb-20">
