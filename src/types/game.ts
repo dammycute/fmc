@@ -6,6 +6,25 @@ export interface Player {
   lastName: string;
   age: number;
   position: Position;
+
+  // Attributes
+  technical: {
+    passing: number;
+    shooting: number;
+    dribbling: number;
+    tackling: number;
+  };
+  physical: {
+    pace: number;
+    strength: number;
+    stamina: number;
+  };
+  mental: {
+    leadership: number;
+    composure: number;
+    aggression: number;
+  };
+
   overallRating: number;
   potentialRating: number;
   value: number;
@@ -13,29 +32,50 @@ export interface Player {
   morale: number;
   fitness: number;
   clubId: string;
+  personality: 'LOYAL' | 'AMBITIOUS' | 'LAZY' | 'INJURY_PRONE' | 'PROFESSIONAL' | 'TEMPERAMENTAL';
 }
 
 export interface Manager {
   id: string;
   name: string;
-  attackStyle: number;
-  defensiveStyle: number;
-  youthPreference: number;
-  tacticalRating: number;
-  manManagement: number;
+  // Tactical Attributes
+  attacking: number;
+  defensive: number;
+  possession: number;
+  pressing: number;
+  counterAttack: number;
+  // Personality Attributes
+  discipline: number;
+  mediaHandling: number;
+  loyalty: number;
+  temperament: number;
+  ambition: number;
+  // Development Attributes
+  youthDevelopment: number;
+  tacticalIntelligence: number;
+  squadRotation: number;
+  playerManagement: number;
+
   salary: number;
   clubId: string;
+  relationshipWithChairman: number; // 0-100
 }
 
 export interface Club {
   id: string;
   name: string;
+  stadiumName: string;
+  primaryColor: string;
+  secondaryColor: string;
   reputation: number;
   balance: number;
   stadiumCapacity: number;
   fanbase: number;
   leagueId: string;
   isUserControlled: boolean;
+  philosophy: 'ATTACKING' | 'DEFENSIVE' | 'YOUTH' | 'BALANCED';
+  fanConfidence: number;
+  boardConfidence: number;
 }
 
 export interface League {

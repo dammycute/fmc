@@ -78,24 +78,28 @@ export const useGameStore = create<GameStore>()(
 
       advanceWeek: () => {
         const state = get();
-        const { currentWeek, currentSeason, clubs, players } = state;
+        const { currentWeek, currentSeason, clubs, players, leagues } = state;
 
-        // 1. Generate Fixtures for the week
+        // 1. Generate Fixtures for the week (Per League)
         const newMatches: Match[] = [];
-        const shuffledClubs = [...clubs].sort(() => Math.random() - 0.5);
         
-        for (let i = 0; i < shuffledClubs.length; i += 2) {
-          const home = shuffledClubs[i];
-          const away = shuffledClubs[i + 1];
+        leagues.forEach(league => {
+          const leagueClubs = clubs.filter(c => c.leagueId === league.id);
+          const shuffledClubs = [...leagueClubs].sort(() => Math.random() - 0.5);
           
-          if (home && away) {
-            const homePlayers = players.filter(p => p.clubId === home.id);
-            const awayPlayers = players.filter(p => p.clubId === away.id);
+          for (let i = 0; i < shuffledClubs.length; i += 2) {
+            const home = shuffledClubs[i];
+            const away = shuffledClubs[i + 1];
             
-            const match = simulateMatch(home, away, homePlayers, awayPlayers, currentWeek, currentSeason);
-            newMatches.push(match);
+            if (home && away) {
+              const homePlayers = players.filter(p => p.clubId === home.id);
+              const awayPlayers = players.filter(p => p.clubId === away.id);
+
+              const match = simulateMatch(home, away, homePlayers, awayPlayers, currentWeek, currentSeason);
+              newMatches.push(match);
+            }
           }
-        }
+        });
 
         // 2. Update Finances
         const updatedClubs = clubs.map(club => {
@@ -109,9 +113,17 @@ export const useGameStore = create<GameStore>()(
           // Revenue: Ticket sales if home
           const homeMatch = newMatches.find(m => m.homeClubId === club.id);
           if (homeMatch) {
-            const ticketPrice = 20;
-            const attendance = Math.min(club.stadiumCapacity, club.fanbase * (0.8 + Math.random() * 0.4));
+            const league = leagues.find(l => l.id === club.leagueId);
+            const ticketPrice = 50 / (league?.tier || 1);
+            const attendance = Math.min(club.stadiumCapacity, club.fanbase * (0.7 + Math.random() * 0.3));
             balanceChange += attendance * ticketPrice;
+
+            // Win/Loss impact on confidence
+            if (homeMatch.homeScore > homeMatch.awayScore) {
+              club.fanConfidence = Math.min(100, club.fanConfidence + 2);
+            } else if (homeMatch.homeScore < homeMatch.awayScore) {
+              club.fanConfidence = Math.max(0, club.fanConfidence - 2);
+            }
           }
 
           return {

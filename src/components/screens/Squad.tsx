@@ -21,6 +21,7 @@ const Squad: React.FC = () => {
               <TableHead>Age</TableHead>
               <TableHead>Rating</TableHead>
               <TableHead>Potential</TableHead>
+              <TableHead>Personality</TableHead>
               <TableHead>Value</TableHead>
               <TableHead>Wage</TableHead>
             </TableRow>
@@ -31,10 +32,11 @@ const Squad: React.FC = () => {
                 <TableCell className="font-medium">{player.firstName} {player.lastName}</TableCell>
                 <TableCell>{player.position}</TableCell>
                 <TableCell>{player.age}</TableCell>
-                <TableCell>{player.overallRating}</TableCell>
-                <TableCell>{player.potentialRating}</TableCell>
-                <TableCell>${player.value.toLocaleString()}</TableCell>
-                <TableCell>${player.wage.toLocaleString()}</TableCell>
+                <TableCell>{player.overallRating.toFixed(0)}</TableCell>
+                <TableCell>{player.potentialRating.toFixed(0)}</TableCell>
+                <TableCell className="text-xs">{player.personality.replace('_', ' ')}</TableCell>
+                <TableCell>£{player.value.toLocaleString()}</TableCell>
+                <TableCell>£{player.wage.toLocaleString()}</TableCell>
               </TableRow>
             ))}
           </TableBody>

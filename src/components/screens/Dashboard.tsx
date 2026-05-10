@@ -17,33 +17,47 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="border-t-4" style={{ borderTopColor: userClub.primaryColor }}>
           <CardHeader>
             <CardTitle>Club Info</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{userClub.name}</div>
+            <div className="text-2xl font-bold" style={{ color: userClub.primaryColor }}>{userClub.name}</div>
+            <div className="text-sm font-semibold">{userClub.stadiumName}</div>
             <div className="text-sm text-muted-foreground">Season {currentSeason} | Week {currentWeek}</div>
+            <div className="mt-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Philosophy: {userClub.philosophy}</div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="border-t-4" style={{ borderTopColor: userClub.primaryColor }}>
           <CardHeader>
-            <CardTitle>Finances</CardTitle>
+            <CardTitle>Finances & Reputation</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${userClub.balance.toLocaleString()}</div>
-            <div className="text-sm text-muted-foreground">Reputation: {userClub.reputation}</div>
+            <div className="text-2xl font-bold text-green-600">£{userClub.balance.toLocaleString()}</div>
+            <div className="text-sm font-semibold">Reputation: {userClub.reputation.toFixed(1)}</div>
+            <div className="mt-2">
+              <div className="text-xs text-muted-foreground mb-1">Board Confidence</div>
+              <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div className="bg-blue-500 h-full" style={{ width: `${userClub.boardConfidence}%` }} />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-t-4" style={{ borderTopColor: userClub.primaryColor }}>
           <CardHeader>
-            <CardTitle>Fans</CardTitle>
+            <CardTitle>Fans & Stadium</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{userClub.fanbase.toLocaleString()}</div>
-            <div className="text-sm text-muted-foreground">Stadium: {userClub.stadiumCapacity.toLocaleString()}</div>
+            <div className="text-sm font-semibold">Stadium: {userClub.stadiumCapacity.toLocaleString()}</div>
+            <div className="mt-2">
+              <div className="text-xs text-muted-foreground mb-1">Fan Confidence</div>
+              <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div className="bg-green-500 h-full" style={{ width: `${userClub.fanConfidence}%` }} />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
