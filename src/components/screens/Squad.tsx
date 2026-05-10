@@ -91,7 +91,7 @@ const Squad: React.FC = () => {
                         player.personality === 'LEADER' ? "text-sky-400" :
                         player.personality === 'CLUB_HERO' ? "text-emerald-400" : "text-zinc-500"
                       )}>
-                        {player.personality.replace('_', ' ')}
+                        {(player.personality || '').replace('_', ' ')}
                       </Badge>
                     </div>
                   </div>

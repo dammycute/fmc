@@ -19,8 +19,8 @@ const LAST_NAMES = [
   'West', 'Jordan', 'Banks', 'Lane', 'Ford', 'Rice', 'Hunt', 'Shaw', 'Hart', 'Webb', 'Bell'
 ];
 
-const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-const getRandomRating = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+export const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+export const getRandomRating = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 export const generatePlayer = (clubId: string, leagueTier: number, isYouth = false): Player => {
   const baseMin = 72 - (leagueTier - 1) * 6;
@@ -143,6 +143,114 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
   };
 };
 
+export const FORMATION_CONFIG: Record<Formation, { [pos: string]: { x: number, y: number, role: Position } }> = {
+  '4-4-2': {
+    'GK': { x: 50, y: 90, role: 'GK' },
+    'LB': { x: 15, y: 70, role: 'DEF' },
+    'CB1': { x: 38, y: 75, role: 'DEF' },
+    'CB2': { x: 62, y: 75, role: 'DEF' },
+    'RB': { x: 85, y: 70, role: 'DEF' },
+    'LM': { x: 15, y: 40, role: 'MID' },
+    'CM1': { x: 38, y: 45, role: 'MID' },
+    'CM2': { x: 62, y: 45, role: 'MID' },
+    'RM': { x: 85, y: 40, role: 'MID' },
+    'ST1': { x: 40, y: 15, role: 'ATT' },
+    'ST2': { x: 60, y: 15, role: 'ATT' }
+  },
+  '4-3-3': {
+    'GK': { x: 50, y: 90, role: 'GK' },
+    'LB': { x: 15, y: 70, role: 'DEF' },
+    'CB1': { x: 38, y: 75, role: 'DEF' },
+    'CB2': { x: 62, y: 75, role: 'DEF' },
+    'RB': { x: 85, y: 70, role: 'DEF' },
+    'CM1': { x: 30, y: 50, role: 'MID' },
+    'CM2': { x: 50, y: 55, role: 'MID' },
+    'CM3': { x: 70, y: 50, role: 'MID' },
+    'LW': { x: 20, y: 20, role: 'ATT' },
+    'RW': { x: 80, y: 20, role: 'ATT' },
+    'ST': { x: 50, y: 15, role: 'ATT' }
+  },
+  '3-5-2': {
+    'GK': { x: 50, y: 90, role: 'GK' },
+    'CB1': { x: 25, y: 75, role: 'DEF' },
+    'CB2': { x: 50, y: 78, role: 'DEF' },
+    'CB3': { x: 75, y: 75, role: 'DEF' },
+    'LWB': { x: 10, y: 50, role: 'DEF' },
+    'RWB': { x: 90, y: 50, role: 'DEF' },
+    'CM1': { x: 35, y: 55, role: 'MID' },
+    'CM2': { x: 50, y: 58, role: 'MID' },
+    'CM3': { x: 65, y: 55, role: 'MID' },
+    'ST1': { x: 40, y: 15, role: 'ATT' },
+    'ST2': { x: 60, y: 15, role: 'ATT' }
+  },
+  '4-2-3-1': {
+    'GK': { x: 50, y: 90, role: 'GK' },
+    'LB': { x: 15, y: 70, role: 'DEF' },
+    'CB1': { x: 38, y: 75, role: 'DEF' },
+    'CB2': { x: 62, y: 75, role: 'DEF' },
+    'RB': { x: 85, y: 70, role: 'DEF' },
+    'CDM1': { x: 35, y: 58, role: 'MID' },
+    'CDM2': { x: 65, y: 58, role: 'MID' },
+    'LAM': { x: 20, y: 35, role: 'MID' },
+    'CAM': { x: 50, y: 38, role: 'MID' },
+    'RAM': { x: 80, y: 35, role: 'MID' },
+    'ST': { x: 50, y: 15, role: 'ATT' }
+  },
+  '5-4-1': {
+    'GK': { x: 50, y: 90, role: 'GK' },
+    'LWB': { x: 10, y: 65, role: 'DEF' },
+    'CB1': { x: 30, y: 75, role: 'DEF' },
+    'CB2': { x: 50, y: 78, role: 'DEF' },
+    'CB3': { x: 70, y: 75, role: 'DEF' },
+    'RWB': { x: 90, y: 65, role: 'DEF' },
+    'LM': { x: 20, y: 45, role: 'MID' },
+    'CM1': { x: 40, y: 48, role: 'MID' },
+    'CM2': { x: 60, y: 48, role: 'MID' },
+    'RM': { x: 80, y: 45, role: 'MID' },
+    'ST': { x: 50, y: 15, role: 'ATT' }
+  },
+  '4-4-2_DIAMOND': {
+    'GK': { x: 50, y: 90, role: 'GK' },
+    'LB': { x: 15, y: 70, role: 'DEF' },
+    'CB1': { x: 38, y: 75, role: 'DEF' },
+    'CB2': { x: 62, y: 75, role: 'DEF' },
+    'RB': { x: 85, y: 70, role: 'DEF' },
+    'CDM': { x: 50, y: 60, role: 'MID' },
+    'LM': { x: 20, y: 45, role: 'MID' },
+    'RM': { x: 80, y: 45, role: 'MID' },
+    'CAM': { x: 50, y: 35, role: 'MID' },
+    'ST1': { x: 40, y: 15, role: 'ATT' },
+    'ST2': { x: 60, y: 15, role: 'ATT' }
+  }
+};
+
+export const autoPickLineup = (formation: Formation, players: Player[]): { [pos: string]: string | null } => {
+  const lineup: { [pos: string]: string | null } = {};
+  const config = FORMATION_CONFIG[formation];
+  const sortedPlayers = [...players].sort((a, b) => b.overallRating - a.overallRating);
+  const usedIds = new Set<string>();
+
+  Object.entries(config).forEach(([pos, data]) => {
+    const bestPlayer = sortedPlayers.find(p => p.position === data.role && !usedIds.has(p.id));
+    if (bestPlayer) {
+      lineup[pos] = bestPlayer.id;
+      usedIds.add(bestPlayer.id);
+    } else {
+      // Fallback to any best player
+      const anyBest = sortedPlayers.find(p => !usedIds.has(p.id));
+      if (anyBest) {
+        lineup[pos] = anyBest.id;
+        usedIds.add(anyBest.id);
+      } else {
+        lineup[pos] = null;
+      }
+    }
+  });
+
+  return lineup;
+};
+
+
 const usedClubNames = new Set<string>();
 
 const clubSuffixes = [
@@ -223,13 +331,14 @@ export const generateInitialData = (): GameState => {
         history: [`Started career at ${clubName}`]
       };
 
+      const reputation = 100 - (league.tier * 20) + Math.random() * 10;
       const club: Club = {
         id: clubId,
         name: clubName,
         stadiumName: `${getRandomElement(LAST_NAMES)} Park`,
         primaryColor: `hsl(${Math.random() * 360}, 70%, 50%)`,
         secondaryColor: '#ffffff',
-        reputation: 100 - (league.tier * 20) + Math.random() * 10,
+        reputation: reputation,
         isUserControlled: isUser,
         fanConfidence: 70,
         boardConfidence: 70,
@@ -272,17 +381,19 @@ export const generateInitialData = (): GameState => {
         transferBudget: 500000,
         seasonTarget: 'MID_TABLE',
         availableSponsors: [
-          { id: `sp-${clubId}-1`, name: 'Global Airlines', type: 'MAIN', amount: 500000, duration: 2, reputationRequired: 30, status: 'PENDING' },
-          { id: `sp-${clubId}-2`, name: 'Zenith Energy', type: 'SLEEVE', amount: 150000, duration: 1, reputationRequired: 20, status: 'PENDING' },
-          { id: `sp-${clubId}-3`, name: 'Apex Logistics', type: 'STADIUM', amount: 300000, duration: 3, reputationRequired: 40, status: 'PENDING' },
+          { id: `sp-${clubId}-1`, name: 'Global Airlines', type: 'MAIN', amount: Math.floor(reputation * 10000), duration: 2, reputationRequired: Math.max(0, Math.floor(reputation - 5)), status: 'PENDING' },
+          { id: `sp-${clubId}-2`, name: 'Zenith Energy', type: 'SLEEVE', amount: Math.floor(reputation * 5000), duration: 1, reputationRequired: Math.max(0, Math.floor(reputation - 10)), status: 'PENDING' },
+          { id: `sp-${clubId}-3`, name: 'Apex Logistics', type: 'STADIUM', amount: Math.floor(reputation * 15000), duration: 3, reputationRequired: Math.max(0, Math.floor(reputation + 10)), status: 'PENDING' },
         ],
         activeSponsors: [],
+
         staffAds: [],
         staffApplicants: [],
         scoutAssignments: [],
         scoutReports: [],
         formation: manager.preferredFormation,
         tactics: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as any[]) as any,
+        startingLineup: {},
         history: [`Club founded in ${league.name}`]
       };
 
@@ -296,6 +407,9 @@ export const generateInitialData = (): GameState => {
       const playerWages = squad.reduce((sum, p) => sum + p.wage, 0);
       club.finances.weeklyWages = playerWages;
       club.finances.expenses.playerWages = playerWages;
+
+      // Finalize Starting Lineup
+      club.startingLineup = autoPickLineup(club.formation, squad);
 
       clubs.push(club);
       managers.push(manager);
@@ -360,7 +474,19 @@ export const generateInitialData = (): GameState => {
     leagues,
     matches: allMatches,
     transferRequests: [],
-    staff: [],
+    staff: Array.from({ length: 150 }).map((_, i) => {
+      const rating = getRandomRating(20, 85);
+      return {
+        id: `free-staff-${i}`,
+        name: `${getRandomElement(FIRST_NAMES)} ${getRandomElement(LAST_NAMES)}`,
+        role: getRandomElement(['SPORTING_DIRECTOR', 'SCOUT', 'PHYSIO', 'ANALYST', 'ACADEMY_COACH']),
+        rating,
+        salary: Math.floor(rating * 150),
+        clubId: '',
+        isApplicant: false
+      };
+    }),
+
     transferBids: [],
     news: [],
     userClubId: null,

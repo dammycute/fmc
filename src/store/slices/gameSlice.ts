@@ -1,7 +1,10 @@
 import type { StateCreator } from 'zustand';
 import { type GameState } from '../../types/game';
 import { generateFixtures } from '../../utils/fixtureGenerator';
-import { generateInitialData } from '../../utils/dataGenerator';
+import { generateInitialData, generatePlayer, getRandomElement } from '../../utils/dataGenerator';
+
+import { processAITransfers } from '../../utils/transferEngine';
+
 
 export interface GameSlice {
   currentSeason: number;
@@ -38,250 +41,263 @@ export const createGameSlice: StateCreator<
   setGameState: (state) => set((prev) => ({ ...prev, ...state })),
 
   advanceWeek: () => {
-    const state = get() as any; // Cast to access all slices
-    const { currentWeek, currentSeason } = state;
+    const state = get() as any;
+    const { currentWeek, currentSeason, leagues, news } = state;
 
-    // 1. Prepare Matchday (Simulate all AI matches for the current week)
-    state.finalizeMatchday({ id: 'dummy' }); // This needs to be slightly smarter now
 
-    // 2. Financial Processing
-    const updatedClubs = state.clubs.map((club: any) => {
-      const tier = state.leagues.find((l: any) => l.id === club.leagueId)?.tier || 3;
-      const finances = { ...club.finances };
+    if (!leagues || !state.clubs || !state.players) return;
+
+
+    // 1. Finalize current week matches
+    state.finalizeMatchday(null);
+    
+    // IMPORTANT: Get fresh state after match simulation
+    const freshState = get() as any;
+    const { players: freshPlayers, matches: freshMatches, clubs: freshClubs } = freshState;
+
+    // 2. Financial & Transfer Market Processing
+    const transferUpdates = processAITransfers(freshState);
+    const aiTransferredPlayers = transferUpdates.players || freshPlayers;
+
+    const allNewPlayers: any[] = [];
+    const newNews: any[] = [];
+    let updatedManagers = [...state.managers];
+
+    const clubsWithUpdates = freshClubs.map((club: any) => {
+      const tier = leagues.find((l: any) => l.id === club.leagueId)?.tier || 3;
       
-      // Revenue
-      const sponsorIncome = club.activeSponsors.reduce((sum: number, s: any) => sum + (s.amount / Math.max(1, s.duration) / 38), 0);
+      // Transfer Logic
+      let currentClub = { ...club };
+      const transferClub = transferUpdates.clubs?.find((c: any) => c.id === club.id);
+      if (transferClub) currentClub = { ...currentClub, ...transferClub };
+
+      // Finance Logic
+      const finances = { ...currentClub.finances };
+      const sponsorIncome = currentClub.activeSponsors.reduce((sum: number, s: any) => sum + (s.amount / Math.max(1, s.duration) / 38), 0);
       const tvRights = (tier === 1 ? 240000 : tier === 2 ? 120000 : tier === 3 ? 75000 : 40000);
-      const merchandise = Math.floor(club.reputation * 350 + (20 - tier) * 250);
+      const merchandise = Math.floor(currentClub.reputation * 350 + (20 - tier) * 250);
       
-      // Match revenue (User match already simulation handled, AI matches handled in finalizeMatchday)
-      // For simplicity, we'll assume AI matches have been processed and results are in Match state
-      const matches = state.matches.filter((m: any) => m.week === currentWeek && m.season === currentSeason && (m.homeClubId === club.id));
-      const ticketIncome = matches.reduce((sum: number) => {
+      const weeklyMatches = freshMatches.filter((m: any) => m.week === currentWeek && m.season === currentSeason && m.homeClubId === currentClub.id);
+      const ticketIncome = weeklyMatches.reduce((sum: number) => {
          const ticketPrice = tier === 1 ? 60 : tier === 2 ? 40 : 25;
-         const attendance = Math.min(club.facilities.stadium.capacity, club.reputation * 90 + Math.random() * 1000);
+         const attendance = Math.min(currentClub.facilities.stadium.capacity, currentClub.reputation * 90 + Math.random() * 1000);
          return sum + (attendance * ticketPrice);
       }, 0);
 
       finances.balance += sponsorIncome + tvRights + merchandise + ticketIncome;
-      finances.revenue = {
-        ...finances.revenue,
-        sponsorship: (finances.revenue.sponsorship || 0) + sponsorIncome,
-        tvRights: (finances.revenue.tvRights || 0) + tvRights,
-        merchandise: (finances.revenue.merchandise || 0) + merchandise,
-        tickets: (finances.revenue.tickets || 0) + ticketIncome
-      };
+      finances.revenue = { sponsorship: sponsorIncome, tvRights, merchandise, tickets: ticketIncome };
 
-      // Expenses
-      const playerWages = club.finances.weeklyWages;
-      const staffWages = club.finances.weeklyStaffWages;
+      const playerWages = currentClub.finances.weeklyWages || 0;
+      const staffWages = currentClub.finances.weeklyStaffWages || 0;
       const maintenance = (tier === 1 ? 50000 : tier === 2 ? 25000 : 10000);
-      const totalExpenses = playerWages + staffWages + maintenance;
+      finances.balance -= (playerWages + staffWages + maintenance);
+      finances.expenses = { playerWages, staffWages, facilityMaintenance: maintenance };
 
-      finances.balance -= totalExpenses;
-      finances.expenses = {
-        ...finances.expenses,
-        playerWages: (finances.expenses.playerWages || 0) + playerWages,
-        staffWages: (finances.expenses.staffWages || 0) + staffWages,
-        facilityMaintenance: (finances.expenses.facilityMaintenance || 0) + maintenance
-      };
+      // Scouting Logic
+      const scoutAssignments = currentClub.scoutAssignments.map((a: any) => {
+        const newProgress = Math.min(100, a.progress + 15 + Math.random() * 10);
+        const playersFound = [...a.playersFound];
+        if (newProgress === 100 && a.progress < 100) {
+          const count = 2 + Math.floor(Math.random() * 3);
+          for (let i = 0; i < count; i++) {
+            const p = generatePlayer('', tier);
+            allNewPlayers.push(p);
+            playersFound.push(p.id);
+          }
+        }
+        return { ...a, progress: newProgress, playersFound };
+      });
 
-      return { ...club, finances };
-    });
+      // Youth Intake (Week 38)
+      const clubHistory = [...currentClub.history];
+      if (currentWeek === 38) {
+        const academyLevel = currentClub.facilities.youthAcademy.level;
+        const intakeCount = Math.floor(Math.random() * (academyLevel + 1));
+        for (let i = 0; i < intakeCount; i++) {
+          const youth = generatePlayer(currentClub.id, tier, true);
+          allNewPlayers.push(youth);
+          clubHistory.push(`Youth Academy graduate: ${youth.firstName} ${youth.lastName} joined.`);
+        }
+      }
 
-    // 3. Advance Scouts & Staff Ads
-    const clubsWithProgress = updatedClubs.map((club: any) => {
-      const scoutAssignments = club.scoutAssignments.map((a: any) => ({
-        ...a,
-        progress: Math.min(100, a.progress + 15 + Math.random() * 10)
-      }));
+      // Board Confidence & Sacking Logic
+      let boardConfidence = currentClub.boardConfidence || 70;
+      const clubManager = updatedManagers.find(m => m.clubId === currentClub.id);
+      if (clubManager) {
+        let confidenceChange = 0;
+        const recentMatches = freshMatches
+          .filter((m: any) => (m.homeClubId === currentClub.id || m.awayClubId === currentClub.id) && m.played && m.season === currentSeason)
+          .sort((a: any, b: any) => b.week - a.week)
+          .slice(0, 3);
+        recentMatches.forEach((m: any) => {
+          const isHome = m.homeClubId === currentClub.id;
+          const isWin = isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
+          confidenceChange += isWin ? 5 : (m.homeScore === m.awayScore ? 1 : -3);
+        });
+        if (finances.balance < 0) confidenceChange -= 2;
+        boardConfidence = Math.max(0, Math.min(100, boardConfidence + confidenceChange));
 
-      const staffAds = club.staffAds.map((ad: any) => ({ ...ad, weeksRemaining: ad.weeksRemaining - 1 }));
+        if (boardConfidence < 15) {
+          if (currentClub.isUserControlled) {
+            newNews.push({
+              title: "Board Ultimatum",
+              content: `Results must improve immediately for ${clubManager.name}.`,
+              category: 'CLUB', importance: 'BREAKING', clubId: currentClub.id
+            });
+          } else {
+            updatedManagers = updatedManagers.map(m => m.id === clubManager.id ? { ...m, clubId: '', relationshipWithChairman: 0 } : m);
+            clubHistory.push(`Manager ${clubManager.name} was sacked.`);
+            newNews.push({
+              title: `${currentClub.name} Sack ${clubManager.name}`,
+              content: `Poor results led to ${clubManager.name}'s departure.`,
+              category: 'WORLD', importance: 'HIGH', clubId: currentClub.id
+            });
+          }
+        }
+      }
+
+      // Staff Ads
+      const staffAds = (currentClub.staffAds || []).map((ad: any) => ({ ...ad, weeksRemaining: ad.weeksRemaining - 1 }));
       const activeAds = staffAds.filter((ad: any) => ad.weeksRemaining > 0);
-      const finishedAds = staffAds.filter((ad: any) => ad.weeksRemaining <= 0);
-
-      let applicants = [...club.staffApplicants];
-      finishedAds.forEach((ad: any) => {
-        const count = 2 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < count; i++) {
+      const applicants = [...(currentClub.staffApplicants || [])];
+      staffAds.filter((ad: any) => ad.weeksRemaining <= 0).forEach((ad: any) => {
+        for (let i = 0; i < 2; i++) {
           applicants.push({
             id: Math.random().toString(36).substring(2, 11),
-            name: "Candidate " + i,
-            role: ad.role,
-            rating: 30 + Math.random() * 50,
-            salary: 15000 + Math.random() * 20000,
-            clubId: club.id,
-            isApplicant: true
+            name: `${generatePlayer('', 1).firstName} ${generatePlayer('', 1).lastName}`,
+            role: ad.role, rating: 30 + Math.random() * 50, salary: 15000, clubId: currentClub.id, isApplicant: true
           });
         }
       });
 
-      return { ...club, scoutAssignments, staffAds: activeAds, staffApplicants: applicants };
+      // Sponsorship Refresh Logic
+      const availableSponsors = [...(currentClub.availableSponsors || [])];
+      if (availableSponsors.length < 3 && Math.random() < 0.1) {
+        const rep = currentClub.reputation;
+        const newSponsor = {
+          id: `sp-${currentClub.id}-${Date.now()}`,
+          name: getRandomElement(['Vortex', 'Pulse', 'Quantum', 'Nexus', 'Horizon']) + ' ' + getRandomElement(['Solutions', 'Systems', 'Digital', 'Global', 'Logistics']),
+          type: getRandomElement(['MAIN', 'SLEEVE', 'STADIUM'] as any[]),
+          amount: Math.floor(rep * (Math.random() * 5000 + 5000)),
+          duration: 1 + Math.floor(Math.random() * 3),
+          reputationRequired: Math.max(0, Math.floor(rep + (Math.random() * 20 - 10))),
+          status: 'PENDING' as const
+        };
+        availableSponsors.push(newSponsor);
+      }
+
+      return { 
+        ...currentClub, 
+        finances, 
+        scoutAssignments, 
+        history: clubHistory, 
+        boardConfidence, 
+        staffAds: activeAds, 
+        staffApplicants: applicants,
+        availableSponsors
+      };
     });
 
-    // 4. Time Progression & Season End
+
+    // 3. Time Progression
     let nextWeek = currentWeek + 1;
     let nextSeason = currentSeason;
-    let newMatches = [...state.matches];
+    let newMatches = [...freshMatches];
 
     if (nextWeek > 38) {
       nextWeek = 1;
       nextSeason++;
 
-      // --- SEASON TRANSITION LOGIC ---
+      const sortedLeagues = [...leagues].sort((a: any, b: any) => a.tier - b.tier);
+      const changes: { clubId: string; updates: any }[] = [];
       
-      // A. Calculate Final Standings
-      const leagues = state.leagues;
-      
-      leagues.forEach(league => {
-        const leagueClubs = state.clubs.filter(c => c.leagueId === league.id);
-        const standings = leagueClubs.map(club => {
-          const clubMatches = state.matches.filter(m => 
+      sortedLeagues.forEach((league, index) => {
+        const leagueClubs = clubsWithUpdates.filter((c: any) => c.leagueId === league.id);
+        const standings = leagueClubs.map((club: any) => {
+          const clubMatches = freshMatches.filter((m: any) => 
             (m.homeClubId === club.id || m.awayClubId === club.id) && 
             m.played && 
             m.season === currentSeason
           );
           
-          let pts = 0, gf = 0, ga = 0, w = 0, d = 0, l = 0;
+          let pts = 0, gf = 0, ga = 0;
           clubMatches.forEach(m => {
             const isHome = m.homeClubId === club.id;
             const clubScore = isHome ? m.homeScore : m.awayScore;
             const oppScore = isHome ? m.awayScore : m.homeScore;
-            
-            gf += clubScore;
-            ga += oppScore;
-            if (clubScore > oppScore) { pts += 3; w++; }
-            else if (clubScore === oppScore) { pts += 1; d++; }
-            else l++;
+            gf += clubScore; ga += oppScore;
+            if (clubScore > oppScore) pts += 3;
+            else if (clubScore === oppScore) pts += 1;
           });
           
-          return { clubId: club.id, pts, gd: gf - ga, gf, w, d, l };
+          return { clubId: club.id, pts, gd: gf - ga, gf };
         }).sort((a, b) => b.pts !== a.pts ? b.pts - a.pts : b.gd !== a.gd ? b.gd - a.gd : b.gf - a.gf);
 
-        // Archiving standings (optional, but good for history)
-        // Promotion/Relegation (Simple: Top 1 promotes, Bottom 1 relegates)
-        // We'll need to find the league above and below
-        const leagueAbove = leagues.find(l => l.tier === league.tier - 1);
-        const leagueBelow = leagues.find(l => l.tier === league.tier + 1);
+        const leagueAbove = sortedLeagues[index - 1];
+        const leagueBelow = sortedLeagues[index + 1];
 
         if (leagueAbove) {
-          const promoClubId = standings[0].clubId;
-          state.updateClub(promoClubId, { 
-            leagueId: leagueAbove.id,
-            history: [...state.clubs.find(c => c.id === promoClubId)!.history, `Promoted to tier ${leagueAbove.tier}`]
+          standings.slice(0, 3).forEach((s) => {
+            changes.push({ clubId: s.clubId, updates: { leagueId: leagueAbove.id } });
           });
         }
-        
         if (leagueBelow) {
-          const releClubId = standings[standings.length - 1].clubId;
-          state.updateClub(releClubId, { 
-            leagueId: leagueBelow.id,
-            history: [...state.clubs.find(c => c.id === releClubId)!.history, `Relegated to tier ${leagueBelow.tier}`]
+          standings.slice(-3).forEach((s) => {
+            changes.push({ clubId: s.clubId, updates: { leagueId: leagueBelow.id } });
           });
         }
       });
 
-      // B. Regenerate Fixtures for the new season
-      // Wait for state updates to settle (or just use local derived state)
-      // Actually, we should calculate the NEW club associations first
-      const nextSeasonClubsByLeague: Record<string, string[]> = {};
-      state.clubs.forEach(c => {
-        // We need to account for the updates we just triggered
-        // This is tricky with Zustands 'set'. We'll use the current state and apply the logic.
-        let targetLeagueId = c.leagueId;
-        // (Simplified: we'll use the updated state in the next step or just simulate it here)
-        // For now, let's just use the current leagues and assume clubs stayed.
-        // TODO: Deep promo/rele logic needs to be atomic.
-        if (!nextSeasonClubsByLeague[targetLeagueId]) nextSeasonClubsByLeague[targetLeagueId] = [];
-        nextSeasonClubsByLeague[targetLeagueId].push(c.id);
+      // Apply changes to the mapped clubs
+      changes.forEach(change => {
+        const clubIdx = clubsWithUpdates.findIndex(c => c.id === change.clubId);
+        if (clubIdx !== -1) {
+          clubsWithUpdates[clubIdx] = { 
+            ...clubsWithUpdates[clubIdx], 
+            ...change.updates,
+            history: [...clubsWithUpdates[clubIdx].history, `Season transition: Moved to new division.`]
+          };
+        }
       });
 
-      newMatches = generateFixtures(leagues, nextSeasonClubsByLeague, nextSeason);
+      // B. Regenerate Fixtures
+      const nextSeasonClubsByLeague: Record<string, string[]> = {};
+      clubsWithUpdates.forEach((c: any) => {
+        if (!nextSeasonClubsByLeague[c.leagueId]) nextSeasonClubsByLeague[c.leagueId] = [];
+        nextSeasonClubsByLeague[c.leagueId].push(c.id);
+      });
+
+      newMatches = generateFixtures(sortedLeagues, nextSeasonClubsByLeague, nextSeason);
       
-      state.generateNews({
+      newNews.push({
         title: `Season ${currentSeason} Concluded`,
-        content: `A dramatic season comes to an end. Congratulations to all champions and good luck to those promoted!`,
-        category: 'WORLD',
-        importance: 'BREAKING',
-        week: currentWeek,
-        season: currentSeason
+        content: `A dramatic season comes to an end. Promotions and relegations have been finalized.`,
+        category: 'WORLD', importance: 'BREAKING', week: currentWeek, season: currentSeason
       });
     }
 
+
+    // 4. Player Fatigue Recovery
+    const finalPlayers = [...aiTransferredPlayers, ...allNewPlayers].map((p: any) => ({
+      ...p,
+      fatigue: Math.max(0, (p.fatigue || 0) - 15),
+      morale: Math.min(100, Math.max(0, (p.morale || 70) + (Math.random() * 4 - 2))) 
+    }));
+
+    // 5. Final State Update
     set({
       currentWeek: nextWeek,
       currentSeason: nextSeason,
       matches: newMatches,
-      isTransferWindowOpen: (nextWeek >= 1 && nextWeek <= 6) || (nextWeek >= 33 && nextWeek <= 38)
-    });
-
-    clubsWithProgress.forEach((club: any) => {
-      state.updateClub(club.id, { 
-        finances: club.finances 
-      });
-
-      // 5. Dynamic Relationships & Board Confidence
-      const manager = state.managers.find((m: any) => m.clubId === club.id);
-      if (manager) {
-        // Simple confidence update based on results (placeholder for more complex league standing logic)
-        let confidenceChange = 0;
-        const recentMatches = state.matches
-          .filter((m: any) => (m.homeClubId === club.id || m.awayClubId === club.id) && m.played && m.season === currentSeason)
-          .sort((a: any, b: any) => b.week - a.week)
-          .slice(0, 3);
-          
-        recentMatches.forEach((m: any) => {
-          const isHome = m.homeClubId === club.id;
-          const isWin = isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
-          const isDraw = m.homeScore === m.awayScore;
-          confidenceChange += isWin ? 5 : isDraw ? 1 : -3;
-        });
-
-        // Financial impact on confidence
-        if (club.finances.balance < 0) confidenceChange -= 2;
-        if (club.finances.balance < (club.finances.overdraftLimit || -1000000)) confidenceChange -= 10;
-
-        const newConfidence = Math.max(0, Math.min(100, (club.boardConfidence || 50) + confidenceChange));
-        
-        // Automated Sacking (AI Only for now, or warning for user)
-        if (newConfidence < 15) {
-          if (club.isUserControlled) {
-            state.generateNews({
-              title: "Board Ultimatum: Results Must Improve",
-              content: `The board is extremely disappointed with recent performances. ${manager.name}'s position is under serious review.`,
-              category: 'CLUB',
-              importance: 'BREAKING',
-              week: currentWeek,
-              season: currentSeason
-            });
-          } else {
-            // AI Sacking
-            state.sackManager(manager.id);
-            state.generateNews({
-              title: `${club.name} Sack ${manager.name}`,
-              content: `Following a string of poor results, ${club.name} have parted ways with manager ${manager.name}.`,
-              category: 'WORLD',
-              importance: 'HIGH',
-              week: currentWeek,
-              season: currentSeason
-            });
-          }
-        }
-
-        state.updateClub(club.id, { boardConfidence: newConfidence });
-      }
-    });
-
-    // 5. News Summary
-    state.generateNews({
-      title: `Week ${currentWeek} Roundup`,
-      content: `The season continues! Check the latest results and league tables.`,
-      category: 'WORLD',
-      importance: 'LOW',
-      week: currentWeek,
-      season: currentSeason
+      players: finalPlayers,
+      clubs: clubsWithUpdates,
+      managers: updatedManagers,
+      isTransferWindowOpen: (nextWeek >= 1 && nextWeek <= 6) || (nextWeek >= 33 && nextWeek <= 38),
+      transferBids: transferUpdates.transferBids || freshState.transferBids,
+      news: [...newNews.map(n => ({ ...n, id: Math.random().toString(36).substring(2, 11), week: currentWeek, season: currentSeason })), ...news].slice(0, 100)
     });
   },
+
 
   skipWeeks: (weeks) => {
     for (let i = 0; i < weeks; i++) {

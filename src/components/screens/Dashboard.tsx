@@ -70,8 +70,9 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                   <div className="space-y-1">
                     <h3 className="text-2xl font-black text-white tracking-tight">{manager?.name}</h3>
                     <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-400/10 px-2 py-0.5 rounded inline-block">
-                      {manager?.philosophy.replace('_', ' ')} Specialist
+                      {(manager?.philosophy || '').replace('_', ' ')} Specialist
                     </p>
+
                     <div className="flex items-center gap-6 mt-4">
                       <div className="flex flex-col">
                         <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">Trust</span>
@@ -200,8 +201,15 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
               <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-between">
                 <div>
                   <p className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest">Proj. Net</p>
-                  <p className="text-lg font-black text-emerald-400">+£124K</p>
+                  <p className={cn(
+                    "text-lg font-black",
+                    (Object.values(club.finances.revenue).reduce((a, b) => a + Number(b), 0) - Object.values(club.finances.expenses).reduce((a, b) => a + Number(b), 0)) >= 0 ? "text-emerald-400" : "text-rose-400"
+                  )}>
+                    { (Object.values(club.finances.revenue).reduce((a, b) => a + Number(b), 0) - Object.values(club.finances.expenses).reduce((a, b) => a + Number(b), 0)) >= 0 ? '+' : '-' }
+                    £{Math.abs((Object.values(club.finances.revenue).reduce((a, b) => a + Number(b), 0) - Object.values(club.finances.expenses).reduce((a, b) => a + Number(b), 0)) / 1000).toFixed(1)}K
+                  </p>
                 </div>
+
                 <div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 flex items-center justify-center text-[10px] font-black text-emerald-500">
                   SECURE
                 </div>

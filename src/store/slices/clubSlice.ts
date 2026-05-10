@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { Club, SeasonTarget } from '../../types/game';
+import { autoPickLineup } from '../../utils/dataGenerator';
 
 export interface ClubSlice {
   clubs: Club[];
@@ -11,7 +12,10 @@ export interface ClubSlice {
   acceptSponsor: (clubId: string, sponsorId: string) => void;
   setSeasonTarget: (clubId: string, target: SeasonTarget) => void;
   setTransferBudget: (clubId: string, amount: number) => void;
+  setFormation: (clubId: string, formation: string) => void;
+  setTactics: (clubId: string, tactics: string) => void;
 }
+
 
 export const createClubSlice: StateCreator<
   ClubSlice & any,
@@ -129,6 +133,26 @@ export const createClubSlice: StateCreator<
         ...c,
         transferBudget: Math.min(c.finances.balance, amount)
       } : c)
+    }));
+  },
+
+  setFormation: (clubId, formation) => {
+    const state = get();
+    const players = (state.players || []).filter(p => p.clubId === clubId);
+    
+    set((state) => ({
+      clubs: state.clubs.map(c => c.id === clubId ? { 
+        ...c, 
+        formation: formation as any,
+        startingLineup: autoPickLineup(formation as any, players)
+      } : c)
+    }));
+  },
+
+
+  setTactics: (clubId, tactics) => {
+    set((state) => ({
+      clubs: state.clubs.map(c => c.id === clubId ? { ...c, tactics } : c)
     }));
   },
 });

@@ -1,12 +1,12 @@
 import React from 'react';
 import { type Player, type Club } from '../../types/game';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { 
   Zap, Heart, Brain, Lock, History, Trophy,
   Activity, UserMinus, Star, 
-  ShieldCheck, Target, ChevronRight
+  ShieldCheck, Target, ChevronRight, DollarSign
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
@@ -17,9 +17,19 @@ interface PlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onToggleTransferList: (playerId: string) => void;
+  isUserPlayer?: boolean;
+  onMakeBid?: (playerId: string) => void;
 }
 
-const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose, onToggleTransferList }) => {
+const PlayerModal: React.FC<PlayerModalProps> = ({ 
+  player, 
+  club, 
+  isOpen, 
+  onClose, 
+  onToggleTransferList,
+  isUserPlayer = false,
+  onMakeBid
+}) => {
   if (!player) return null;
 
   const renderStat = (label: string, value: number, max = 100) => (
@@ -50,6 +60,9 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose
       <DialogContent className="max-w-4xl bg-[#09090b] border-white/5 text-white p-0 overflow-hidden shadow-2xl shadow-black">
         <DialogHeader className="sr-only">
           <DialogTitle>{player.firstName} {player.lastName} - Player Profile</DialogTitle>
+          <DialogDescription>
+            Detailed statistics, happiness levels, and career history for {player.firstName} {player.lastName}.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex h-[650px]">
@@ -97,18 +110,28 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ player, club, isOpen, onClose
             </div>
 
             <div className="space-y-3 relative z-10">
-              <Button 
-                onClick={() => onToggleTransferList(player.id)}
-                className={cn(
-                  "w-full font-black text-[10px] uppercase tracking-widest h-12 rounded-xl transition-all",
-                  player.isTransferListed 
-                    ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20" 
-                    : "bg-white/5 hover:bg-white/10 text-zinc-400 border border-white/10"
-                )}
-              >
-                <UserMinus className="w-4 h-4 mr-2" />
-                {player.isTransferListed ? 'Remove from List' : 'List for Transfer'}
-              </Button>
+              {isUserPlayer ? (
+                <Button 
+                  onClick={() => onToggleTransferList(player.id)}
+                  className={cn(
+                    "w-full font-black text-[10px] uppercase tracking-widest h-12 rounded-xl transition-all",
+                    player.isTransferListed 
+                      ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20" 
+                      : "bg-white/5 hover:bg-white/10 text-zinc-400 border border-white/10"
+                  )}
+                >
+                  <UserMinus className="w-4 h-4 mr-2" />
+                  {player.isTransferListed ? 'Remove from List' : 'List for Transfer'}
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => onMakeBid?.(player.id)}
+                  className="w-full font-black text-[10px] uppercase tracking-widest h-12 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all"
+                >
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Make Transfer Bid
+                </Button>
+              )}
             </div>
           </div>
 

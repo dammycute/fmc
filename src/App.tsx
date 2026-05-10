@@ -60,14 +60,15 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard setActiveTab={setActiveTab} />;
       case 'squad': return <Squad />;
-      case 'manager': return <ManagerScreen />;
+      case 'manager': return <ManagerScreen setActiveTab={setActiveTab} />;
+
       case 'finances': return <Finances />;
       case 'facilities': return <Facilities />;
       case 'scouting': return <Scouting />;
       case 'news': return <NewsFeed />;
       case 'leagues': return <LeagueTable />;
       case 'clubmarket': return <ClubMarket />;
-      case 'staff': return <StaffScreen />;
+      case 'staff': return <StaffScreen setActiveTab={setActiveTab} />;
       case 'transfer': return <TransferMarket />;
       case 'schedule': return <Schedule />;
       case 'boardroom': return <BoardRoom />;
@@ -107,7 +108,8 @@ const App: React.FC = () => {
                 onClick={() => {
                   const match = prepareMatchday();
                   if (match) {
-                    setActiveMatchSimulation(match);
+                    const simulated = (useGameStore.getState() as any).startUserMatch(match.id);
+                    setActiveMatchSimulation(simulated || match);
                   } else {
                     setIsProcessing(true);
                     setTimeout(() => {

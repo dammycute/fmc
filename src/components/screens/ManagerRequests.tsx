@@ -55,7 +55,7 @@ const ManagerRequests: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
             <div className="bg-white/5 p-3 rounded-lg backdrop-blur-sm">
               <div className="text-xs text-slate-400 mb-1">Philosophy</div>
-              <div className="text-sm font-bold">{manager.philosophy.replace('_', ' ')}</div>
+              <div className="text-sm font-bold">{(manager.philosophy || '').replace('_', ' ')}</div>
             </div>
             <div className="bg-white/5 p-3 rounded-lg backdrop-blur-sm">
               <div className="text-xs text-slate-400 mb-1">Formation</div>
@@ -90,7 +90,7 @@ const ManagerRequests: React.FC = () => {
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <Badge variant={getPriorityColor(request.priority)}>{request.priority}</Badge>
-                        <Badge variant="outline">{request.type.replace('_', ' ')}</Badge>
+                        <Badge variant="outline">{(request.type || '').replace('_', ' ')}</Badge>
                       </div>
                       <span className="text-xs text-muted-foreground">Week {request.weekRequested}, Season {request.seasonRequested}</span>
                     </div>

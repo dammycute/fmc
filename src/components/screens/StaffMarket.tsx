@@ -15,13 +15,60 @@ const StaffMarket: React.FC = () => {
 
   if (!club) return null;
 
-  // For this demo, we'll generate some candidates if none are available
-  // In a real loop, these would be populated by the store
-  const managerCandidates = managers
-    .filter(m => !m.clubId && Math.abs(m.coachingAbility - club.reputation) <= 20)
+  const reputation = club.reputation || 50;
+
+  // Managers Scaled to Reputation
+  let managerCandidates = managers
+    .filter(m => !m.clubId && Math.abs(m.coachingAbility - reputation) <= 15)
     .sort((a, b) => b.coachingAbility - a.coachingAbility)
-    .slice(0, 5);
-  const staffCandidates = staff.filter(s => !s.clubId);
+    .slice(0, 12);
+    
+  // Fallback if empty
+  if (managerCandidates.length === 0) {
+    managerCandidates = [
+      { 
+        id: 'mf-1', 
+        name: 'Zinedine Zidane', 
+        coachingAbility: Math.min(99, Math.floor(reputation + 5)), 
+        preferredFormation: '4-3-3', 
+        preferredStyle: 'ATTACKING', 
+        philosophy: 'POSSESSION',
+        coaching: { tactical: 90, workingWithYouth: 80, attacking: 85, defensive: 70, mental: 88 }, 
+        personality: { playerManagement: 98, discipline: 85, loyalty: 90, ambition: 95, mediaHandling: 80 }, 
+        clubId: '',
+        morale: 80,
+        relationshipWithChairman: 70,
+        contractYears: 3,
+        pressing: 75,
+        creativeFreedom: 80,
+        salary: Math.floor((reputation + 5) * 1000)
+      },
+      { 
+        id: 'mf-2', 
+        name: 'Jose Mourinho', 
+        coachingAbility: Math.max(20, Math.floor(reputation - 5)), 
+        preferredFormation: '4-2-3-1', 
+        preferredStyle: 'DEFENSIVE', 
+        philosophy: 'DEFENSIVE',
+        coaching: { tactical: 98, workingWithYouth: 60, attacking: 65, defensive: 95, mental: 90 }, 
+        personality: { playerManagement: 85, discipline: 98, loyalty: 80, ambition: 98, mediaHandling: 99 }, 
+        clubId: '',
+        morale: 75,
+        relationshipWithChairman: 70,
+        contractYears: 2,
+        pressing: 90,
+        creativeFreedom: 40,
+        salary: Math.floor((reputation - 5) * 800)
+      }
+    ] as any;
+
+  }
+
+  const staffCandidates = (staff || [])
+    .filter(s => !s.clubId && Math.abs(s.rating - reputation) <= 15)
+    .slice(0, 15);
+
+
 
   return (
     <div className="space-y-8 pb-20">
@@ -66,7 +113,7 @@ const StaffMarket: React.FC = () => {
                     <h3 className="text-2xl font-black text-white uppercase tracking-tight">{manager.name}</h3>
                     <div className="flex gap-2 mt-2">
                       <Badge className="bg-white/5 text-zinc-400 border-none font-black text-[8px] uppercase">{manager.preferredFormation}</Badge>
-                      <Badge className="bg-indigo-500/10 text-indigo-400 border-none font-black text-[8px] uppercase">{manager.preferredStyle.replace('_', ' ')}</Badge>
+                      <Badge className="bg-indigo-500/10 text-indigo-400 border-none font-black text-[8px] uppercase">{(manager.preferredStyle || '').replace('_', ' ')}</Badge>
                     </div>
                   </div>
                   <div className="text-right">
@@ -93,8 +140,9 @@ const StaffMarket: React.FC = () => {
                 <div className="flex items-center justify-between gap-6 pt-2">
                   <div className="flex-1">
                     <p className="text-[10px] text-zinc-500 font-medium italic">
-                      "Prefers a {manager.preferredStyle.toLowerCase().replace('_', ' ')} approach with a structured {manager.preferredFormation}."
+                      "Prefers a {(manager.preferredStyle || '').toLowerCase().replace('_', ' ')} approach with a structured {manager.preferredFormation || 'N/A'}."
                     </p>
+
                   </div>
                   <Button 
                     onClick={() => hireManager(club.id, manager)}
@@ -117,7 +165,7 @@ const StaffMarket: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-white uppercase tracking-tight">{member.name}</h3>
-                      <Badge className="bg-indigo-600 text-white border-none font-black text-[8px] uppercase mt-1">{member.role.replace('_', ' ')}</Badge>
+                      <Badge className="bg-indigo-600 text-white border-none font-black text-[8px] uppercase mt-1">{(member.role || '').replace('_', ' ')}</Badge>
                     </div>
                   </div>
                   <div className="text-right">
@@ -130,8 +178,9 @@ const StaffMarket: React.FC = () => {
                   onClick={() => hireStaff(club.id, member)}
                   className="w-full bg-white/5 hover:bg-white/10 text-white font-black text-[10px] uppercase tracking-widest h-12 rounded-2xl border border-white/5"
                 >
-                  HIRE AS {member.role.replace('_', ' ')}
+                  HIRE AS {(member.role || '').replace('_', ' ')}
                 </Button>
+
               </CardContent>
             </Card>
           ))

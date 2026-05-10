@@ -66,7 +66,9 @@ export interface Club {
   isForSale: boolean;
   formation: Formation;
   tactics: TacticalPhilosophy;
+  startingLineup: { [pos: string]: string | null };
 }
+
 
 export interface Player {
   id: string;
@@ -137,6 +139,7 @@ export interface Player {
   };
   chemistry: { [playerId: string]: number };
   isLegend: boolean;
+  avatarUrl?: string;
   history: {
     appearances: number;
     goals: number;
@@ -265,7 +268,16 @@ export interface Match {
   season: number;
   week: number;
   events: MatchEvent[];
+  stats?: {
+    homePossession: number;
+    awayPossession: number;
+    homeShots: number;
+    awayShots: number;
+    homePassRate: number;
+    awayPassRate: number;
+  };
 }
+
 
 export interface MatchEvent {
   minute: number;

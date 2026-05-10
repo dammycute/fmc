@@ -47,20 +47,28 @@ export const createSquadSlice: StateCreator<
     })),
 
   hireManager: (clubId, manager) =>
-    set((state) => ({
-      managers: state.managers.map((m) => m.id === manager.id ? { ...m, clubId, relationshipWithChairman: 70 } : m),
-      clubs: state.clubs.map(c => c.id === clubId ? {
-        ...c,
-        history: [...c.history, `Hired new manager: ${manager.name}`],
-        formation: manager.preferredFormation,
-        tactics: manager.preferredStyle
-      } : c)
-    })),
+    set((state) => {
+      const exists = state.managers.some(m => m.id === manager.id);
+      const updatedManagers = exists
+        ? state.managers.map((m) => m.id === manager.id ? { ...m, clubId, relationshipWithChairman: 70 } : m)
+        : [...state.managers, { ...manager, clubId, relationshipWithChairman: 70 }];
+      
+      return {
+        managers: updatedManagers,
+        clubs: state.clubs.map(c => c.id === clubId ? {
+          ...c,
+          history: [...c.history, `Hired new manager: ${manager.name}`],
+          formation: manager.preferredFormation,
+          tactics: manager.preferredStyle
+        } : c)
+      };
+    }),
 
   hireStaff: (clubId, staffMember) =>
     set((state) => ({
-      staff: [...state.staff, { ...staffMember, clubId }]
+      staff: [...state.staff.filter(s => s.id !== staffMember.id), { ...staffMember, clubId }]
     })),
+
 
   dismissStaff: (staffId) =>
     set((state) => ({
@@ -75,12 +83,13 @@ export const createSquadSlice: StateCreator<
     if (!applicant) return;
 
     set({
-      staff: [...state.staff, { ...applicant, clubId, isApplicant: false }],
+      staff: [...state.staff.filter(s => s.id !== applicant.id), { ...applicant, clubId, isApplicant: false }],
       clubs: state.clubs.map(c => c.id === clubId ? {
         ...c,
-        staffApplicants: c.staffApplicants.filter(a => a.id !== applicantId)
+        staffApplicants: (c.staffApplicants || []).filter(a => a.id !== applicantId)
       } : c)
     });
+
   },
 
   advertiseStaffRole: (clubId, role) => {
@@ -127,7 +136,13 @@ export const createSquadSlice: StateCreator<
   makeTransferBid: (playerId, clubId, amount) => {
     const state = get();
     const player = state.players.find(p => p.id === playerId);
-    if (!player) return;
+    const club = state.clubs.find(c => c.id === clubId);
+    if (!player || !club) return;
+
+    // Check budget for user clubs
+    if (club.isUserControlled && amount > (club.transferBudget || 0)) {
+       return; 
+    }
 
     const bid: TransferBid = {
       id: Math.random().toString(36).substring(2, 11),
@@ -144,6 +159,7 @@ export const createSquadSlice: StateCreator<
 
     set({ transferBids: [...state.transferBids, bid] });
   },
+
 
   respondToTransferBid: (bidId, status) => {
     set((state) => ({

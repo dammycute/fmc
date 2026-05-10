@@ -34,7 +34,7 @@ const BoardRoom: React.FC = () => {
         </div>
         <div className="flex gap-3">
           <Badge className="bg-zinc-800 text-zinc-400 px-4 py-2 border-none font-black uppercase text-[10px] tracking-widest">
-            {board.type.replace('_', ' ')} OWNERSHIP
+            {(board.type || '').replace('_', ' ')} OWNERSHIP
           </Badge>
           <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2">
             <DollarSign className="w-3 h-3 text-emerald-400" />
@@ -280,10 +280,16 @@ const BoardRoom: React.FC = () => {
                              size="sm"
                              onClick={() => acceptSponsor(club.id, sponsor.id)}
                              disabled={club.reputation < sponsor.reputationRequired}
-                             className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg px-4"
+                             className={cn(
+                               "h-8 font-black text-[9px] uppercase tracking-widest rounded-lg px-4 transition-all",
+                               club.reputation < sponsor.reputationRequired 
+                                 ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50" 
+                                 : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                             )}
                            >
-                             SIGN DEAL
+                             {club.reputation < sponsor.reputationRequired ? 'REP TOO LOW' : 'SIGN DEAL'}
                            </Button>
+
                         </div>
                       </CardContent>
                     </Card>
