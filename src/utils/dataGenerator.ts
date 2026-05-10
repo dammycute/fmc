@@ -1,165 +1,269 @@
-import { type Club, type Player, type Manager, type League, type Position } from '../types/game';
+import { 
+  type Club, type Player, type Manager, type League, type Position, 
+  type ClubFinances, type ClubFacilities, type PersonalityStyle,
+  type TacticalPhilosophy, type Formation, type OwnershipType,
+  type BoardExpectation, type ClubCultureType
+} from '../types/game';
 
-const FIRST_NAMES = ['John', 'David', 'Michael', 'Chris', 'James', 'Robert', 'Mark', 'Paul', 'Kevin', 'Steven', 'Thomas', 'Daniel', 'Gary', 'William', 'Richard', 'Joseph', 'Andrew', 'Ryan', 'Luke', 'Adam'];
-const LAST_NAMES = ['Smith', 'Jones', 'Brown', 'Taylor', 'Williams', 'Wilson', 'Johnson', 'Davies', 'Robinson', 'Wright', 'Thompson', 'Evans', 'Walker', 'White', 'Roberts', 'Green', 'Hall', 'Wood', 'Harris', 'Clarke'];
+const FIRST_NAMES = ['John', 'David', 'Michael', 'Chris', 'James', 'Robert', 'Mark', 'Paul', 'Kevin', 'Steven', 'Thomas', 'Daniel', 'Gary', 'William', 'Richard', 'Joseph', 'Andrew', 'Ryan', 'Luke', 'Adam', 'Mateo', 'Luka', 'Santi', 'Theo', 'Marco'];
+const LAST_NAMES = ['Smith', 'Jones', 'Brown', 'Taylor', 'Williams', 'Wilson', 'Johnson', 'Davies', 'Robinson', 'Wright', 'Thompson', 'Evans', 'Walker', 'White', 'Roberts', 'Green', 'Hall', 'Wood', 'Harris', 'Clarke', 'Garcia', 'Muller', 'Silva', 'Rossi', 'Dubois'];
 
-const CLUB_DATA = [
-  // Tier 1: Premier League
-  { name: 'Manchester Blues', primaryColor: '#6CABDD', secondaryColor: '#FFFFFF', stadiumName: 'Etihad Stadium' },
-  { name: 'Mersey Reds', primaryColor: '#C8102E', secondaryColor: '#F6EB61', stadiumName: 'Anfield' },
-  { name: 'North London Cannons', primaryColor: '#EF0107', secondaryColor: '#FFFFFF', stadiumName: 'Emirates Stadium' },
-  { name: 'London City', primaryColor: '#034694', secondaryColor: '#FFFFFF', stadiumName: 'Stamford Bridge' },
-  { name: 'Manchester Devils', primaryColor: '#DA291C', secondaryColor: '#000000', stadiumName: 'Old Trafford' },
-  { name: 'North London Lilies', primaryColor: '#132257', secondaryColor: '#FFFFFF', stadiumName: 'Tottenham Hotspur Stadium' },
-  { name: 'West Midlands Lions', primaryColor: '#670E36', secondaryColor: '#95BFE5', stadiumName: 'Villa Park' },
-  { name: 'North East Magpies', primaryColor: '#241F20', secondaryColor: '#FFFFFF', stadiumName: 'St James\' Park' },
-  { name: 'South Coast Seagulls', primaryColor: '#0057B8', secondaryColor: '#FFFFFF', stadiumName: 'Amex Stadium' },
-  { name: 'Midlands Foxes', primaryColor: '#003090', secondaryColor: '#FDBE11', stadiumName: 'King Power Stadium' },
-  { name: 'Thames Ironworks', primaryColor: '#7A263A', secondaryColor: '#1BB1E7', stadiumName: 'London Stadium' },
-  { name: 'South London Eagles', primaryColor: '#1B458F', secondaryColor: '#C4122E', stadiumName: 'Selhurst Park' },
-  { name: 'Lancashire Rovers', primaryColor: '#0054A6', secondaryColor: '#ED1C24', stadiumName: 'Ewood Park' },
-  { name: 'Derbyshire Rams', primaryColor: '#FFFFFF', secondaryColor: '#000000', stadiumName: 'Pride Park' },
-  { name: 'Nottingham Foresters', primaryColor: '#DD0000', secondaryColor: '#FFFFFF', stadiumName: 'City Ground' },
-  { name: 'Sheffield Blades', primaryColor: '#EE2737', secondaryColor: '#000000', stadiumName: 'Bramall Lane' },
-  { name: 'Birmingham Blues', primaryColor: '#0000FF', secondaryColor: '#FFFFFF', stadiumName: 'St Andrew\'s' },
-  { name: 'Bristol Robins', primaryColor: '#BC0303', secondaryColor: '#FFFFFF', stadiumName: 'Ashton Gate' },
-  { name: 'Cardiff Bluebirds', primaryColor: '#0000FF', secondaryColor: '#FFFFFF', stadiumName: 'Cardiff City Stadium' },
-  { name: 'Swansea Jacks', primaryColor: '#FFFFFF', secondaryColor: '#000000', stadiumName: 'Swansea.com Stadium' },
-];
+const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+const getRandomRating = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-function getRandomElement<T>(array: T[]): T {
-  return array[Math.floor(Math.random() * array.length)];
-}
-
-function generateId(): string {
-  return Math.random().toString(36).substr(2, 9);
-}
-
-export function generatePlayer(clubId: string, position: Position, minRating: number, maxRating: number): Player {
-  const rating = Math.floor(Math.random() * (maxRating - minRating + 1)) + minRating;
-  const potential = Math.min(99, rating + Math.floor(Math.random() * 15));
-  const age = 17 + Math.floor(Math.random() * 18);
+export const generatePlayer = (clubId: string, leagueTier: number, isYouth = false): Player => {
+  const baseMin = 80 - (leagueTier * 10);
+  const baseMax = 90 - (leagueTier * 10);
+  const age = isYouth ? 16 + Math.floor(Math.random() * 4) : 18 + Math.floor(Math.random() * 15);
   
-  // Basic value calculation
-  const value = (rating * rating * 1000) + (potential * 500);
-  const wage = (rating * 100);
+  const rating = getRandomRating(Math.max(30, baseMin), Math.min(95, baseMax));
+  const potential = Math.min(99, rating + Math.floor(Math.random() * 15));
 
-  const personalities: Player['personality'][] = ['LOYAL', 'AMBITIOUS', 'LAZY', 'INJURY_PRONE', 'PROFESSIONAL', 'TEMPERAMENTAL'];
+  const position = getRandomElement(['GK', 'DEF', 'MID', 'ATT'] as Position[]);
 
   return {
-    id: generateId(),
+    id: Math.random().toString(36).substr(2, 9),
     firstName: getRandomElement(FIRST_NAMES),
     lastName: getRandomElement(LAST_NAMES),
     age,
     position,
     technical: {
-      passing: rating + (Math.random() * 10 - 5),
-      shooting: rating + (Math.random() * 10 - 5),
-      dribbling: rating + (Math.random() * 10 - 5),
-      tackling: rating + (Math.random() * 10 - 5),
+      passing: getRandomRating(rating - 5, rating + 5),
+      shooting: getRandomRating(rating - 5, rating + 5),
+      dribbling: getRandomRating(rating - 5, rating + 5),
+      tackling: getRandomRating(rating - 5, rating + 5),
+      positioning: getRandomRating(rating - 5, rating + 5),
+      vision: getRandomRating(rating - 5, rating + 5),
+      finishing: getRandomRating(rating - 5, rating + 5),
+      ...(position === 'GK' ? { handling: getRandomRating(rating - 5, rating + 5) } : {}),
     },
     physical: {
-      pace: rating + (Math.random() * 10 - 5),
-      strength: rating + (Math.random() * 10 - 5),
-      stamina: rating + (Math.random() * 10 - 5),
+      pace: getRandomRating(rating - 5, rating + 10),
+      strength: getRandomRating(rating - 5, rating + 5),
+      stamina: getRandomRating(rating - 5, rating + 5),
+      agility: getRandomRating(rating - 5, rating + 5),
+      acceleration: getRandomRating(rating - 5, rating + 5),
     },
     mental: {
-      leadership: rating + (Math.random() * 10 - 5),
-      composure: rating + (Math.random() * 10 - 5),
-      aggression: rating + (Math.random() * 10 - 5),
+      leadership: getRandomRating(30, 90),
+      composure: getRandomRating(rating - 10, rating + 5),
+      aggression: getRandomRating(30, 90),
+      workRate: getRandomRating(40, 95),
+      decisions: getRandomRating(rating - 10, rating + 5),
+      determination: getRandomRating(40, 95),
+    },
+    hidden: {
+      professionalism: getRandomRating(30, 95),
+      ambition: getRandomRating(30, 95),
+      loyalty: getRandomRating(30, 95),
+      injuryProneness: getRandomRating(10, 80),
+      temperament: getRandomRating(30, 90),
+      bigMatchMentality: getRandomRating(30, 90),
+      consistency: getRandomRating(40, 90),
     },
     overallRating: rating,
     potentialRating: potential,
-    value,
-    wage,
+    value: rating * rating * 1000 * (25 / leagueTier),
+    wage: rating * 100 * (5 / leagueTier),
     morale: 70 + Math.floor(Math.random() * 30),
     fitness: 100,
+    fatigue: 0,
+    injuryRisk: 0,
     clubId,
-    personality: getRandomElement(personalities),
+    personality: getRandomElement(['LOYAL', 'AMBITIOUS', 'LAZY', 'INJURY_PRONE', 'PROFESSIONAL', 'TEMPERAMENTAL', 'LEADER', 'WONDERKID', 'CLUB_HERO'] as any),
+    contractYears: 1 + Math.floor(Math.random() * 4),
+    isTransferListed: false,
+    isLoanListed: false,
+    tacticalFamiliarity: 50 + Math.random() * 30,
+    form: [7.0, 7.0, 7.0, 7.0, 7.0],
+    happiness: {
+      contract: 80,
+      playingTime: 80,
+      manager: 80,
+      clubAmbition: 80,
+      adaptation: 100,
+      cityLife: 80,
+    },
+    chemistry: {},
+    isLegend: false,
+    history: {
+      appearances: 0,
+      goals: 0,
+      trophies: 0,
+      joinedDate: '2024-07-01'
+    }
   };
-}
+};
 
-export function generateInitialData() {
+const clubSuffixes = ['United', 'FC', 'City', 'Town', 'Athletic', 'Wanderers', 'Rovers', 'Albion', 'County', 'Harriers', 'Swifts', 'Sporting', 'Rangers', 'Strollers'];
+const placeNames = ['Bromley', 'Dorking', 'Sutton', 'Boreham', 'Ebbsfleet', 'Solihull', 'Maidenhead', 'Wealdstone', 'Altrincham', 'Eastleigh', 'Dartford', 'Havant', 'Chelmsford', 'Maidstone', 'Tonbridge', 'St Albans', 'Hemel', 'Worthing', 'Braintree', 'Chippenham', 'Weymouth', 'Slough'];
+
+export const generateInitialData = (): GameState => {
   const leagues: League[] = [
     { id: 'l1', name: 'Premier League', tier: 1, country: 'England' },
     { id: 'l2', name: 'Championship', tier: 2, country: 'England' },
     { id: 'l3', name: 'League One', tier: 3, country: 'England' },
-    { id: 'l4', name: 'League Two', tier: 4, country: 'England' },
-    { id: 'l5', name: 'National League', tier: 5, country: 'England' },
-    { id: 'l6n', name: 'National League North', tier: 6, country: 'England' },
-    { id: 'l6s', name: 'National League South', tier: 6, country: 'England' },
   ];
 
   const clubs: Club[] = [];
-  const players: Player[] = [];
+  const allPlayers: Player[] = [];
   const managers: Manager[] = [];
 
-  leagues.forEach((league) => {
-    // Generate 20 clubs per league (simplified for MVP, maybe fewer for lower tiers)
-    const clubCount = league.tier === 6 ? 10 : 20;
+  leagues.forEach(league => {
+    for (let i = 0; i < 20; i++) {
+      const clubId = `c-${league.id}-${i}`;
+      const isUser = league.tier === 3 && i === 0;
+      
+      const ownerType: OwnershipType = getRandomElement(['LOCAL', 'BILLIONAIRE', 'CORPORATE', 'FAN_OWNED']);
+      const expectations: BoardExpectation = league.tier === 1 ? 'QUALIFY_EUROPE' : league.tier === 2 ? 'PROMOTION' : 'MID_TABLE';
+      const culture: ClubCultureType[] = [getRandomElement(['YOUTH_DEVELOPMENT', 'WINNING', 'SELLING', 'PRAGMATIC', 'LUXURY_FOOTBALL'])];
+      const clubName = `${getRandomElement(placeNames)} ${getRandomElement(clubSuffixes)}`;
 
-    for (let i = 0; i < clubCount; i++) {
-      const clubId = generateId();
-      const isUserControlled = league.tier === 1 && i === 0; // First club of PL is user's
-
-      const clubBaseData = CLUB_DATA[i % CLUB_DATA.length];
-      const name = league.tier === 1 ? clubBaseData.name : `${clubBaseData.name} ${league.name.split(' ')[0]}`;
-
-      clubs.push({
+      const club: Club = {
         id: clubId,
-        name: name,
-        stadiumName: clubBaseData.stadiumName,
-        primaryColor: clubBaseData.primaryColor,
-        secondaryColor: clubBaseData.secondaryColor,
-        reputation: 100 - (league.tier * 15) - (i * 2),
-        balance: 10000000 / league.tier,
-        stadiumCapacity: (30000 / league.tier) + (20 - i) * 500,
-        fanbase: (20000 / league.tier) + (20 - i) * 200,
-        leagueId: league.id,
-        isUserControlled,
-        philosophy: getRandomElement(['ATTACKING', 'DEFENSIVE', 'YOUTH', 'BALANCED']),
+        name: clubName,
+        stadiumName: `${getRandomElement(LAST_NAMES)} Park`,
+        primaryColor: `hsl(${Math.random() * 360}, 70%, 50%)`,
+        secondaryColor: '#ffffff',
+        reputation: 100 - (league.tier * 20) + Math.random() * 10,
+        isUserControlled: isUser,
         fanConfidence: 70,
         boardConfidence: 70,
-      });
+        leagueId: league.id,
+        history: ['Club founded'],
+        board: {
+          type: ownerType,
+          expectations,
+          confidence: 70,
+          patience: ownerType === 'BILLIONAIRE' ? 40 : 80,
+          funds: ownerType === 'BILLIONAIRE' ? 50000000 : 0,
+        },
+        culture,
+        rivals: [],
+        records: {
+          biggestWin: '5-0 vs Rivals',
+          worstDefeat: '0-4 vs Giants',
+          recordSigning: 0,
+          recordSale: 0,
+          hallOfFame: []
+        },
+        facilities: {
+          stadium: { level: 1, name: 'Stadium', upgradeCost: 1000000, capacity: 5000 * (4 - league.tier) },
+          trainingGround: { level: 1, name: 'Training Ground', upgradeCost: 500000 },
+          medicalCenter: { level: 1, name: 'Medical Center', upgradeCost: 300000 },
+          youthAcademy: { level: 1, name: 'Youth Academy', upgradeCost: 400000 },
+        },
+        valuation: (5000000 + Math.random() * 10000000) * (4 - league.tier),
+        isForSale: true,
+        finances: {
+          balance: (200000 + Math.random() * 500000) * (4 - league.tier),
+          weeklyWages: 0,
+          weeklyStaffWages: 0,
+          revenue: { tickets: 0, sponsorship: 200000, prizeMoney: 0, merchandise: 10000, tvRights: 100000, playerSales: 0 },
+          expenses: { playerWages: 0, staffWages: 0, transfers: 0, facilityMaintenance: 5000, loanRepayments: 0 }
+        },
+        transferBudget: 500000,
+        seasonTarget: 'MID_TABLE',
+        availableSponsors: [
+          { id: `sp-${clubId}-1`, name: 'Global Airlines', type: 'MAIN', amount: 500000, duration: 2, reputationRequired: 30, status: 'PENDING' },
+          { id: `sp-${clubId}-2`, name: 'Zenith Energy', type: 'SLEEVE', amount: 150000, duration: 1, reputationRequired: 20, status: 'PENDING' },
+          { id: `sp-${clubId}-3`, name: 'Apex Logistics', type: 'STADIUM', amount: 300000, duration: 3, reputationRequired: 40, status: 'PENDING' },
+        ],
+        activeSponsors: [],
+        history: [`Club founded in ${league.name}`]
+      };
 
-      // Generate squad
-      const baseRating = 90 - (league.tier * 10) - (i * 0.5);
-      const squadComposition: { pos: Position; count: number }[] = [
-        { pos: 'GK', count: 2 },
-        { pos: 'DEF', count: 8 },
-        { pos: 'MID', count: 8 },
-        { pos: 'ATT', count: 5 },
-      ];
+      // Generate Squad
+      const squad: Player[] = [];
+      for (let p = 0; p < 22; p++) {
+        const player = generatePlayer(clubId, league.tier);
+        squad.push(player);
+        allPlayers.push(player);
+      }
+      club.finances.weeklyWages = squad.reduce((sum, p) => sum + p.wage, 0);
 
-      squadComposition.forEach(({ pos, count }) => {
-        for (let j = 0; j < count; j++) {
-          players.push(generatePlayer(clubId, pos, baseRating - 5, baseRating + 5));
-        }
-      });
-
-      managers.push({
-        id: generateId(),
+      // Generate Manager
+      const manager: Manager = {
+        id: `m-${clubId}`,
         name: `${getRandomElement(FIRST_NAMES)} ${getRandomElement(LAST_NAMES)}`,
-        attacking: 40 + Math.random() * 50,
-        defensive: 40 + Math.random() * 50,
-        possession: 40 + Math.random() * 50,
-        pressing: 40 + Math.random() * 50,
-        counterAttack: 40 + Math.random() * 50,
-        discipline: 40 + Math.random() * 50,
-        mediaHandling: 40 + Math.random() * 50,
-        loyalty: 40 + Math.random() * 50,
-        temperament: 40 + Math.random() * 50,
-        ambition: 40 + Math.random() * 50,
-        youthDevelopment: 40 + Math.random() * 50,
-        tacticalIntelligence: 40 + Math.random() * 50,
-        squadRotation: 40 + Math.random() * 50,
-        playerManagement: 40 + Math.random() * 50,
-        salary: (baseRating * 1000) / league.tier,
-        clubId,
+        coaching: {
+          attacking: getRandomRating(40, 90),
+          defensive: getRandomRating(40, 90),
+          tactical: getRandomRating(40, 90),
+          mental: getRandomRating(40, 90),
+          workingWithYouth: getRandomRating(40, 90),
+        },
+        philosophy: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
+        preferredFormation: getRandomElement(['4-4-2', '4-3-3', '3-5-2', '4-2-3-1'] as Formation[]),
+        pressing: getRandomRating(30, 95),
+        creativeFreedom: getRandomRating(30, 95),
+        personality: {
+          discipline: getRandomRating(40, 95),
+          loyalty: getRandomRating(40, 95),
+          ambition: getRandomRating(40, 95),
+          mediaHandling: getRandomRating(40, 95),
+          playerManagement: getRandomRating(40, 95),
+        },
+        coachingAbility: getRandomRating(40, 90),
+        tacticalIntelligence: getRandomRating(40, 90),
+        salary: 5000 * (4 - league.tier),
+        clubId: clubId,
         relationshipWithChairman: 70,
-      });
+        morale: 70,
+        preferredStyle: ['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'][Math.floor(Math.random() * 6)] as TacticalPhilosophy,
+        preferredFormation: ['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-4-1'][Math.floor(Math.random() * 5)] as Formation,
+        history: [`Started career at ${clubName}`]
+      };
+
+      clubs.push(club);
+      managers.push(manager);
     }
   });
 
-  return { leagues, clubs, players, managers };
-}
+  const allMatches: Match[] = [];
+  
+  // Generate Fixtures for all leagues (Circle Method Round Robin)
+  leagues.forEach(league => {
+    const leagueClubs = clubs.filter(c => c.leagueId === league.id);
+    const numClubs = leagueClubs.length;
+    const rounds = numClubs - 1;
+    const half = numClubs / 2;
+    
+    // Create an array for rotation (keep first element fixed)
+    const clubIds = leagueClubs.map(c => c.id);
+
+    for (let round = 0; round < rounds * 2; round++) { // Double for Home & Away
+      const week = round + 1;
+      const weekMatches: Match[] = [];
+      
+      for (let i = 0; i < half; i++) {
+        const homeIdx = i;
+        const awayIdx = numClubs - 1 - i;
+        
+        const homeId = clubIds[homeIdx];
+        const awayId = clubIds[awayIdx];
+
+        weekMatches.push({
+          id: `m-${league.id}-w${week}-${homeId}-${awayId}`,
+          homeClubId: round % 2 === 0 ? homeId : awayId, // Alternate home/away
+          awayClubId: round % 2 === 0 ? awayId : homeId,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          leagueId: league.id,
+          week,
+          season: 2024,
+          events: []
+        });
+      }
+      
+      allMatches.push(...weekMatches);
+      
+      // Rotate clubIds (excluding the first one)
+      const last = clubIds.pop()!;
+      clubIds.splice(1, 0, last);
+    }
+  });
+
+  return { clubs, players: allPlayers, managers, leagues, matches: allMatches, transferRequests: [], staff: [], transferBids: [], news: [] };
+};

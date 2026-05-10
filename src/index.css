@@ -122,9 +122,46 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[#09090b] text-zinc-100 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     }
   html {
     @apply font-sans;
     }
+}
+
+/* Custom FM Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.animate-marquee {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee 30s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(-100%, 0); }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-md border border-white/10 shadow-2xl;
+  }
 }
