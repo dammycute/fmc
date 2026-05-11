@@ -125,6 +125,8 @@ export interface Player {
   fitness: number; 
   fatigue: number; 
   injuryRisk: number; 
+  isInjured: boolean;
+  injuryWeeksRemaining: number;
   clubId: string;
   personality: PersonalityStyle | 'LEADER' | 'WONDERKID' | 'LAZY_GENIUS' | 'CLUB_HERO' | 'MERCENARY';
   contractYears: number;
@@ -152,9 +154,12 @@ export interface Player {
   };
 }
 
+export type ManagerArchetype = 'TACTICIAN' | 'MOTIVATOR' | 'YOUTH_DEVELOPER' | 'PRAGMATIST' | 'FIREBRAND' | 'VETERAN';
+
 export interface Manager {
   id: string;
   name: string;
+  archetype: ManagerArchetype;
   coaching: {
     attacking: number;
     defensive: number;
@@ -177,11 +182,20 @@ export interface Manager {
   tacticalIntelligence: number;
   salary: number;
   contractYears?: number;
+  contractWeeksRemaining: number;
   clubId: string;
   relationshipWithChairman: number;
+  wantsToLeave: boolean;
   morale: number;
   preferredStyle: TacticalPhilosophy;
   history: string[];
+  
+  // Archetype mechanical effects
+  youthDevelopmentMultiplier: number;
+  overperformanceMultiplier: number;
+  chairmanRelationshipDecayRate: number;
+  transferRequestFrequency: number;
+  moraleSwingAmplitude: number;
   
   // Optional flattened properties for UI compatibility
   agePreference?: { min: number; max: number };
@@ -341,6 +355,7 @@ export interface ScoutReport {
   scoutId: string;
   knowledgeLevel: number;
   recommendation: number;
+  reportedRating: number;
 }
 
 export interface LeagueTableEntry {

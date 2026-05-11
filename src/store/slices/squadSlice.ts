@@ -46,18 +46,51 @@ export const createSquadSlice: StateCreator<
       players: state.players.map((player) => player.id === playerId ? { ...player, ...updates } : player),
     })),
 
-  sackManager: (managerId) =>
-    set((state) => ({
-      managers: state.managers.map((m) => m.id === managerId ? { ...m, clubId: '', relationshipWithChairman: 0 } : m),
-      clubs: state.clubs.map(c => c.id === state.userClubId ? { ...c, history: [...c.history, `Manager sacked by the chairman`] } : c)
-    })),
+  sackManager: (managerId) => {
+    const state = get();
+    const manager = state.managers.find(m => m.id === managerId);
+    if (!manager || !manager.clubId) return;
+
+    const club = state.clubs.find(c => c.id === manager.clubId);
+    if (!club) return;
+
+    // Calculate compensation: remaining contract weeks * weekly salary
+    const weeklySalary = manager.salary;
+    const compensationCost = manager.contractWeeksRemaining * weeklySalary;
+    const newBalance = club.finances.balance - compensationCost;
+
+    // Block sacking if it would exceed overdraft limit
+    if (newBalance < -500000) return;
+
+    // Generate news story
+    const newsItem = {
+      id: Math.random().toString(36).substring(2, 11),
+      title: `${club.name} Sack ${manager.name}`,
+      content: `${manager.name} has been sacked as manager of ${club.name}. Compensation of $${compensationCost.toLocaleString()} was paid for the remaining contract.`,
+      category: 'CLUB' as const,
+      importance: 'HIGH' as const,
+      clubId: club.id,
+      week: state.currentWeek,
+      season: state.currentSeason
+    };
+
+    set((s) => ({
+      managers: s.managers.map((m) => m.id === managerId ? { ...m, clubId: '', relationshipWithChairman: 0, wantsToLeave: false } : m),
+      clubs: s.clubs.map(c => c.id === manager.clubId ? { 
+        ...c, 
+        history: [...c.history, `Manager sacked by the chairman - compensation paid: $${compensationCost.toLocaleString()}`],
+        finances: { ...c.finances, balance: newBalance }
+      } : c),
+      news: [newsItem, ...s.news].slice(0, 100)
+    }));
+  },
 
   hireManager: (clubId, manager) =>
     set((state) => {
       const exists = state.managers.some(m => m.id === manager.id);
       const updatedManagers = exists
-        ? state.managers.map((m) => m.id === manager.id ? { ...m, clubId, relationshipWithChairman: 70 } : m)
-        : [...state.managers, { ...manager, clubId, relationshipWithChairman: 70 }];
+        ? state.managers.map((m) => m.id === manager.id ? { ...m, clubId, relationshipWithChairman: 70, wantsToLeave: false } : m)
+        : [...state.managers, { ...manager, clubId, relationshipWithChairman: 70, wantsToLeave: false }];
       
       return {
         managers: updatedManagers,
@@ -177,8 +210,26 @@ export const createSquadSlice: StateCreator<
     const request = state.transferRequests.find(r => r.id === requestId);
     if (!request) return;
 
+    const club = state.clubs.find(c => c.id === request.clubId);
+    const manager = state.managers.find(m => m.clubId === request.clubId);
+    if (!club || !manager) return;
+
+    // Calculate relationship change
+    let relationshipChange = 0;
+    if (status === 'APPROVED') {
+      relationshipChange = 8;
+    } else if (status === 'REJECTED') {
+      relationshipChange = -12;
+    } else if (status === 'DELAYED') {
+      relationshipChange = -4;
+    }
+
     set({
-      transferRequests: state.transferRequests.map(r => r.id === requestId ? { ...r, status, budgetLimit } : r)
+      transferRequests: state.transferRequests.map(r => r.id === requestId ? { ...r, status, budgetLimit } : r),
+      managers: state.managers.map(m => m.id === manager.id ? {
+        ...m,
+        relationshipWithChairman: Math.max(0, Math.min(100, m.relationshipWithChairman + relationshipChange))
+      } : m)
     });
   },
 
@@ -188,8 +239,13 @@ export const createSquadSlice: StateCreator<
     const club = state.clubs.find(c => c.id === clubId);
     if (!player || !club) return;
 
+    const sportingDirector = state.staff.find(s => s.clubId === clubId && s.role === 'SPORTING_DIRECTOR');
+    const finalAmount = sportingDirector && sportingDirector.rating > 60
+      ? Math.max(0, Math.round(amount * (1 - sportingDirector.rating / 1500)))
+      : amount;
+
     // Check budget for user clubs
-    if (club.isUserControlled && amount > (club.transferBudget || 0)) {
+    if (club.isUserControlled && finalAmount > (club.transferBudget || 0)) {
        return; 
     }
 
@@ -198,7 +254,7 @@ export const createSquadSlice: StateCreator<
       playerId,
       fromClubId: clubId,
       toClubId: player.clubId,
-      amount,
+      amount: finalAmount,
       status: 'PENDING',
       week: state.currentWeek,
       season: state.currentSeason,

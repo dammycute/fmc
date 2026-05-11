@@ -53,7 +53,7 @@ export const createGameSlice: StateCreator<
     
     // IMPORTANT: Get fresh state after match simulation
     const freshState = get() as any;
-    const { players: freshPlayers, matches: freshMatches, clubs: freshClubs } = freshState;
+    const { players: freshPlayers, matches: freshMatches, clubs: freshClubs, staff: freshStaff } = freshState;
 
     // 2. Financial & Transfer Market Processing
     const transferUpdates = processAITransfers(freshState);
@@ -62,6 +62,12 @@ export const createGameSlice: StateCreator<
     const allNewPlayers: any[] = [];
     const newNews: any[] = [];
     let updatedManagers = [...state.managers];
+
+    // Decrement manager contract weeks and handle expired contracts
+    updatedManagers = updatedManagers.map((m: any) => {
+      const newContractWeeks = Math.max(0, m.contractWeeksRemaining - 1);
+      return { ...m, contractWeeksRemaining: newContractWeeks };
+    });
 
     const clubsWithUpdates = freshClubs.map((club: any) => {
       const tier = leagues.find((l: any) => l.id === club.leagueId)?.tier || 3;
@@ -89,20 +95,35 @@ export const createGameSlice: StateCreator<
 
       const playerWages = currentClub.finances.weeklyWages || 0;
       const staffWages = currentClub.finances.weeklyStaffWages || 0;
+      const clubManagerSalary = updatedManagers.find(m => m.clubId === currentClub.id);
+      const managerSalary = clubManagerSalary?.salary || 0;
       const maintenance = (tier === 1 ? 50000 : tier === 2 ? 25000 : 10000);
-      finances.balance -= (playerWages + staffWages + maintenance);
+      finances.balance -= (playerWages + staffWages + managerSalary + maintenance);
       finances.expenses = { playerWages, staffWages, facilityMaintenance: maintenance };
 
       // Scouting Logic
+      const scoutReports = [...(currentClub.scoutReports || [])];
       const scoutAssignments = currentClub.scoutAssignments.map((a: any) => {
         const newProgress = Math.min(100, a.progress + 15 + Math.random() * 10);
         const playersFound = [...a.playersFound];
         if (newProgress === 100 && a.progress < 100) {
           const count = 2 + Math.floor(Math.random() * 3);
+          const scout = freshStaff.find((s: any) => s.id === a.scoutId);
           for (let i = 0; i < count; i++) {
             const p = generatePlayer('', tier);
+            const knowledgeLevel = Math.min(100, 40 + ((scout?.rating || 0) / 2) + Math.floor(Math.random() * 21));
+            const errorMagnitude = Math.floor((1 - knowledgeLevel / 100) * 20);
+            const error = errorMagnitude * (Math.random() > 0.5 ? 1 : -1);
+            const reportedRating = Math.max(1, Math.min(99, p.overallRating + error));
             allNewPlayers.push(p);
             playersFound.push(p.id);
+            scoutReports.push({
+              playerId: p.id,
+              scoutId: a.scoutId,
+              knowledgeLevel,
+              recommendation: reportedRating,
+              reportedRating
+            });
           }
         }
         return { ...a, progress: newProgress, playersFound };
@@ -110,9 +131,11 @@ export const createGameSlice: StateCreator<
 
       // Youth Intake (Week 38)
       const clubHistory = [...currentClub.history];
+      const academyCoach = freshStaff.find((s: any) => s.clubId === currentClub.id && s.role === 'ACADEMY_COACH');
       if (currentWeek === 38) {
         const academyLevel = currentClub.facilities.youthAcademy.level;
-        const intakeCount = Math.floor(Math.random() * (academyLevel + 1));
+        const academyBonus = academyCoach ? Math.floor(academyCoach.rating / 25) : 0;
+        const intakeCount = Math.floor(Math.random() * (academyLevel + academyBonus + 1));
         for (let i = 0; i < intakeCount; i++) {
           const youth = generatePlayer(currentClub.id, tier, true);
           allNewPlayers.push(youth);
@@ -120,7 +143,22 @@ export const createGameSlice: StateCreator<
         }
       }
 
-      // Board Confidence & Sacking Logic
+      const sportingDirector = freshStaff.find((s: any) => s.clubId === currentClub.id && s.role === 'SPORTING_DIRECTOR');
+      if (sportingDirector && ((currentWeek >= 1 && currentWeek <= 6) || (currentWeek >= 33 && currentWeek <= 38))) {
+        const recommendationPool = freshPlayers.filter((p: any) => p.isTransferListed && p.value < (currentClub.transferBudget || 0) * 0.6 && p.clubId !== currentClub.id);
+        if (recommendationPool.length > 0) {
+          const recommended = recommendationPool[Math.floor(Math.random() * recommendationPool.length)];
+          newNews.push({
+            title: `Sporting Director Recommends ${recommended.firstName} ${recommended.lastName}`,
+            content: `Sporting Director ${sportingDirector.name} believes ${recommended.firstName} ${recommended.lastName} would be a strong upgrade for the squad.`,
+            category: 'TRANSFER',
+            importance: 'MEDIUM',
+            clubId: currentClub.id
+          });
+        }
+      }
+
+      // Board Confidence & Manager Relationship & Sacking Logic
       let boardConfidence = currentClub.boardConfidence || 70;
       const clubManager = updatedManagers.find(m => m.clubId === currentClub.id);
       if (clubManager) {
@@ -129,13 +167,56 @@ export const createGameSlice: StateCreator<
           .filter((m: any) => (m.homeClubId === currentClub.id || m.awayClubId === currentClub.id) && m.played && m.season === currentSeason)
           .sort((a: any, b: any) => b.week - a.week)
           .slice(0, 3);
+        
         recentMatches.forEach((m: any) => {
           const isHome = m.homeClubId === currentClub.id;
           const isWin = isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
           confidenceChange += isWin ? 5 : (m.homeScore === m.awayScore ? 1 : -3);
         });
+        
         if (finances.balance < 0) confidenceChange -= 2;
         boardConfidence = Math.max(0, Math.min(100, boardConfidence + confidenceChange));
+
+        // Update Manager Relationship with Chairman
+        let relationshipChange = 0;
+        recentMatches.forEach((m: any) => {
+          const isHome = m.homeClubId === currentClub.id;
+          const isWin = isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
+          const isDraw = m.homeScore === m.awayScore;
+          if (isWin) relationshipChange += 4;
+          else if (isDraw) relationshipChange += 1;
+          else relationshipChange -= 6;
+        });
+        
+        if (finances.balance < 0) relationshipChange -= 3;
+        
+        let updatedManager = { ...clubManager, relationshipWithChairman: Math.max(0, Math.min(100, clubManager.relationshipWithChairman + relationshipChange)) };
+        
+        // Manager Relationship Consequences
+        if (updatedManager.relationshipWithChairman < 30 && !clubManager.history?.includes('publicly questioned transfer policy')) {
+          newNews.push({
+            title: `${clubManager.name} Publicly Questions Transfer Policy`,
+            content: `${clubManager.name} has publicly criticized the board's transfer window approach.`,
+            category: 'CLUB', importance: 'HIGH', clubId: currentClub.id
+          });
+          clubHistory.push(`${clubManager.name} publicly questioned transfer policy.`);
+        }
+        
+        if (updatedManager.relationshipWithChairman < 15) {
+          newNews.push({
+            title: `${clubManager.name} Hands In Transfer Request`,
+            content: `${clubManager.name} has requested to leave ${currentClub.name}.`,
+            category: 'CLUB', importance: 'BREAKING', clubId: currentClub.id
+          });
+          updatedManager = { ...updatedManager, wantsToLeave: true };
+          clubHistory.push(`${clubManager.name} handed in transfer request.`);
+        }
+        
+        if (updatedManager.relationshipWithChairman > 80) {
+          boardConfidence = Math.min(100, boardConfidence + 1);
+        }
+        
+        updatedManagers = updatedManagers.map(m => m.id === clubManager.id ? updatedManager : m);
 
         if (boardConfidence < 15) {
           if (currentClub.isUserControlled) {
@@ -145,7 +226,7 @@ export const createGameSlice: StateCreator<
               category: 'CLUB', importance: 'BREAKING', clubId: currentClub.id
             });
           } else {
-            updatedManagers = updatedManagers.map(m => m.id === clubManager.id ? { ...m, clubId: '', relationshipWithChairman: 0 } : m);
+            updatedManagers = updatedManagers.map(m => m.id === clubManager.id ? { ...m, clubId: '', relationshipWithChairman: 0, wantsToLeave: false } : m);
             clubHistory.push(`Manager ${clubManager.name} was sacked.`);
             newNews.push({
               title: `${currentClub.name} Sack ${clubManager.name}`,
@@ -190,6 +271,7 @@ export const createGameSlice: StateCreator<
         ...currentClub, 
         finances, 
         scoutAssignments, 
+        scoutReports, 
         history: clubHistory, 
         boardConfidence, 
         staffAds: activeAds, 
@@ -277,12 +359,39 @@ export const createGameSlice: StateCreator<
     }
 
 
-    // 4. Player Fatigue Recovery
-    const finalPlayers = [...aiTransferredPlayers, ...allNewPlayers].map((p: any) => ({
-      ...p,
-      fatigue: Math.max(0, (p.fatigue || 0) - 15),
-      morale: Math.min(100, Math.max(0, (p.morale || 70) + (Math.random() * 4 - 2))) 
-    }));
+    // 4. Player Fatigue Recovery, Injury Risk, and Academy Development
+    const finalPlayers = [...aiTransferredPlayers, ...allNewPlayers].map((p: any) => {
+      const physio = freshStaff.find((s: any) => s.clubId === p.clubId && s.role === 'PHYSIO');
+      const academyCoach = freshStaff.find((s: any) => s.clubId === p.clubId && s.role === 'ACADEMY_COACH');
+
+      let updated = { ...p };
+      const fatigueRecovery = physio ? 15 * (1 + physio.rating / 200) : 15;
+
+      if (updated.isInjured) {
+        let recoveryWeeks = 1;
+        if (physio && physio.rating > 60) recoveryWeeks += 1;
+        updated.injuryWeeksRemaining = Math.max(0, (updated.injuryWeeksRemaining || 0) - recoveryWeeks);
+        if (updated.injuryWeeksRemaining === 0) {
+          updated.isInjured = false;
+        }
+      } else {
+        const injuryChance = 0.015 * (physio ? (1 - physio.rating / 200) : 1);
+        if (Math.random() < injuryChance) {
+          updated.isInjured = true;
+          updated.injuryWeeksRemaining = 1 + Math.floor(Math.random() * 3);
+        }
+      }
+
+      if (academyCoach && updated.age <= 21) {
+        updated.overallRating = Math.min(updated.potentialRating, updated.overallRating + 0.05 * (academyCoach.rating / 100));
+      }
+
+      return {
+        ...updated,
+        fatigue: Math.max(0, (updated.fatigue || 0) - fatigueRecovery),
+        morale: Math.min(100, Math.max(0, (updated.morale || 70) + (Math.random() * 4 - 2)))
+      };
+    });
 
     // 5. Final State Update
     set({

@@ -39,6 +39,16 @@ export const createMatchSlice: StateCreator<
     const match = state.matches.find(m => m.id === matchId);
     if (!match) return null;
 
+    const userClubId = state.userClubId;
+    const isUserMatch = match.homeClubId === userClubId || match.awayClubId === userClubId;
+    
+    // Require manager for user's matches
+    if (isUserMatch) {
+      const userClub = state.clubs.find(c => c.id === userClubId);
+      const userManager = state.managers.find((m: any) => m.clubId === userClubId);
+      if (!userManager) return null; // Cannot start match without a manager
+    }
+
     const homeClub = state.clubs.find(c => c.id === match.homeClubId)!;
     const awayClub = state.clubs.find(c => c.id === match.awayClubId)!;
     

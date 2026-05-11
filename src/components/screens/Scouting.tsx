@@ -140,9 +140,12 @@ const Scouting: React.FC = () => {
                       </div>
                       <div>
                         <h4 className="text-sm font-black text-white">{player.firstName} {player.lastName}</h4>
-                        <div className="flex gap-2 mt-0.5">
+                        <div className="flex gap-2 mt-0.5 items-center">
                           <Badge className="bg-white/5 text-[8px] h-4 px-1.5 text-zinc-500 font-black">{player.position}</Badge>
                           <span className="text-[9px] font-bold text-zinc-600 uppercase">{player.age} YRS</span>
+                          <Badge className="bg-amber-500/10 text-amber-300 text-[8px] h-4 px-1.5 font-black uppercase">
+                            {club.scoutReports?.find(r => r.playerId === pid)?.reportedRating ?? player.overallRating}
+                          </Badge>
                         </div>
                       </div>
                     </div>

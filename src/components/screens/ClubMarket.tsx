@@ -4,15 +4,147 @@ import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { 
   Search, Landmark, Wallet
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
+const ClubDetailsModal: React.FC<{
+  club: any;
+  league?: any;
+  manager?: any;
+  players: any[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}> = ({ club, league, manager, players, open, onOpenChange }) => {
+  const topPlayers = [...players].sort((a, b) => b.overallRating - a.overallRating).slice(0, 5);
+  const averageRating = players.length ? (players.reduce((sum, player) => sum + player.overallRating, 0) / players.length).toFixed(1) : 'N/A';
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-[#0c0c0e] border-white/5 text-white max-w-4xl p-8 rounded-[2rem] shadow-2xl shadow-black">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <DialogTitle className="text-3xl font-black uppercase tracking-tighter">{club.name}</DialogTitle>
+              <DialogDescription className="text-zinc-500 font-medium mt-2">{league?.name} • Rep {club.reputation.toFixed(1)}</DialogDescription>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] uppercase tracking-widest text-zinc-500">Formation</span>
+              <span className="text-sm font-black text-white uppercase tracking-[0.3em]">{club.formation.replace('_', ' ')}</span>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6 mt-8">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6 rounded-3xl bg-white/5 border border-white/10">
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Club Status</p>
+                <p className="text-sm text-white font-black">{club.isForSale ? 'For Sale' : 'Private'} • {club.culture.join(', ')}</p>
+              </div>
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Board Ambition</p>
+                <p className="text-sm text-white font-black">{club.board.expectations.replace('_', ' ')}</p>
+              </div>
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Confidence</p>
+                <p className="text-sm text-white font-black">Fans {club.fanConfidence}% • Board {club.board.confidence}%</p>
+              </div>
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Valuation</p>
+                <p className="text-sm text-emerald-400 font-black">£{(club.valuation / 1000000).toFixed(1)}M</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Financial Snapshot</p>
+                <div className="mt-4 space-y-3 text-sm text-zinc-300">
+                  <p>Balance: £{(club.finances.balance / 1000000).toFixed(1)}M</p>
+                  <p>Transfer Budget: £{(club.finances.transferBudget / 1000000).toFixed(1)}M</p>
+                  <p>Weekly Wages: £{(club.finances.weeklyWages / 1000).toFixed(1)}k</p>
+                </div>
+              </div>
+              <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Facilities</p>
+                <div className="mt-4 space-y-3 text-sm text-zinc-300">
+                  <p>{club.facilities.stadium.name} • {Math.floor(club.facilities.stadium.capacity / 1000)}k cap</p>
+                  <p>{club.facilities.trainingGround.name} L{club.facilities.trainingGround.level}</p>
+                  <p>{club.facilities.medicalCenter.name} L{club.facilities.medicalCenter.level}</p>
+                  <p>{club.facilities.youthAcademy.name} L{club.facilities.youthAcademy.level}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
+              <p className="text-[10px] uppercase tracking-widest text-zinc-500">Manager</p>
+              {manager ? (
+                <div className="mt-4 space-y-3 text-sm text-zinc-300">
+                  <p className="text-white font-black">{manager.name} • {manager.archetype.replace('_', ' ')}</p>
+                  <p>Style: {manager.preferredStyle}</p>
+                  <p>Salary: £{(manager.salary / 1000).toFixed(0)}k/wk</p>
+                  <p>Contract: {manager.contractWeeksRemaining}w</p>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-zinc-400">No manager data available</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Squad Snapshot</p>
+                <p className="text-[10px] uppercase tracking-widest text-white">Avg {averageRating}</p>
+              </div>
+              <div className="space-y-3">
+                {topPlayers.length > 0 ? topPlayers.map(player => (
+                  <div key={player.id} className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-black text-white">{player.firstName} {player.lastName}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-widest">{player.position} • {player.overallRating}</p>
+                    </div>
+                    <span className="text-xs font-black text-emerald-400">£{(player.value / 1000000).toFixed(1)}M</span>
+                  </div>
+                )) : (
+                  <p className="text-sm text-zinc-400">No players tracked for this club.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-3">
+              <p className="text-[10px] uppercase tracking-widest text-zinc-500">Rivals</p>
+              <div className="flex flex-wrap gap-2">
+                {club.rivals.length > 0 ? club.rivals.map(rival => (
+                  <span key={rival} className="px-3 py-1 rounded-full bg-white/5 text-[10px] uppercase tracking-widest text-zinc-300">{rival}</span>
+                )) : <span className="text-sm text-zinc-400">No rivals listed</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="mt-6 flex justify-end">
+          <Button onClick={() => onOpenChange(false)} className="bg-white text-black hover:bg-zinc-200 px-8 h-14 rounded-2xl uppercase tracking-widest text-xs font-black">
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const ClubMarket: React.FC = () => {
-  const { clubs, leagues, buyClub, personalBalance } = useGameStore();
+  const { clubs, leagues, buyClub, personalBalance, players, managers } = useGameStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLeague, setSelectedLeague] = useState<string | 'all'>('all');
+  const [selectedClubId, setSelectedClubId] = useState<string | null>(null);
+
+  const selectedClub = selectedClubId ? clubs.find(club => club.id === selectedClubId) : null;
+  const selectedLeagueData = selectedClub ? leagues.find(l => l.id === selectedClub.leagueId) : undefined;
+  const selectedManager = selectedClub ? managers.find(manager => manager.clubId === selectedClub.id) : undefined;
+  const selectedClubPlayers = selectedClub ? players.filter(player => player.clubId === selectedClub.id) : [];
 
   const filteredClubs = clubs.filter(club => {
     const matchesSearch = club.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -99,29 +231,49 @@ const ClubMarket: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
                   <div>
                     <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Market Value</p>
                     <p className="text-2xl font-black text-white italic">£{(club.valuation / 1000000).toFixed(1)}M</p>
                   </div>
-                  <Button 
-                    disabled={!canAfford}
-                    onClick={() => buyClub(club.id)}
-                    className={cn(
-                      "px-6 h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
-                      canAfford 
-                        ? "bg-white text-black hover:bg-zinc-200" 
-                        : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                    )}
-                  >
-                    {canAfford ? 'ACQUIRE CLUB' : 'INSUFFICIENT FUNDS'}
-                  </Button>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <Button
+                      onClick={() => setSelectedClubId(club.id)}
+                      variant="outline"
+                      className="h-12 px-5 rounded-xl font-black text-[10px] uppercase tracking-widest"
+                    >
+                      View Details
+                    </Button>
+                    <Button 
+                      disabled={!canAfford}
+                      onClick={() => buyClub(club.id)}
+                      className={cn(
+                        "h-12 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
+                        canAfford 
+                          ? "bg-white text-black hover:bg-zinc-200" 
+                          : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                      )}
+                    >
+                      {canAfford ? 'ACQUIRE CLUB' : 'INSUFFICIENT FUNDS'}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {selectedClub && (
+        <ClubDetailsModal
+          club={selectedClub}
+          league={selectedLeagueData}
+          manager={selectedManager}
+          players={selectedClubPlayers}
+          open={!!selectedClub}
+          onOpenChange={(open) => !open && setSelectedClubId(null)}
+        />
+      )}
 
       {filteredClubs.length === 0 && (
         <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-3xl">

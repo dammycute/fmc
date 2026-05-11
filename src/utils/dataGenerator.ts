@@ -2,7 +2,7 @@ import {
   type Club, type Player, type Manager, type League, type Position,
   type TacticalPhilosophy, type Formation,
   type OwnershipType, type SeasonTarget, type BoardExpectation, type ClubCultureType,
-  type GameState
+  type GameState, type ManagerArchetype
 } from '../types/game';
 import { generateFixtures } from './fixtureGenerator';
 
@@ -325,6 +325,87 @@ const generateAge = (tier: number, isYouth: boolean): number => {
   return 35 + Math.floor(Math.random() * 5);                     // winding down
 };
 
+// Manager Archetype Configuration
+export interface ArchetypeConfig {
+  youthDevelopmentMultiplier: number;
+  overperformanceMultiplier: number;
+  chairmanRelationshipDecayRate: number;
+  transferRequestFrequency: number;
+  moraleSwingAmplitude: number;
+}
+
+export const ARCHETYPE_CONFIG: Record<ManagerArchetype, ArchetypeConfig> = {
+  TACTICIAN: {
+    youthDevelopmentMultiplier: 0.85,        // Focuses on tactics, less direct youth development
+    overperformanceMultiplier: 1.35,         // Maximizes tactical advantage
+    chairmanRelationshipDecayRate: 0.9,      // Results matter, moderate patience
+    transferRequestFrequency: 0.15,          // Doesn't ask for many transfers
+    moraleSwingAmplitude: 0.8,               // Calm, tactical approach
+  },
+  MOTIVATOR: {
+    youthDevelopmentMultiplier: 0.90,        // Decent with youth development
+    overperformanceMultiplier: 1.28,         // Motivates the squad to punch above their weight
+    chairmanRelationshipDecayRate: 0.75,     // Better relationship management, slower decay
+    transferRequestFrequency: 0.08,          // Focused on current squad
+    moraleSwingAmplitude: 1.5,               // Morale fluctuates dramatically with results
+  },
+  YOUTH_DEVELOPER: {
+    youthDevelopmentMultiplier: 1.6,         // Specializes in youth development
+    overperformanceMultiplier: 0.95,         // Not focused on immediate overperformance
+    chairmanRelationshipDecayRate: 1.1,      // May clash over short-term results
+    transferRequestFrequency: 0.35,          // Needs specific player profiles
+    moraleSwingAmplitude: 0.9,               // Focused, steady approach
+  },
+  PRAGMATIST: {
+    youthDevelopmentMultiplier: 0.70,        // Not youth-focused
+    overperformanceMultiplier: 1.1,          // Solid but unspectacular
+    chairmanRelationshipDecayRate: 0.85,     // Practical results maintain board confidence
+    transferRequestFrequency: 0.25,          // Wants specific tactical pieces
+    moraleSwingAmplitude: 0.6,               // Steady, no-nonsense demeanor
+  },
+  FIREBRAND: {
+    youthDevelopmentMultiplier: 0.75,        // Less patient with development
+    overperformanceMultiplier: 1.45,         // High intensity yields big results or big failures
+    chairmanRelationshipDecayRate: 1.25,     // Volatile, loses trust quickly
+    transferRequestFrequency: 0.5,           // Constantly demands transfers
+    moraleSwingAmplitude: 2.0,               // Morale swings wildly
+  },
+  VETERAN: {
+    youthDevelopmentMultiplier: 0.95,        // Decent all-around coach
+    overperformanceMultiplier: 1.2,          // Experience helps squeeze results
+    chairmanRelationshipDecayRate: 0.8,      // Steady hand, earns trust
+    transferRequestFrequency: 0.12,          // Knows how to maximize current squad
+    moraleSwingAmplitude: 0.85,              // Emotionally stable
+  },
+};
+
+// Determine manager archetype based on coaching attributes
+export const determineManagerArchetype = (coaching: Manager['coaching'], personality: Manager['personality'], coachingAbility: number): ManagerArchetype => {
+  const { attacking, defensive, tactical, mental, workingWithYouth } = coaching;
+  const { loyalty, playerManagement } = personality;
+
+  // TACTICIAN: high tactical rating
+  if (tactical > 80) return 'TACTICIAN';
+
+  // MOTIVATOR: high player management + mental skills
+  if (playerManagement > 80 && mental > 75) return 'MOTIVATOR';
+
+  // YOUTH_DEVELOPER: high working with youth
+  if (workingWithYouth > 80) return 'YOUTH_DEVELOPER';
+
+  // PRAGMATIST: high defensive + low attacking (defensive focus)
+  if (defensive > 75 && attacking < 70) return 'PRAGMATIST';
+
+  // FIREBRAND: high pressing + low loyalty (aggressive, demanding)
+  if (coachingAbility > 70 && loyalty < 40) return 'FIREBRAND';
+
+  // VETERAN: age-equivalent high coaching ability (will use coachingAbility as proxy)
+  if (coachingAbility > 85) return 'VETERAN';
+
+  // Default: MOTIVATOR as middle ground
+  return 'MOTIVATOR';
+};
+
 export const generatePlayer = (clubId: string, leagueTier: number, isYouth = false): Player => {
   const tierCfg = TIER_RATINGS[leagueTier] || TIER_RATINGS[5];
   const age = generateAge(leagueTier, isYouth);
@@ -524,6 +605,8 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
     fitness: 100,
     fatigue: 0,
     injuryRisk: 0,
+    isInjured: false,
+    injuryWeeksRemaining: 0,
     clubId,
     // Age-based personality assignment
     personality: (() => {
@@ -3334,35 +3417,59 @@ export const generateInitialData = (): GameState => {
 
       // Generate Manager
       const managerRatingBase = 40 + (5 - league.tier) * 10;
+      const coaching = {
+        attacking: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        defensive: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        tactical: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        mental: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        workingWithYouth: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+      };
+      const personality = {
+        discipline: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        loyalty: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        ambition: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        mediaHandling: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        playerManagement: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+      };
+      const coachingAbility = getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20));
+      const archetype = determineManagerArchetype(coaching, personality, coachingAbility);
+      const archetypeConfig = ARCHETYPE_CONFIG[archetype];
+
+      // Calculate contract weeks based on tier
+      let contractWeeksRemaining: number;
+      if (league.tier <= 2) {
+        contractWeeksRemaining = getRandomRating(104, 208); // 2-4 years
+      } else if (league.tier <= 4) {
+        contractWeeksRemaining = getRandomRating(52, 156); // 1-3 years
+      } else {
+        contractWeeksRemaining = getRandomRating(26, 104); // 6 months - 2 years
+      }
+
       const manager: Manager = {
         id: `m-${clubId}`,
         name: `${getRandomElement(FIRST_NAMES)} ${getRandomElement(LAST_NAMES)}`,
-        coaching: {
-          attacking: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-          defensive: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-          tactical: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-          mental: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-          workingWithYouth: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        },
+        archetype,
+        coaching,
         philosophy: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
         pressing: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
         creativeFreedom: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        personality: {
-          discipline: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-          loyalty: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-          ambition: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-          mediaHandling: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-          playerManagement: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        },
-        coachingAbility: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
+        personality,
+        coachingAbility,
         tacticalIntelligence: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
         salary: Math.floor(5000 * tierMultiplier),
+        contractWeeksRemaining,
         clubId: clubId,
         relationshipWithChairman: 70,
+        wantsToLeave: false,
         morale: 70,
         preferredStyle: ['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'][Math.floor(Math.random() * 6)] as TacticalPhilosophy,
         preferredFormation: ['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-4-1'][Math.floor(Math.random() * 5)] as Formation,
-        history: [`Started career at ${staticClub.name}`]
+        history: [`Started career at ${staticClub.name}`],
+        youthDevelopmentMultiplier: archetypeConfig.youthDevelopmentMultiplier,
+        overperformanceMultiplier: archetypeConfig.overperformanceMultiplier,
+        chairmanRelationshipDecayRate: archetypeConfig.chairmanRelationshipDecayRate,
+        transferRequestFrequency: archetypeConfig.transferRequestFrequency,
+        moraleSwingAmplitude: archetypeConfig.moraleSwingAmplitude,
       };
 
       managers.push(manager);
@@ -3383,35 +3490,59 @@ export const generateInitialData = (): GameState => {
     for (let i = 0; i < cfg.count; i++) {
       const managerRatingBase = getRandomRating(cfg.min, cfg.max);
       const spread = 12; // tight attribute spread around base
+      const coaching = {
+        attacking: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        defensive: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        tactical: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        mental: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        workingWithYouth: getRandomRating(tier >= 3 ? managerRatingBase : managerRatingBase - 10, Math.min(95, managerRatingBase + spread)),
+      };
+      const personality = {
+        discipline: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        loyalty: getRandomRating(tier >= 4 ? 60 : 30, 95), // lower-tier managers are more loyal
+        ambition: getRandomRating(tier <= 2 ? 60 : 30, 95), // top-tier managers are more ambitious
+        mediaHandling: getRandomRating(Math.max(20, managerRatingBase - 15), managerRatingBase + 10),
+        playerManagement: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+      };
+      const coachingAbility = managerRatingBase;
+      const archetype = determineManagerArchetype(coaching, personality, coachingAbility);
+      const archetypeConfig = ARCHETYPE_CONFIG[archetype];
+
+      // Calculate contract weeks based on tier
+      let contractWeeksRemaining: number;
+      if (tier <= 2) {
+        contractWeeksRemaining = getRandomRating(104, 208); // 2-4 years
+      } else if (tier <= 4) {
+        contractWeeksRemaining = getRandomRating(52, 156); // 1-3 years
+      } else {
+        contractWeeksRemaining = getRandomRating(26, 104); // 6 months - 2 years
+      }
+
       managers.push({
         id: `free-manager-t${tier}-${i}`,
         name: `${getRandomElement(FIRST_NAMES)} ${getRandomElement(LAST_NAMES)}`,
-        coaching: {
-          attacking: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
-          defensive: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
-          tactical: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
-          mental: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
-          workingWithYouth: getRandomRating(tier >= 3 ? managerRatingBase : managerRatingBase - 10, Math.min(95, managerRatingBase + spread)),
-        },
+        archetype,
+        coaching,
         philosophy: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
         pressing: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
         creativeFreedom: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
-        personality: {
-          discipline: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
-          loyalty: getRandomRating(tier >= 4 ? 60 : 30, 95), // lower-tier managers are more loyal
-          ambition: getRandomRating(tier <= 2 ? 60 : 30, 95), // top-tier managers are more ambitious
-          mediaHandling: getRandomRating(Math.max(20, managerRatingBase - 15), managerRatingBase + 10),
-          playerManagement: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
-        },
-        coachingAbility: managerRatingBase,
+        personality,
+        coachingAbility,
         tacticalIntelligence: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
         salary: getRandomRating(cfg.salaryMin, cfg.salaryMax),
+        contractWeeksRemaining,
         clubId: '',
         relationshipWithChairman: 50,
+        wantsToLeave: false,
         morale: 70,
         preferredStyle: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
         preferredFormation: getRandomElement(['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-4-1'] as Formation[]),
-        history: [`Available for hire from day one`]
+        history: [`Available for hire from day one`],
+        youthDevelopmentMultiplier: archetypeConfig.youthDevelopmentMultiplier,
+        overperformanceMultiplier: archetypeConfig.overperformanceMultiplier,
+        chairmanRelationshipDecayRate: archetypeConfig.chairmanRelationshipDecayRate,
+        transferRequestFrequency: archetypeConfig.transferRequestFrequency,
+        moraleSwingAmplitude: archetypeConfig.moraleSwingAmplitude,
       });
     }
   });

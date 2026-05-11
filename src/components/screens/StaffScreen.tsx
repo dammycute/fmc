@@ -41,11 +41,11 @@ const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActive
 
 
   const roles = [
-    { id: 'SPORTING_DIRECTOR', label: 'Sporting Director', icon: Briefcase, color: 'text-indigo-400' },
-    { id: 'SCOUT', label: 'Chief Scout', icon: Search, color: 'text-sky-400' },
-    { id: 'PHYSIO', label: 'Head Physio', icon: HeartPulse, color: 'text-rose-400' },
-    { id: 'ANALYST', label: 'Performance Analyst', icon: LineChart, color: 'text-emerald-400' },
-    { id: 'ACADEMY_COACH', label: 'Academy Manager', icon: GraduationCap, color: 'text-amber-400' },
+    { id: 'SPORTING_DIRECTOR', label: 'Sporting Director', icon: Briefcase, color: 'text-indigo-400', description: 'Negotiates transfers, reduces bid costs, generates market recommendations' },
+    { id: 'SCOUT', label: 'Chief Scout', icon: Search, color: 'text-sky-400', description: 'Discovers players — higher rating = more accurate reported stats' },
+    { id: 'PHYSIO', label: 'Head Physio', icon: HeartPulse, color: 'text-rose-400', description: 'Reduces injury risk and fatigue per week — directly affects player availability' },
+    { id: 'ANALYST', label: 'Performance Analyst', icon: LineChart, color: 'text-emerald-400', description: 'Generates post-match reports — improves tactical familiarity gain' },
+    { id: 'ACADEMY_COACH', label: 'Academy Manager', icon: GraduationCap, color: 'text-amber-400', description: 'Accelerates U21 development and improves youth intake quality' },
   ];
 
   // 1. Managers Scaled to Club League Tier
@@ -124,9 +124,8 @@ const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActive
                       </div>
                       <div>
                         <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">{role.label}</h3>
-                        <p className={cn("text-xl font-black leading-tight", members.length > 0 ? "text-white" : "text-zinc-500 italic")}>
-                          {members.length > 0 ? `${members.length} Active` : 'ROLE VACANT'}
-                        </p>
+                        <p className={cn("text-sm leading-tight", members.length > 0 ? "text-zinc-400" : "text-amber-300 italic")}>{role.description}</p>
+                        <p className={cn("text-xl font-black leading-tight mt-3", members.length > 0 ? "text-white" : "text-zinc-500 italic")}>{members.length > 0 ? `${members.length} Active` : 'ROLE VACANT'}</p>
                       </div>
                     </div>
 
@@ -137,6 +136,16 @@ const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActive
                              <p className="text-sm font-black text-white">{member.name}</p>
                              <p className="text-xs font-black text-indigo-400">{member.rating}%</p>
                           </div>
+                          <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500" style={{ width: `${member.rating}%` }} />
+                          </div>
+                          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                            {role.id === 'PHYSIO' && `~${Math.floor(member.rating / 2)}% injury reduction`}
+                            {role.id === 'SCOUT' && `~${Math.floor(member.rating)}% report accuracy`}
+                            {role.id === 'ACADEMY_COACH' && `+${(member.rating / 100 * 0.05).toFixed(2)} rating/week for U21s`}
+                            {role.id === 'SPORTING_DIRECTOR' && `~${Math.floor(member.rating / 15)}% bid reduction`}
+                            {role.id === 'ANALYST' && `+${Math.floor(member.rating / 20)}% tac. familiarity/week`}
+                          </p>
                           <div className="flex justify-between items-center text-[10px]">
                             <span className="text-zinc-500 font-bold uppercase tracking-widest">£{member.salary.toLocaleString()}/wk</span>
                             <button 
@@ -150,8 +159,8 @@ const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActive
                       ))}
                       
                       {members.length === 0 && (
-                        <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 border-dashed">
-                          <p className="text-[10px] text-indigo-400 font-bold text-center italic uppercase">No active specialist</p>
+                        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-400/20 border-dashed">
+                          <p className="text-[10px] text-amber-300 font-bold text-center italic uppercase">No active specialist</p>
                         </div>
                       )}
 
