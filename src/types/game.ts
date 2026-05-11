@@ -76,6 +76,9 @@ export interface Player {
   lastName: string;
   age: number;
   position: Position;
+  archetype?: string;
+  consistency: number;
+  profile: 'EXPLOSIVE' | 'TECHNICAL' | 'MENTAL' | 'BALANCED';
   technical: {
     passing: number;
     shooting: number;
