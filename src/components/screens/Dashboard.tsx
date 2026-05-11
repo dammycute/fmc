@@ -89,9 +89,9 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                 <div className="flex flex-col items-end gap-4">
                   <Badge className={cn(
                     "px-4 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest border",
-                    (manager?.relationshipWithChairman || 0) > 70 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                    (players.filter(p => p.clubId === userClubId).reduce((sum, p) => sum + (p.morale || 70), 0) / Math.max(1, squadSize)) > 60 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                   )}>
-                    {(manager?.relationshipWithChairman || 0) > 70 ? 'Stable' : 'Unsettled'}
+                    {(players.filter(p => p.clubId === userClubId).reduce((sum, p) => sum + (p.morale || 70), 0) / Math.max(1, squadSize)) > 60 ? 'Stable' : 'Unsettled'}
                   </Badge>
                   <Button 
                     onClick={() => setActiveTab('squad')}

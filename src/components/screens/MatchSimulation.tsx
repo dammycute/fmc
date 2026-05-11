@@ -96,7 +96,7 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
       </div>
 
       {/* Main Container */}
-      <div className="relative flex-1 flex flex-col max-w-6xl mx-auto w-full p-8 gap-8">
+      <div className="relative flex-1 flex flex-col max-w-6xl mx-auto w-full p-8 gap-8 overflow-y-auto custom-scrollbar">
         {/* Match Header / Scoreboard */}
         <Card className="bg-zinc-900/50 border-white/5 shadow-2xl backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
           <CardContent className="p-12">

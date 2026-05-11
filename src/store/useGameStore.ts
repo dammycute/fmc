@@ -24,10 +24,10 @@ export const useGameStore = create<MainStore>()(
     }),
     {
       name: 'football-chairman-storage',
-      version: 13,
+      version: 14,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState: any, version: number) => {
-        if (version < 13) {
+        if (version < 14) {
           // Force reset or meaningful migration
           return {}; // Reset for total rethink
         }

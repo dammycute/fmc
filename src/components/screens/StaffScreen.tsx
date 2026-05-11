@@ -48,47 +48,32 @@ const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActive
     { id: 'ACADEMY_COACH', label: 'Academy Manager', icon: GraduationCap, color: 'text-amber-400' },
   ];
 
-  // Realistic Scaling Logic
+  // 1. Managers Scaled to Club League Tier
   const reputation = club.reputation || 50;
-  
-  // 1. Managers Scaled to Club Reputation
-  let managerCandidates = (managers || [])
-    .filter(m => !m.clubId && Math.abs(m.coachingAbility - reputation) <= 15)
+  const clubLeague = (clubs.find(c => c.id === userClubId) || club);
+  const leagueTier = (() => {
+    const leagueId = clubLeague.leagueId || '';
+    if (leagueId === 'l1') return 1;
+    if (leagueId === 'l2') return 2;
+    if (leagueId === 'l3') return 3;
+    if (leagueId === 'l4') return 4;
+    return 5;
+  })();
+
+  // Tier-based ability ranges for suitable managers
+  const tierAbilityRanges: Record<number, { min: number; max: number }> = {
+    1: { min: 65, max: 99 },
+    2: { min: 50, max: 85 },
+    3: { min: 35, max: 70 },
+    4: { min: 25, max: 55 },
+    5: { min: 15, max: 50 },
+  };
+  const abilityRange = tierAbilityRanges[leagueTier] || tierAbilityRanges[5];
+
+  const managerCandidates = (managers || [])
+    .filter(m => !m.clubId && m.coachingAbility >= abilityRange.min && m.coachingAbility <= abilityRange.max)
     .sort((a, b) => b.coachingAbility - a.coachingAbility)
-    .slice(0, 10);
-    
-  if (managerCandidates.length === 0) {
-    managerCandidates = [
-      { 
-        id: 'mf-1', 
-        name: 'Zinedine Zidane', 
-        coachingAbility: Math.min(99, Math.floor(reputation + 5)), 
-        preferredFormation: '4-3-3', 
-        preferredStyle: 'ATTACKING', 
-        philosophy: 'POSSESSION',
-        coaching: { tactical: 90, workingWithYouth: 80, attacking: 85, defensive: 70, mental: 88 }, 
-        personality: { playerManagement: 98, discipline: 85, loyalty: 90, ambition: 95, mediaHandling: 80 }, 
-        clubId: '',
-        morale: 80,
-        relationshipWithChairman: 70,
-        contractYears: 3
-      },
-      { 
-        id: 'mf-2', 
-        name: 'Jose Mourinho', 
-        coachingAbility: Math.max(20, Math.floor(reputation - 5)), 
-        preferredFormation: '4-2-3-1', 
-        preferredStyle: 'DEFENSIVE', 
-        philosophy: 'DEFENSIVE',
-        coaching: { tactical: 98, workingWithYouth: 60, attacking: 65, defensive: 95, mental: 90 }, 
-        personality: { playerManagement: 85, discipline: 98, loyalty: 80, ambition: 98, mediaHandling: 99 }, 
-        clubId: '',
-        morale: 75,
-        relationshipWithChairman: 70,
-        contractYears: 2
-      }
-    ] as any;
-  }
+    .slice(0, 20);
 
   // 2. Staff Scaled to Club Reputation
   let marketplaceStaff = (staff || [])
@@ -129,7 +114,7 @@ const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActive
         <TabsContent value="overview" className="mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {roles.map((role) => {
-              const member = clubStaff.find(s => s.role === role.id);
+              const members = clubStaff.filter(s => s.role === role.id);
               return (
                 <Card key={role.id} className="bg-zinc-900 border-white/5 overflow-hidden group hover:border-indigo-500/30 transition-all shadow-xl">
                   <CardContent className="p-6">
@@ -139,46 +124,45 @@ const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActive
                       </div>
                       <div>
                         <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">{role.label}</h3>
-                        <p className={cn("text-xl font-black leading-tight", member ? "text-white" : "text-zinc-500 italic")}>
-                          {member ? member.name : 'ROLE VACANT'}
+                        <p className={cn("text-xl font-black leading-tight", members.length > 0 ? "text-white" : "text-zinc-500 italic")}>
+                          {members.length > 0 ? `${members.length} Active` : 'ROLE VACANT'}
                         </p>
                       </div>
                     </div>
 
-                    {member ? (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                            <p className="text-[9px] text-zinc-500 font-black uppercase mb-1">Rating</p>
-                            <p className="text-xl font-black text-white">{member.rating}%</p>
+                    <div className="space-y-4">
+                      {members.map(member => (
+                        <div key={member.id} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-4">
+                          <div className="flex justify-between items-center">
+                             <p className="text-sm font-black text-white">{member.name}</p>
+                             <p className="text-xs font-black text-indigo-400">{member.rating}%</p>
                           </div>
-                          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                            <p className="text-[9px] text-zinc-500 font-black uppercase mb-1">Salary</p>
-                            <p className="text-sm font-black text-emerald-400">£{member.salary.toLocaleString()}/wk</p>
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="text-zinc-500 font-bold uppercase tracking-widest">£{member.salary.toLocaleString()}/wk</span>
+                            <button 
+                              onClick={() => dismissStaff(member.id)}
+                              className="text-rose-500 hover:text-rose-400 font-black uppercase tracking-tighter"
+                            >
+                              Dismiss
+                            </button>
                           </div>
                         </div>
-                        <Button 
-                          onClick={() => dismissStaff(member.id)}
-                          variant="ghost" 
-                          className="w-full text-[10px] font-black text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 h-10 uppercase tracking-widest border border-rose-500/10"
-                        >
-                          Terminate Contract
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
+                      ))}
+                      
+                      {members.length === 0 && (
                         <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 border-dashed">
                           <p className="text-[10px] text-indigo-400 font-bold text-center italic uppercase">No active specialist</p>
                         </div>
-                        <Button 
-                          onClick={() => advertiseStaffRole(club.id, role.id as any)}
-                          className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black h-12 uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-600/20"
-                          disabled={club.staffAds?.some(ad => ad.role === role.id)}
-                        >
-                          {club.staffAds?.some(ad => ad.role === role.id) ? 'ADVERTISEMENT LIVE' : 'POST ADVERT (£50K)'}
-                        </Button>
-                      </div>
-                    )}
+                      )}
+
+                      <Button 
+                        onClick={() => advertiseStaffRole(club.id, role.id as any)}
+                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black h-12 uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-600/20 mt-2"
+                        disabled={club.staffAds?.some(ad => ad.role === role.id)}
+                      >
+                        {club.staffAds?.some(ad => ad.role === role.id) ? 'ADVERTISEMENT LIVE' : 'POST RECRUITMENT AD (£50K)'}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );

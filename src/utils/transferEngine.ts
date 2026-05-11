@@ -3,7 +3,7 @@ import { type GameState, type Player, type TransferBid } from '../types/game';
 const getRandomElement = <T>(arr: T[]): T | undefined => arr[Math.floor(Math.random() * arr.length)];
 
 export const processAITransfers = (state: GameState): Partial<GameState> => {
-  const { currentDate, currentSeason, clubs, players, transferBids, isTransferWindowOpen, userClubId } = state;
+  const { currentSeason, clubs, players, transferBids, isTransferWindowOpen, userClubId } = state;
 
   if (!isTransferWindowOpen) return {};
 
@@ -61,16 +61,35 @@ export const processAITransfers = (state: GameState): Partial<GameState> => {
     const isSmall = club.reputation < 40;
 
     let targets: Player[] = [];
+    
+    // Prioritize transfer listed players that aren't from the same club
+    const listedPool = candidatePool.filter(p => p.isTransferListed);
+    
     if (isElite) {
-      targets = candidatePool.filter(p => p.potentialRating > 84 && p.age < 22 && p.value < club.finances.balance * 0.6);
+      // Elite clubs look for world-class listed talent first
+      targets = listedPool.filter(p => p.overallRating > 80 && p.value < club.finances.balance * 0.7);
+      if (targets.length === 0) {
+        targets = candidatePool.filter(p => p.potentialRating > 84 && p.age < 22 && p.value < club.finances.balance * 0.6);
+      }
     } else if (isSmall) {
-      targets = candidatePool.filter(p => (p.isTransferListed || p.age > 30) && p.value < club.finances.balance * 0.25);
+      // Small clubs are desperate for bargain listed players
+      targets = listedPool.filter(p => p.value < club.finances.balance * 0.3);
+      if (targets.length === 0) {
+        targets = candidatePool.filter(p => (p.isTransferListed || p.age > 30) && p.value < club.finances.balance * 0.25);
+      }
     } else {
-      targets = candidatePool.filter(p => p.overallRating > 72 && p.value < club.finances.balance * 0.4);
+      // Mid-sized clubs look for quality listed players
+      targets = listedPool.filter(p => p.overallRating > 70 && p.value < club.finances.balance * 0.5);
+      if (targets.length === 0) {
+        targets = candidatePool.filter(p => p.overallRating > 72 && p.value < club.finances.balance * 0.4);
+      }
     }
 
     const target = getRandomElement(targets);
-    if (target && Math.random() > 0.92) {
+    // Higher bid chance if they are listed (0.75 vs 0.92)
+    const bidChance = target?.isTransferListed ? 0.75 : 0.92;
+    
+    if (target && Math.random() > bidChance) {
       const bidAmount = Math.floor(target.value * (1.05 + Math.random() * 0.3));
       newBids.push({
         id: Math.random().toString(36).substring(2, 11),

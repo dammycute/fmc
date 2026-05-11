@@ -9,15 +9,24 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Progress } from '../ui/progress';
+import PlayerModal from '../ui/PlayerModal';
 
 const Scouting: React.FC = () => {
-  const { userClubId, clubs, staff, players, assignScout, skipWeeks, currentSeason } = useGameStore();
-  const [shortlist, setShortlist] = useState<string[]>([]);
+  const { 
+    userClubId, clubs, staff, players, 
+    assignScout, clearScoutAssignment,
+    toggleShortlist, shortlist,
+    currentSeason 
+  } = useGameStore();
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   const club = clubs.find(c => c.id === userClubId);
   const scouts = (staff || []).filter(s => s.clubId === userClubId && s.role === 'SCOUT');
   
   if (!club) return null;
+
+  const userClub = club;
+  const selectedPlayer = players.find(p => p.id === selectedPlayerId) || null;
 
   const regions = ['Europe', 'South America', 'Africa', 'Asia', 'North America'];
 
@@ -29,16 +38,6 @@ const Scouting: React.FC = () => {
           <p className="text-zinc-500 font-medium">Global intelligence network for identifying world-class talent.</p>
         </div>
         <div className="flex gap-4">
-          <Button 
-            onClick={() => {
-              if (window.confirm('Skip 4 weeks? You will miss intermediate match results.')) {
-                skipWeeks(4);
-              }
-            }}
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black text-[10px] uppercase tracking-widest px-6 h-12 rounded-xl border border-white/5"
-          >
-            SKIP 4 WEEKS
-          </Button>
           <Badge className="bg-indigo-600 text-white px-4 py-2 font-black uppercase text-[10px] tracking-widest border-none">
             SEASON {currentSeason}
           </Badge>
@@ -82,12 +81,23 @@ const Scouting: React.FC = () => {
 
                       <div className="flex items-center gap-8">
                         {assignment ? (
-                          <div className="w-48 space-y-2">
-                            <div className="flex justify-between text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-                              <span>Discovery Progress</span>
-                              <span className="text-white">{assignment.progress.toFixed(1)}%</span>
+                          <div className="flex items-center gap-6">
+                             <div className="w-48 space-y-2">
+                              <div className="flex justify-between text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+                                <span>Discovery Progress</span>
+                                <span className="text-white">{assignment.progress.toFixed(1)}%</span>
+                              </div>
+                              <Progress value={assignment.progress} className="h-1.5" />
                             </div>
-                            <Progress value={assignment.progress} className="h-1.5" />
+                            {assignment.progress >= 100 && (
+                              <Button 
+                                onClick={() => clearScoutAssignment(club.id, scout.id)}
+                                variant="destructive" 
+                                className="h-10 px-4 font-black text-[9px] uppercase tracking-widest rounded-xl"
+                              >
+                                New Mission
+                              </Button>
+                            )}
                           </div>
                         ) : (
                           <div className="flex gap-2">
@@ -119,7 +129,11 @@ const Scouting: React.FC = () => {
                 const player = players.find(p => p.id === pid);
                 if (!player) return null;
                 return (
-                  <div key={pid} className="p-5 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-between group hover:bg-zinc-800 transition-all cursor-pointer">
+                  <div 
+                    key={pid} 
+                    onClick={() => setSelectedPlayerId(pid)}
+                    className="p-5 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-between group hover:bg-zinc-800 transition-all cursor-pointer"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-zinc-950 flex items-center justify-center font-black text-zinc-700">
                         {player.lastName.charAt(0)}
@@ -137,14 +151,14 @@ const Scouting: React.FC = () => {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setShortlist(prev => prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid]);
+                          toggleShortlist(pid);
                         }}
                         className={cn(
                           "h-8 w-8 p-0 rounded-lg border",
-                          shortlist.includes(pid) ? "bg-amber-500 border-amber-400 text-black" : "bg-white/5 border-white/10 text-zinc-500"
+                          shortlist?.includes(pid) ? "bg-amber-500 border-amber-400 text-black" : "bg-white/5 border-white/10 text-zinc-500"
                         )}
                       >
-                        <Star className="w-3 h-3" fill={shortlist.includes(pid) ? "currentColor" : "none"} />
+                        <Star className="w-3 h-3" fill={shortlist?.includes(pid) ? "currentColor" : "none"} />
                       </Button>
                       <ChevronRight className="w-4 h-4 text-zinc-800 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
                     </div>
@@ -183,6 +197,15 @@ const Scouting: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      <PlayerModal 
+        player={selectedPlayer}
+        club={userClub}
+        isOpen={!!selectedPlayerId}
+        onClose={() => setSelectedPlayerId(null)}
+        onToggleTransferList={useGameStore.getState().toggleTransferList}
+        onMakeBid={(pid) => useGameStore.getState().makeTransferBid(pid, userClubId, players.find(p => p.id === pid)?.value || 0)}
+      />
     </div>
   );
 };

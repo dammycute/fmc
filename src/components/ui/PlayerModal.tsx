@@ -17,8 +17,10 @@ interface PlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onToggleTransferList: (playerId: string) => void;
+  onToggleLoanList?: (playerId: string) => void;
   isUserPlayer?: boolean;
   onMakeBid?: (playerId: string) => void;
+  onReleasePlayer?: (playerId: string) => void;
 }
 
 const PlayerModal: React.FC<PlayerModalProps> = ({ 
@@ -27,8 +29,10 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
   isOpen, 
   onClose, 
   onToggleTransferList,
+  onToggleLoanList,
   isUserPlayer = false,
-  onMakeBid
+  onMakeBid,
+  onReleasePlayer
 }) => {
   if (!player) return null;
 
@@ -111,18 +115,43 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
 
             <div className="space-y-3 relative z-10">
               {isUserPlayer ? (
-                <Button 
-                  onClick={() => onToggleTransferList(player.id)}
-                  className={cn(
-                    "w-full font-black text-[10px] uppercase tracking-widest h-12 rounded-xl transition-all",
-                    player.isTransferListed 
-                      ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20" 
-                      : "bg-white/5 hover:bg-white/10 text-zinc-400 border border-white/10"
+                <>
+                  <Button 
+                    onClick={() => onToggleTransferList(player.id)}
+                    className={cn(
+                      "w-full font-black text-[10px] uppercase tracking-widest h-12 rounded-xl transition-all",
+                      player.isTransferListed 
+                        ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20" 
+                        : "bg-white/5 hover:bg-white/10 text-zinc-400 border border-white/10"
+                    )}
+                  >
+                    <UserMinus className="w-4 h-4 mr-2" />
+                    {player.isTransferListed ? 'Remove from Transfer List' : 'List for Transfer'}
+                  </Button>
+                  {onToggleLoanList && (
+                    <Button 
+                      onClick={() => onToggleLoanList(player.id)}
+                      className={cn(
+                        "w-full font-black text-[10px] uppercase tracking-widest h-12 rounded-xl transition-all",
+                        player.isLoanListed 
+                          ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20" 
+                          : "bg-white/5 hover:bg-white/10 text-zinc-400 border border-white/10"
+                      )}
+                    >
+                      <UserMinus className="w-4 h-4 mr-2" />
+                      {player.isLoanListed ? 'Remove from Loan List' : 'List for Loan'}
+                    </Button>
                   )}
-                >
-                  <UserMinus className="w-4 h-4 mr-2" />
-                  {player.isTransferListed ? 'Remove from List' : 'List for Transfer'}
-                </Button>
+                  {onReleasePlayer && (
+                    <Button 
+                      onClick={() => onReleasePlayer(player.id)}
+                      className="w-full font-black text-[10px] uppercase tracking-widest h-12 rounded-xl bg-rose-950/50 hover:bg-rose-900 border border-rose-500/20 text-rose-500 hover:text-white transition-all"
+                    >
+                      <UserMinus className="w-4 h-4 mr-2" />
+                      Release from Club
+                    </Button>
+                  )}
+                </>
               ) : (
                 <Button 
                   onClick={() => onMakeBid?.(player.id)}
@@ -215,7 +244,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                             <circle cx="40" cy="40" r="36" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/5" />
                             <circle cx="40" cy="40" r="36" fill="none" stroke="currentColor" strokeWidth="4" className="text-amber-500" strokeDasharray={226} strokeDashoffset={226 - (226 * player.tacticalFamiliarity) / 100} />
                           </svg>
-                          <div className="absolute inset-0 flex items-center justify-center font-black text-lg">{player.tacticalFamiliarity}%</div>
+                          <div className="absolute inset-0 flex items-center justify-center font-black text-lg">{Number(player.tacticalFamiliarity).toFixed(2)}%</div>
                         </div>
                         <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter leading-tight">Tactical Familiarity<br/>with current system</p>
                       </div>

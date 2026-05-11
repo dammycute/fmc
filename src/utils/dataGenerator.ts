@@ -7,14 +7,14 @@ import {
 import { generateFixtures } from './fixtureGenerator';
 
 const FIRST_NAMES = [
-  'John', 'David', 'Michael', 'Chris', 'James', 'Robert', 'Mark', 'Paul', 'Kevin', 'Steven', 
-  'Thomas', 'Daniel', 'Gary', 'William', 'Richard', 'Joseph', 'Andrew', 'Ryan', 'Luke', 'Adam', 
+  'John', 'David', 'Michael', 'Chris', 'James', 'Robert', 'Mark', 'Paul', 'Kevin', 'Steven',
+  'Thomas', 'Daniel', 'Gary', 'William', 'Richard', 'Joseph', 'Andrew', 'Ryan', 'Luke', 'Adam',
   'Mateo', 'Luka', 'Santi', 'Theo', 'Marco', 'Kasper', 'Sven', 'Hiroshi', 'Alessandro', 'Oliver',
   'Noah', 'Liam', 'Lucas', 'Mason', 'Ethan', 'Logan', 'Aiden', 'Arlo', 'Finn', 'Hugo'
 ];
 const LAST_NAMES = [
-  'Smith', 'Jones', 'Brown', 'Taylor', 'Williams', 'Wilson', 'Johnson', 'Davies', 'Robinson', 
-  'Thompson', 'Evans', 'Walker', 'White', 'Roberts', 'Green', 'Hall', 'Wood', 'Harris', 'Clarke', 
+  'Smith', 'Jones', 'Brown', 'Taylor', 'Williams', 'Wilson', 'Johnson', 'Davies', 'Robinson',
+  'Thompson', 'Evans', 'Walker', 'White', 'Roberts', 'Green', 'Hall', 'Wood', 'Harris', 'Clarke',
   'Garcia', 'Muller', 'Silva', 'Rossi', 'Dubois', 'Fisher', 'Mason', 'Knight', 'Butler', 'Cole',
   'West', 'Jordan', 'Banks', 'Lane', 'Ford', 'Rice', 'Hunt', 'Shaw', 'Hart', 'Webb', 'Bell'
 ];
@@ -22,62 +22,74 @@ const LAST_NAMES = [
 export const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 export const getRandomRating = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+// Tier-scaled rating ranges
+const TIER_RATINGS: Record<number, { min: number; max: number; variance: number }> = {
+  1: { min: 75, max: 92, variance: 5 },
+  2: { min: 65, max: 80, variance: 7 },
+  3: { min: 55, max: 70, variance: 10 },
+  4: { min: 45, max: 60, variance: 12 },
+  5: { min: 35, max: 50, variance: 15 },
+};
+
 export const generatePlayer = (clubId: string, leagueTier: number, isYouth = false): Player => {
-  const baseMin = 72 - (leagueTier - 1) * 6;
-  const baseMax = 82 - (leagueTier - 1) * 6;
+  const tierCfg = TIER_RATINGS[leagueTier] || TIER_RATINGS[5];
   const age = isYouth ? 16 + Math.floor(Math.random() * 4) : 18 + Math.floor(Math.random() * 15);
 
-  const rating = getRandomRating(Math.max(30, baseMin), Math.min(92, baseMax));
-  const potential = Math.min(99, rating + Math.floor(Math.random() * 18));
+  const rating = getRandomRating(tierCfg.min, tierCfg.max);
+  const potential = Math.min(99, rating + Math.floor(Math.random() * (leagueTier >= 3 ? 22 : 15)));
 
   const position = getRandomElement(['GK', 'DEF', 'MID', 'ATT'] as Position[]);
   const playerTierMultiplier = [1, 0.7, 0.5, 0.3, 0.15][leagueTier - 1] || 0.15;
+  const v = tierCfg.variance; // wider spread at lower tiers
 
   // Position-specific attribute adjustments
   let technicalAttrs = {
-    passing: getRandomRating(rating - 5, rating + 5),
-    shooting: getRandomRating(rating - 5, rating + 5),
-    dribbling: getRandomRating(rating - 5, rating + 5),
-    tackling: getRandomRating(rating - 5, rating + 5),
-    positioning: getRandomRating(rating - 5, rating + 5),
-    vision: getRandomRating(rating - 5, rating + 5),
-    finishing: getRandomRating(rating - 5, rating + 5),
+    passing: getRandomRating(rating - v, rating + v),
+    shooting: getRandomRating(rating - v, rating + v),
+    dribbling: getRandomRating(rating - v, rating + v),
+    tackling: getRandomRating(rating - v, rating + v),
+    positioning: getRandomRating(rating - v, rating + v),
+    vision: getRandomRating(rating - v, rating + v),
+    finishing: getRandomRating(rating - v, rating + v),
   };
 
   let gkAttrs = {};
 
   if (position === 'GK') {
     technicalAttrs = {
-      passing: getRandomRating(rating - 8, rating - 2), // Lower passing for GK
-      shooting: getRandomRating(rating - 10, rating - 5), // Lower shooting
-      dribbling: getRandomRating(rating - 8, rating - 2), // Lower dribbling
-      tackling: getRandomRating(rating - 8, rating - 2), // Lower tackling
-      positioning: getRandomRating(rating - 3, rating + 7), // Higher positioning
+      passing: getRandomRating(rating - 8, rating - 2),
+      shooting: getRandomRating(rating - 10, rating - 5),
+      dribbling: getRandomRating(rating - 8, rating - 2),
+      tackling: getRandomRating(rating - 8, rating - 2),
+      positioning: getRandomRating(rating - 3, rating + 7),
       vision: getRandomRating(rating - 5, rating + 3),
-      finishing: getRandomRating(rating - 10, rating - 5), // Lower finishing
+      finishing: getRandomRating(rating - 10, rating - 5),
     };
     gkAttrs = {
       handling: getRandomRating(rating - 3, rating + 7),
       commandOfArea: getRandomRating(rating - 3, rating + 7),
-      eccentricity: getRandomRating(20, 80), // GK personality trait
+      eccentricity: getRandomRating(20, 80),
       reflexes: getRandomRating(rating - 3, rating + 7),
       rushingOut: getRandomRating(rating - 5, rating + 5),
     };
   } else if (position === 'DEF') {
-    technicalAttrs.tackling = getRandomRating(rating - 3, rating + 7); // Higher tackling for DEF
-    technicalAttrs.positioning = getRandomRating(rating - 3, rating + 7); // Higher positioning
-    technicalAttrs.passing = getRandomRating(rating - 3, rating + 7); // Higher passing
+    technicalAttrs.tackling = getRandomRating(rating, rating + v);
+    technicalAttrs.positioning = getRandomRating(rating, rating + v);
   } else if (position === 'MID') {
-    technicalAttrs.passing = getRandomRating(rating - 3, rating + 7); // Higher passing for MID
-    technicalAttrs.vision = getRandomRating(rating - 3, rating + 7); // Higher vision
-    technicalAttrs.dribbling = getRandomRating(rating - 3, rating + 7); // Higher dribbling
+    technicalAttrs.passing = getRandomRating(rating, rating + v);
+    technicalAttrs.vision = getRandomRating(rating, rating + v);
   } else if (position === 'ATT') {
-    technicalAttrs.shooting = getRandomRating(rating - 3, rating + 7); // Higher shooting for ATT
-    technicalAttrs.finishing = getRandomRating(rating - 3, rating + 7); // Higher finishing
-    technicalAttrs.dribbling = getRandomRating(rating - 3, rating + 7); // Higher dribbling
+    technicalAttrs.shooting = getRandomRating(rating, rating + v);
+    technicalAttrs.finishing = getRandomRating(rating, rating + v);
   }
 
-  return {
+  // Tier-scaled mental attributes
+  // Lower tiers: lower composure/decisions, but work rate and determination can still be high
+  const mentalBase = rating;
+  const composureRange = leagueTier >= 4 ? 15 : leagueTier >= 3 ? 10 : 5;
+  const decisionRange = composureRange;
+
+  const result: Player = {
     id: Math.random().toString(36).substring(2, 11),
     firstName: getRandomElement(FIRST_NAMES),
     lastName: getRandomElement(LAST_NAMES),
@@ -85,18 +97,18 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
     position,
     technical: { ...technicalAttrs, ...gkAttrs },
     physical: {
-      pace: getRandomRating(rating - 5, rating + 10),
-      strength: getRandomRating(rating - 5, rating + 5),
-      stamina: getRandomRating(rating - 5, rating + 5),
-      agility: getRandomRating(rating - 5, rating + 5),
-      acceleration: getRandomRating(rating - 5, rating + 5),
+      pace: getRandomRating(rating - v, rating + v + 5), // pace can be an outlier
+      strength: getRandomRating(rating - v, rating + v),
+      stamina: getRandomRating(Math.max(30, rating - v + (leagueTier >= 4 ? 5 : 0)), rating + v), // lower tiers rely on stamina
+      agility: getRandomRating(rating - v, rating + v),
+      acceleration: getRandomRating(rating - v, rating + v),
     },
     mental: {
-      leadership: getRandomRating(30, 90),
-      composure: getRandomRating(rating - 10, rating + 5),
+      leadership: getRandomRating(25, 85),
+      composure: getRandomRating(Math.max(20, mentalBase - composureRange), mentalBase + 5),
       aggression: getRandomRating(30, 90),
       workRate: getRandomRating(40, 95),
-      decisions: getRandomRating(rating - 10, rating + 5),
+      decisions: getRandomRating(Math.max(20, mentalBase - decisionRange), mentalBase + 5),
       determination: getRandomRating(40, 95),
     },
     hidden: {
@@ -106,7 +118,7 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
       injuryProneness: getRandomRating(10, 80),
       temperament: getRandomRating(30, 90),
       bigMatchMentality: getRandomRating(30, 90),
-      consistency: getRandomRating(40, 90),
+      consistency: getRandomRating(leagueTier <= 2 ? 55 : 30, 90), // higher tiers = more consistent
     },
     overallRating: rating,
     potentialRating: potential,
@@ -117,7 +129,17 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
     fatigue: 0,
     injuryRisk: 0,
     clubId,
-    personality: getRandomElement(['LOYAL', 'AMBITIOUS', 'LAZY', 'INJURY_PRONE', 'PROFESSIONAL', 'TEMPERAMENTAL', 'LEADER', 'WONDERKID', 'CLUB_HERO'] as any),
+    // Age-based personality assignment
+    personality: (() => {
+      // Wonderkid: young (16-21) with high potential gap (15+)
+      if (age <= 21 && (potential - rating) >= 15) return 'WONDERKID' as any;
+      // Leader: experienced (28+) with high leadership
+      if (age >= 28 && rating >= 70) return 'LEADER' as any;
+      // Club Hero: veteran (30+) with loyalty
+      if (age >= 30) return getRandomElement(['CLUB_HERO', 'LOYAL', 'PROFESSIONAL'] as any);
+      // Others
+      return getRandomElement(['LOYAL', 'AMBITIOUS', 'PROFESSIONAL', 'TEMPERAMENTAL'] as any);
+    })(),
     contractYears: 1 + Math.floor(Math.random() * 4),
     isTransferListed: false,
     isLoanListed: false,
@@ -141,6 +163,45 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
       joinedWeek: 1
     }
   };
+
+  // --- Age-based growth/decline curve ---
+  // Peak: 26, Decline starts: 31
+  // Young players get slight boost toward potential
+  // Old players get decline toward lower stat ceiling
+  if (age < 26) {
+    // Growth phase: boost physical attributes, potential is more reachable
+    const growthFactor = (26 - age) / 26; // bigger boost for younger players
+    result.physical.pace = Math.min(99, result.physical.pace + Math.floor(growthFactor * 5));
+    result.physical.acceleration = Math.min(99, result.physical.acceleration + Math.floor(growthFactor * 5));
+    result.physical.agility = Math.min(99, result.physical.agility + Math.floor(growthFactor * 3));
+  } else if (age >= 31) {
+    // Decline phase: reduce physical stats, mental may stay/improve
+    const declineFactor = (age - 30) / 10; // gradual decline
+    result.physical.pace = Math.max(20, Math.floor(result.physical.pace * (1 - declineFactor * 0.15)));
+    result.physical.acceleration = Math.max(20, Math.floor(result.physical.acceleration * (1 - declineFactor * 0.12)));
+    result.physical.stamina = Math.max(25, Math.floor(result.physical.stamina * (1 - declineFactor * 0.10)));
+    // Mental attributes improve with age
+    result.mental.leadership = Math.min(99, result.mental.leadership + Math.floor(declineFactor * 8));
+    result.mental.composure = Math.min(99, result.mental.composure + Math.floor(declineFactor * 5));
+    result.mental.decisions = Math.min(99, result.mental.decisions + Math.floor(declineFactor * 5));
+  }
+
+  // --- Wonderkid attribute boost ---
+  // Wonderkids should have at least one elite attribute that hints at their potential
+  if (result.personality === 'WONDERKID') {
+    // Boost their best technical attribute by 8-12 points
+    const techKeys = Object.keys(result.technical) as (keyof typeof result.technical)[];
+    const bestTech = techKeys.reduce((best, key) =>
+      (result.technical[key] || 0) > (result.technical[best] || 0) ? key : best, techKeys[0]);
+    if (bestTech) {
+      (result.technical as any)[bestTech] = Math.min(99, (result.technical[bestTech] || 0) + getRandomRating(8, 12));
+    }
+    // Boost one physical attribute
+    result.physical.pace = Math.min(99, result.physical.pace + getRandomRating(5, 10));
+    result.physical.agility = Math.min(99, result.physical.agility + getRandomRating(3, 8));
+  }
+
+  return result;
 };
 
 export const FORMATION_CONFIG: Record<Formation, { [pos: string]: { x: number, y: number, role: Position } }> = {
@@ -254,12 +315,12 @@ export const autoPickLineup = (formation: Formation, players: Player[]): { [pos:
 const usedClubNames = new Set<string>();
 
 const clubSuffixes = [
-  'United', 'FC', 'City', 'Town', 'Athletic', 'Wanderers', 'Rovers', 'Albion', 'County', 
+  'United', 'FC', 'City', 'Town', 'Athletic', 'Wanderers', 'Rovers', 'Albion', 'County',
   'Harriers', 'Swifts', 'Sporting', 'Rangers', 'Strollers', 'Real', 'Inter', 'Viking', 'Villa'
 ];
 const placeNames = [
-  'Bromley', 'Dorking', 'Sutton', 'Boreham', 'Ebbsfleet', 'Solihull', 'Maidenhead', 'Wealdstone', 
-  'Altrincham', 'Eastleigh', 'Dartford', 'Havant', 'Chelmsford', 'Maidstone', 'Tonbridge', 
+  'Bromley', 'Dorking', 'Sutton', 'Boreham', 'Ebbsfleet', 'Solihull', 'Maidenhead', 'Wealdstone',
+  'Altrincham', 'Eastleigh', 'Dartford', 'Havant', 'Chelmsford', 'Maidstone', 'Tonbridge',
   'St Albans', 'Hemel', 'Worthing', 'Braintree', 'Chippenham', 'Weymouth', 'Slough',
   'Richmond', 'Finchley', 'Brentwood', 'Croydon', 'Harrow', 'Barnet', 'Enfield', 'Uxbridge',
   'Woking', 'Guildford', 'Epsom', 'Reigate', 'Sevenoaks', 'Gravesend', 'Basildon', 'Harlow'
@@ -416,40 +477,52 @@ export const generateInitialData = (): GameState => {
     }
   });
 
-  // Create a large pool of free managers for the staff market
-  for (let i = 0; i < 100; i++) {
-    const managerRatingBase = getRandomRating(30, 80);
-    managers.push({
-      id: `free-manager-${i}`,
-      name: `${getRandomElement(FIRST_NAMES)} ${getRandomElement(LAST_NAMES)}`,
-      coaching: {
-        attacking: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        defensive: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        tactical: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        mental: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        workingWithYouth: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-      },
-      philosophy: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
-      pressing: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-      creativeFreedom: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-      personality: {
-        discipline: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        loyalty: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        ambition: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        mediaHandling: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-        playerManagement: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-      },
-      coachingAbility: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-      tacticalIntelligence: getRandomRating(managerRatingBase, Math.min(95, managerRatingBase + 20)),
-      salary: Math.floor(5000 + managerRatingBase * 200),
-      clubId: '',
-      relationshipWithChairman: 50,
-      morale: 70,
-      preferredStyle: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
-      preferredFormation: getRandomElement(['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-4-1'] as Formation[]),
-      history: [`Available for hire from day one`]
-    });
-  }
+  // Create tier-distributed free managers for the staff market
+  const MANAGER_TIER_RANGES: Record<number, { min: number; max: number; salaryMin: number; salaryMax: number; count: number }> = {
+    1: { min: 75, max: 95, salaryMin: 50000, salaryMax: 200000, count: 10 },
+    2: { min: 60, max: 80, salaryMin: 10000, salaryMax: 50000, count: 15 },
+    3: { min: 45, max: 65, salaryMin: 2000, salaryMax: 10000, count: 25 },
+    4: { min: 35, max: 50, salaryMin: 500, salaryMax: 2000, count: 25 },
+    5: { min: 25, max: 45, salaryMin: 200, salaryMax: 1000, count: 25 },
+  };
+
+  Object.entries(MANAGER_TIER_RANGES).forEach(([tierStr, cfg]) => {
+    const tier = parseInt(tierStr);
+    for (let i = 0; i < cfg.count; i++) {
+      const managerRatingBase = getRandomRating(cfg.min, cfg.max);
+      const spread = 12; // tight attribute spread around base
+      managers.push({
+        id: `free-manager-t${tier}-${i}`,
+        name: `${getRandomElement(FIRST_NAMES)} ${getRandomElement(LAST_NAMES)}`,
+        coaching: {
+          attacking: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+          defensive: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+          tactical: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+          mental: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+          workingWithYouth: getRandomRating(tier >= 3 ? managerRatingBase : managerRatingBase - 10, Math.min(95, managerRatingBase + spread)),
+        },
+        philosophy: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
+        pressing: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        creativeFreedom: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        personality: {
+          discipline: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+          loyalty: getRandomRating(tier >= 4 ? 60 : 30, 95), // lower-tier managers are more loyal
+          ambition: getRandomRating(tier <= 2 ? 60 : 30, 95), // top-tier managers are more ambitious
+          mediaHandling: getRandomRating(Math.max(20, managerRatingBase - 15), managerRatingBase + 10),
+          playerManagement: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        },
+        coachingAbility: managerRatingBase,
+        tacticalIntelligence: getRandomRating(managerRatingBase - 5, Math.min(95, managerRatingBase + spread)),
+        salary: getRandomRating(cfg.salaryMin, cfg.salaryMax),
+        clubId: '',
+        relationshipWithChairman: 50,
+        morale: 70,
+        preferredStyle: getRandomElement(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]),
+        preferredFormation: getRandomElement(['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-4-1'] as Formation[]),
+        history: [`Available for hire from day one`]
+      });
+    }
+  });
 
   // Create a large pool of unattached players for the transfer market
   for (let i = 0; i < 200; i++) {
@@ -490,6 +563,6 @@ export const generateInitialData = (): GameState => {
     transferBids: [],
     news: [],
     userClubId: null,
-    personalBalance: 250000, // Non-league level starting wealth
+    personalBalance: 500000, // Non-league level starting wealth
   };
 };

@@ -39,8 +39,12 @@ const TransferMarket: React.FC = () => {
   // Market List: Discovered players or top talent
   // Assuming player overall rating is comparable to club reputation
   const marketPlayers = players
-    .filter(p => p.clubId !== userClubId && Math.abs(p.overallRating - userClub.reputation) <= 15)
-    .sort((a, b) => b.overallRating - a.overallRating)
+    .filter(p => p.isTransferListed || (p.clubId !== userClubId && Math.abs(p.overallRating - userClub.reputation) <= 15))
+    .sort((a, b) => {
+      if (a.isTransferListed && !b.isTransferListed) return -1;
+      if (!a.isTransferListed && b.isTransferListed) return 1;
+      return b.overallRating - a.overallRating;
+    })
     .slice(0, 20);
 
   // Inbox: Bids for MY players

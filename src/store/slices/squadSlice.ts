@@ -3,6 +3,7 @@ import type { Player, Manager, Staff, StaffRole, TransferBid, TransferRequest } 
 
 export interface SquadSlice {
   players: Player[];
+  shortlist: string[];
   managers: Manager[];
   staff: Staff[];
   transferBids: TransferBid[];
@@ -15,6 +16,10 @@ export interface SquadSlice {
   hireStaffApplicant: (clubId: string, applicantId: string) => void;
   advertiseStaffRole: (clubId: string, role: StaffRole) => void;
   toggleTransferList: (playerId: string) => void;
+  toggleLoanList: (playerId: string) => void;
+  releasePlayer: (playerId: string) => void;
+  toggleShortlist: (playerId: string) => void;
+  clearScoutAssignment: (clubId: string, scoutId: string) => void;
   assignScout: (clubId: string, scoutId: string, region: string) => void;
   respondToTransferRequest: (requestId: string, status: 'APPROVED' | 'REJECTED' | 'DELAYED', budgetLimit?: number) => void;
   makeTransferBid: (playerId: string, clubId: string, amount: number) => void;
@@ -30,6 +35,7 @@ export const createSquadSlice: StateCreator<
   SquadSlice
 > = (set, get) => ({
   players: [],
+  shortlist: [],
   managers: [],
   staff: [],
   transferBids: [],
@@ -65,9 +71,14 @@ export const createSquadSlice: StateCreator<
     }),
 
   hireStaff: (clubId, staffMember) =>
-    set((state) => ({
-      staff: [...state.staff.filter(s => s.id !== staffMember.id), { ...staffMember, clubId }]
-    })),
+    set((state) => {
+      const newStaff = [...state.staff.filter(s => s.id !== staffMember.id), { ...staffMember, clubId }];
+      const clubStaffWages = newStaff.filter(s => s.clubId === clubId).reduce((sum, s) => sum + (s.salary || 0), 0);
+      return {
+        staff: newStaff,
+        clubs: state.clubs.map(c => c.id === clubId ? { ...c, finances: { ...c.finances, weeklyStaffWages: clubStaffWages } } : c)
+      };
+    }),
 
 
   dismissStaff: (staffId) =>
@@ -82,10 +93,14 @@ export const createSquadSlice: StateCreator<
     const applicant = club.staffApplicants.find(a => a.id === applicantId);
     if (!applicant) return;
 
+    const newStaff = [...state.staff.filter(s => s.id !== applicant.id), { ...applicant, clubId, isApplicant: false }];
+    const clubStaffWages = newStaff.filter(s => s.clubId === clubId).reduce((sum, s) => sum + (s.salary || 0), 0);
+
     set({
-      staff: [...state.staff.filter(s => s.id !== applicant.id), { ...applicant, clubId, isApplicant: false }],
+      staff: newStaff,
       clubs: state.clubs.map(c => c.id === clubId ? {
         ...c,
+        finances: { ...c.finances, weeklyStaffWages: clubStaffWages },
         staffApplicants: (c.staffApplicants || []).filter(a => a.id !== applicantId)
       } : c)
     });
@@ -113,6 +128,40 @@ export const createSquadSlice: StateCreator<
     set((state) => ({
       players: state.players.map(p => p.id === playerId ? { ...p, isTransferListed: !p.isTransferListed } : p)
     })),
+
+  toggleLoanList: (playerId) =>
+    set((state) => ({
+      players: state.players.map(p => p.id === playerId ? { ...p, isLoanListed: !p.isLoanListed } : p)
+    })),
+
+  toggleShortlist: (playerId) =>
+    set((state) => ({
+      shortlist: state.shortlist?.includes(playerId) 
+        ? state.shortlist.filter(id => id !== playerId)
+        : [...(state.shortlist || []), playerId]
+    })),
+
+  clearScoutAssignment: (clubId, scoutId) =>
+    set((state) => ({
+      clubs: state.clubs.map(c => c.id === clubId ? {
+        ...c,
+        scoutAssignments: (c.scoutAssignments || []).filter(a => a.scoutId !== scoutId)
+      } : c)
+    })),
+
+  releasePlayer: (playerId) =>
+    set((state) => {
+      const player = state.players.find(p => p.id === playerId);
+      if (!player) return state;
+      return {
+        players: state.players.map(p => p.id === playerId ? { ...p, clubId: '', isTransferListed: false, contractYears: 0 } : p),
+        clubs: state.clubs.map(c => c.id === player.clubId ? {
+          ...c,
+          finances: { ...c.finances, weeklyWages: Math.max(0, (c.finances.weeklyWages || 0) - (player.wage || 0)) },
+          history: [...c.history, `Released ${player.firstName} ${player.lastName} from contract.`]
+        } : c)
+      };
+    }),
 
   assignScout: (clubId, scoutId, region) => {
     set((state) => ({

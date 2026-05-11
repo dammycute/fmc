@@ -8,7 +8,7 @@ import { Input } from '../ui/input';
 import PlayerModal from '../ui/PlayerModal';
 
 const Squad: React.FC = () => {
-  const { userClubId, clubs, players, toggleTransferList } = useGameStore();
+  const { userClubId, clubs, players, toggleTransferList, toggleLoanList, releasePlayer } = useGameStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
@@ -61,9 +61,10 @@ const Squad: React.FC = () => {
               <TableHead className="text-[10px] font-black text-zinc-500 uppercase py-4">Player</TableHead>
               <TableHead className="text-[10px] font-black text-zinc-500 uppercase">Pos</TableHead>
               <TableHead className="text-[10px] font-black text-zinc-500 uppercase">Rating</TableHead>
+              <TableHead className="text-[10px] font-black text-zinc-500 uppercase">Apps</TableHead>
+              <TableHead className="text-[10px] font-black text-zinc-500 uppercase">Goals</TableHead>
               <TableHead className="text-[10px] font-black text-zinc-500 uppercase">Form</TableHead>
               <TableHead className="text-[10px] font-black text-zinc-500 uppercase">Fatigue</TableHead>
-              <TableHead className="text-[10px] font-black text-zinc-500 uppercase">Injury</TableHead>
               <TableHead className="text-[10px] font-black text-zinc-500 uppercase text-center">Happiness</TableHead>
               <TableHead className="text-[10px] font-black text-zinc-500 uppercase">Morale</TableHead>
             </TableRow>
@@ -110,6 +111,12 @@ const Squad: React.FC = () => {
                   </div>
                 </TableCell>
                 <TableCell>
+                  <span className="text-xs font-black text-zinc-300">{player.history?.appearances || 0}</span>
+                </TableCell>
+                <TableCell>
+                  <span className="text-xs font-black text-zinc-300">{player.history?.goals || 0}</span>
+                </TableCell>
+                <TableCell>
                   <div className="flex gap-0.5">
                     {(player.form || [7, 7, 7, 7, 7]).map((f, i) => (
                       <div 
@@ -124,12 +131,7 @@ const Squad: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <span className={cn("text-xs font-bold", (player.fatigue || 0) > 50 ? "text-orange-400" : "text-zinc-400")}>
-                    {(player.fatigue || 0).toFixed(1)}%
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className={cn("text-xs font-bold", (player.injuryRisk || 0) > 15 ? "text-rose-500" : "text-zinc-500")}>
-                    {(player.injuryRisk || 0).toFixed(1)}%
+                    {(player.fatigue || 0).toFixed(0)}%
                   </span>
                 </TableCell>
                 <TableCell>
@@ -163,6 +165,12 @@ const Squad: React.FC = () => {
         isOpen={!!selectedPlayerId}
         onClose={() => setSelectedPlayerId(null)}
         onToggleTransferList={toggleTransferList}
+        onToggleLoanList={toggleLoanList}
+        isUserPlayer={true}
+        onReleasePlayer={(id) => {
+          releasePlayer(id);
+          setSelectedPlayerId(null);
+        }}
       />
     </div>
   );
