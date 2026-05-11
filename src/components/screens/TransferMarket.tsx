@@ -151,7 +151,10 @@ const TransferMarket: React.FC = () => {
                     </div>
 
                     <Button
-                      onClick={() => makeTransferBid(player.id, userClubId, player.value)}
+                      onClick={() => {
+                        if (!userClubId) return;
+                        makeTransferBid(player.id, userClubId, player.value);
+                      }}
                       className="w-full bg-white/5 hover:bg-indigo-600 text-white font-black h-10 rounded-xl transition-all uppercase tracking-widest text-[10px]"
                     >
                       Make Inquiry

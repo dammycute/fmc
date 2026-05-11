@@ -204,7 +204,10 @@ const Scouting: React.FC = () => {
         isOpen={!!selectedPlayerId}
         onClose={() => setSelectedPlayerId(null)}
         onToggleTransferList={useGameStore.getState().toggleTransferList}
-        onMakeBid={(pid) => useGameStore.getState().makeTransferBid(pid, userClubId, players.find(p => p.id === pid)?.value || 0)}
+        onMakeBid={(pid) => {
+          if (!userClubId) return;
+          useGameStore.getState().makeTransferBid(pid, userClubId, players.find(p => p.id === pid)?.value || 0);
+        }}
       />
     </div>
   );

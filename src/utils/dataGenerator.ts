@@ -1,7 +1,7 @@
 import {
   type Club, type Player, type Manager, type League, type Position,
   type TacticalPhilosophy, type Formation,
-  type OwnershipType, type BoardExpectation, type ClubCultureType,
+  type OwnershipType, type SeasonTarget, type BoardExpectation, type ClubCultureType,
   type GameState
 } from '../types/game';
 import { generateFixtures } from './fixtureGenerator';
@@ -76,7 +76,7 @@ export const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random()
 export const getRandomRating = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 // Tier-scaled rating ranges
-const TIER_RATINGS = {
+const TIER_RATINGS: Record<number, { min: number; max: number; variance: number }> = {
   1: { min: 76, max: 94, variance: 5 },   // Premier League: world class to squad fillers
   2: { min: 63, max: 78, variance: 7 },   // Championship: solid pros, some gems
   3: { min: 52, max: 67, variance: 9 },   // League One: journeymen and youth
@@ -351,7 +351,6 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
     consistencyBase + consistencyAgeBonus + (Math.random() * 30 - 10)
   ));
 
-  const playerTierMultiplier = [1, 0.7, 0.5, 0.3, 0.15][leagueTier - 1] || 0.15;
   const v = tierCfg.variance; // wider spread at lower tiers
 
   const getBias = (key: StatKey) => archetype.statBias[key] ?? 0;
@@ -366,8 +365,7 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
     return getRandomRating(min, max);
   };
 
-  const tierValueMultipliers = [8.0, 2.5, 0.6, 0.12, 0.025];
-  const multiplier = tierValueMultipliers[leagueTier - 1] || 0.025;
+
 
   // Position-specific attribute adjustments
   let technicalAttrs = {
@@ -413,8 +411,7 @@ export const generatePlayer = (clubId: string, leagueTier: number, isYouth = fal
   // Tier-scaled mental attributes
   // Lower tiers: lower composure/decisions, but work rate and determination can still be high
   const mentalBase = rating;
-  const composureRange = leagueTier >= 4 ? 15 : leagueTier >= 3 ? 10 : 5;
-  const decisionRange = composureRange;
+
 
   const namePool = pickNationality(leagueTier);
   const firstName = getRandomElement(namePool.first);
@@ -738,29 +735,6 @@ export const autoPickLineup = (formation: Formation, players: Player[]): { [pos:
   return lineup;
 };
 
-
-const usedClubNames = new Set<string>();
-
-const clubSuffixes = [
-  'United', 'FC', 'City', 'Town', 'Athletic', 'Wanderers', 'Rovers', 'Albion', 'County',
-  'Harriers', 'Swifts', 'Sporting', 'Rangers', 'Strollers', 'Real', 'Inter', 'Viking', 'Villa'
-];
-const placeNames = [
-  'Bromley', 'Dorking', 'Sutton', 'Boreham', 'Ebbsfleet', 'Solihull', 'Maidenhead', 'Wealdstone',
-  'Altrincham', 'Eastleigh', 'Dartford', 'Havant', 'Chelmsford', 'Maidstone', 'Tonbridge',
-  'St Albans', 'Hemel', 'Worthing', 'Braintree', 'Chippenham', 'Weymouth', 'Slough',
-  'Richmond', 'Finchley', 'Brentwood', 'Croydon', 'Harrow', 'Barnet', 'Enfield', 'Uxbridge',
-  'Woking', 'Guildford', 'Epsom', 'Reigate', 'Sevenoaks', 'Gravesend', 'Basildon', 'Harlow'
-];
-
-const generateClubName = (): string => {
-  let name = `${getRandomElement(placeNames)} ${getRandomElement(clubSuffixes)}`;
-  while (usedClubNames.has(name)) {
-    name = `${getRandomElement(placeNames)} ${getRandomElement(clubSuffixes)}`;
-  }
-  usedClubNames.add(name);
-  return name;
-};
 
 const PREMIER_LEAGUE_CLUBS = [
   {
@@ -3094,9 +3068,9 @@ function mapSeasonTargetToExpectation(seasonTarget: string, tier: number): Board
     case 'PROMOTION':
       return 'PROMOTION';
     case 'TOP_HALF':
-      return 'TOP_HALF';
+      return 'MID_TABLE';
     case 'PLAYOFFS':
-      return tier === 2 ? 'PROMOTION' : 'TOP_HALF';
+      return tier === 2 ? 'PROMOTION' : 'MID_TABLE';
     case 'MID_TABLE':
       return 'MID_TABLE';
     case 'AVOID_RELEGATION':
@@ -3162,7 +3136,7 @@ export const generateInitialData = (): GameState => {
     'l5': NATIONAL_LEAGUE_CLUBS,
   };
 
-  const baseUpgradeCostByTier = {
+  const baseUpgradeCostByTier: Record<number, number> = {
     1: 15_000_000,
     2: 6_000_000,
     3: 1_500_000,
@@ -3170,7 +3144,7 @@ export const generateInitialData = (): GameState => {
     5: 80_000,
   };
 
-  const sponsorNamesByTier = {
+  const sponsorNamesByTier: Record<number, { MAIN: string[]; SLEEVE: string[]; STADIUM: string[] }> = {
     1: {
       MAIN: ['Emirates', 'Etihad', 'AIA', 'Chevrolet', 'Adidas'],
       SLEEVE: ['Visa', 'Nike', 'Puma', 'Coca-Cola'],
@@ -3198,7 +3172,7 @@ export const generateInitialData = (): GameState => {
     },
   };
 
-  const sponsorRangesByTier = {
+  const sponsorRangesByTier: Record<number, { MAIN: number[]; SLEEVE: number[]; STADIUM: number[] }> = {
     1: { MAIN: [80000, 500000], SLEEVE: [30000, 150000], STADIUM: [100000, 800000] },
     2: { MAIN: [10000, 80000], SLEEVE: [4000, 30000], STADIUM: [15000, 100000] },
     3: { MAIN: [2000, 12000], SLEEVE: [800, 4000], STADIUM: [3000, 15000] },
@@ -3211,7 +3185,7 @@ export const generateInitialData = (): GameState => {
     staticClubs.forEach(staticClub => {
       const clubId = staticClub.id;
       const tierMultiplier = [100, 10, 1, 0.1, 0.02][league.tier - 1] || 0.01;
-      const ownerType = staticClub.boardType;
+      const ownerType = staticClub.boardType as OwnershipType;
       const expectations = mapSeasonTargetToExpectation(staticClub.seasonTarget, league.tier);
       const culture: ClubCultureType[] = [mapBoardTypeToCulture(ownerType)];
 
@@ -3262,7 +3236,7 @@ export const generateInitialData = (): GameState => {
           loans: []
         },
         transferBudget: staticClub.finances.transferBudget,
-        seasonTarget: staticClub.seasonTarget,
+        seasonTarget: staticClub.seasonTarget as SeasonTarget,
         availableSponsors: [
           (() => {
             const names = sponsorNamesByTier[league.tier].MAIN;
@@ -3318,15 +3292,15 @@ export const generateInitialData = (): GameState => {
       }
 
       // Enforce minimum position coverage
-      const positionCounts = { GK: 0, DEF: 0, MID: 0, ATT: 0 };
+      const positionCounts: Record<Position, number> = { GK: 0, DEF: 0, MID: 0, ATT: 0 };
       squad.forEach(p => positionCounts[p.position]++);
-      const mins = { GK: 2, DEF: 4, MID: 3, ATT: 2 };
-      for (const [pos, min] of Object.entries(mins)) {
-        while (positionCounts[pos] < min) {
+      const mins: Record<Position, number> = { GK: 2, DEF: 4, MID: 3, ATT: 2 };
+      for (const pos of Object.keys(mins) as Position[]) {
+        while (positionCounts[pos] < mins[pos]) {
           for (let i = squad.length - 1; i >= 0; i--) {
             const p = squad[i];
             if (positionCounts[p.position] > mins[p.position]) {
-              squad[i] = generatePlayerAtPosition(clubId, league.tier, pos as Position);
+              squad[i] = generatePlayerAtPosition(clubId, league.tier, pos);
               positionCounts[p.position]--;
               positionCounts[pos]++;
               break;

@@ -308,7 +308,7 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
 
       <PlayerModal 
         player={selectedPlayer}
-        club={selectedPlayer?.clubId === homeClub?.id ? homeClub : awayClub || null}
+        club={selectedPlayer?.clubId === homeClub?.id ? homeClub ?? null : awayClub ?? null}
         isOpen={isPlayerModalOpen}
         onClose={() => setIsPlayerModalOpen(false)}
         onToggleTransferList={toggleTransferList}
