@@ -155,8 +155,11 @@ def advance_week() -> dict:
                     )
 
         # ── STEP 4: PLAYER DEVELOPMENT ─────────────────────
+        # Pre-fetch clubs and facilities for development
+        clubs_with_facilities = {c.id: c for c in Club.objects.all().select_related('facilities')}
         for p in Player.objects.all():
-            develop_player(p)
+            club = clubs_with_facilities.get(p.club_id)
+            develop_player(p, club)
 
         # ── STEP 5: AI MANAGER DECISIONS ───────────────────
         for club in Club.objects.filter(is_user_controlled=False):
