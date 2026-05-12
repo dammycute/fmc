@@ -26,3 +26,6 @@ dist-ssr
 formatNumbers.js
 chairman/backend/db/*
 !chairman/backend/db/.gitkeep
+chairman/backend/.env
+__pycache__/
+*.pyc
