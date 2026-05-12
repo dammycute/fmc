@@ -1,73 +1,71 @@
-# React + TypeScript + Vite
+# Football Chairman Simulation
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive football management simulation game built with React 19 and Django 5.x.
 
-Currently, two official plugins are available:
+## 🚀 Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The project is split into two main parts:
 
-## React Compiler
+### 🎨 Frontend (`/`)
+- **Framework**: React 19, TypeScript, Vite
+- **State Management**: Zustand (API-driven)
+- **Styling**: Tailwind CSS 4.3, Shadcn UI
+- **Key Features**: Real-time match simulation UI, club management dashboard, and transfer market.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### ⚙️ Backend (`/chairman/backend`)
+- **Framework**: Django 5.1.4, Django REST Framework 3.15.2
+- **Database**: SQLite (managed with specific folder structures)
+- **Engines**:
+  - **Match Engine**: Sophisticated xG model with momentum and fatigue.
+  - **Week Engine**: Central orchestrator for weekly game progression.
+  - **World Generator**: Seeds 100+ clubs and 1,500+ players across 5 English tiers.
+  - **Finance Engine**: Realistic economic model for TV rights, matchdays, and wages.
 
-## Expanding the ESLint configuration
+## 🛠️ Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
+- Node.js (Latest LTS)
+- Python 3.12+
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Backend Setup
+1. Navigate to the backend directory:
+   ```bash
+   cd chairman/backend
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Initialize the database:
+   ```bash
+   python manage.py migrate
+   ```
+4. Seed the world:
+   ```bash
+   python manage.py seed_world
+   ```
+5. Start the server:
+   ```bash
+   python manage.py runserver
+   ```
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Frontend Setup
+1. From the root directory, install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🎮 How to Play
+- **Onboarding**: Select a club from the 5-tier English pyramid.
+- **Matchday**: Prepare your lineup and tactics, then watch the simulation unfold with real-time xG and events.
+- **Management**: Upgrade your stadium, sign sponsors, and manage your squad's morale and fitness.
+- **Progression**: Advance through 38 weeks of the season, competing for promotion or fighting relegation.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🔍 Development Tools
+- **Reset World**: `python manage.py reset_world` (clears and re-seeds all data)
+- **Generate Fixtures**: `python manage.py generate_fixtures --season 2024`
+- **Django Admin**: Access `/admin` to debug simulation state, player ratings, and club finances.
