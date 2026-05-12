@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 *cjs
 formatNumbers.js
+chairman/backend/db/*
+!chairman/backend/db/.gitkeep
+chairman/backend/.env
+__pycache__/
+*.pyc
