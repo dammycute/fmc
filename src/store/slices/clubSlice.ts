@@ -36,9 +36,8 @@ export const createClubSlice: StateCreator<
     if (!club) return;
 
     const facility = club.facilities[type];
-    const tier = state.leagues.find(l => l.id === club.leagueId)?.tier || 3;
-    const tierMultiplier = tier === 1 ? 4 : tier === 2 ? 2.5 : tier === 3 ? 1.6 : 1.2;
-    const upgradeCost = Math.floor(facility.upgradeCost * tierMultiplier);
+    // Use the upgradeCost directly — it is already tier-scaled during data generation
+    const upgradeCost = facility.upgradeCost;
     if (club.finances.balance < upgradeCost) return;
 
     set({
@@ -50,7 +49,7 @@ export const createClubSlice: StateCreator<
           [type]: {
             ...facility,
             level: facility.level + 1,
-            upgradeCost: Math.floor(upgradeCost * 1.4),
+            upgradeCost: Math.floor(upgradeCost * 1.5),
             ...(type === 'stadium' ? { capacity: Math.floor(c.facilities.stadium.capacity * 1.15) } : {})
           }
         },
@@ -139,10 +138,10 @@ export const createClubSlice: StateCreator<
   setFormation: (clubId, formation) => {
     const state = get();
     const players = (state.players || []).filter(p => p.clubId === clubId);
-    
+
     set((state) => ({
-      clubs: state.clubs.map(c => c.id === clubId ? { 
-        ...c, 
+      clubs: state.clubs.map(c => c.id === clubId ? {
+        ...c,
         formation: formation as any,
         startingLineup: autoPickLineup(formation as any, players)
       } : c)

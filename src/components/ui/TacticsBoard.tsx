@@ -12,19 +12,25 @@ interface TacticsBoardProps {
   variant?: 'full' | 'mini';
 }
 
-const TacticsBoard: React.FC<TacticsBoardProps> = ({ 
-  formation, 
-  startingLineup, 
-  players, 
+const TacticsBoard: React.FC<TacticsBoardProps> = ({
+  formation,
+  startingLineup,
+  players,
   onPlayerClick,
   variant = 'full'
 }) => {
   const config = FORMATION_CONFIG[formation];
-  
-  // Use a fallback lineup if the one provided is empty
+
+  // Use startingLineup only if all its player IDs resolve to actual players in the current squad.
+  // If the lineup is empty or stale (transferred players etc.), fall back to autoPickLineup.
   const hasLineup = startingLineup && Object.keys(startingLineup).length > 0;
   const effectiveLineup = React.useMemo(() => {
-    return hasLineup ? startingLineup : autoPickLineup(formation, players);
+    if (!hasLineup) return autoPickLineup(formation, players);
+    const allResolved = Object.values(startingLineup).every(
+      id => !id || players.some(p => p.id === id)
+    );
+    if (!allResolved) return autoPickLineup(formation, players);
+    return startingLineup;
   }, [formation, startingLineup, players, hasLineup]);
 
   return (
@@ -43,7 +49,7 @@ const TacticsBoard: React.FC<TacticsBoardProps> = ({
           "absolute top-1/2 left-1/2 w-32 h-32 border-2 border-white/20 rounded-full -translate-x-1/2 -translate-y-1/2",
           variant === 'mini' && "w-16 h-16 border"
         )} />
-        
+
         {/* Penalty Areas */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-1/6 border-b-2 border-x-2 border-white/20" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-1/6 border-t-2 border-x-2 border-white/20" />
@@ -58,20 +64,20 @@ const TacticsBoard: React.FC<TacticsBoardProps> = ({
       {Object.entries(config).map(([posLabel, coords]) => {
         const playerId = effectiveLineup[posLabel];
         const player = players.find(p => p.id === playerId);
-        
+
         return (
-          <div 
+          <div
             key={posLabel}
             className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-500"
             style={{ left: `${coords.x}%`, top: `${coords.y}%` }}
           >
-            <div 
+            <div
               onClick={() => player && onPlayerClick?.(player)}
               className={cn(
                 "rounded-full flex items-center justify-center font-black shadow-lg border-2 transition-transform hover:scale-110 cursor-pointer",
                 variant === 'full' ? "w-12 h-12 text-xs" : "w-7 h-7 text-[8px]",
-                player 
-                  ? "bg-indigo-600 border-white text-white" 
+                player
+                  ? "bg-indigo-600 border-white text-white"
                   : "bg-zinc-800/50 border-white/20 text-zinc-600 border-dashed"
               )}
             >

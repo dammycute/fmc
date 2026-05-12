@@ -76,8 +76,8 @@ export const createSquadSlice: StateCreator<
 
     set((s) => ({
       managers: s.managers.map((m) => m.id === managerId ? { ...m, clubId: '', relationshipWithChairman: 0, wantsToLeave: false } : m),
-      clubs: s.clubs.map(c => c.id === manager.clubId ? { 
-        ...c, 
+      clubs: s.clubs.map(c => c.id === manager.clubId ? {
+        ...c,
         history: [...c.history, `Manager sacked by the chairman - compensation paid: $${compensationCost.toLocaleString()}`],
         finances: { ...c.finances, balance: newBalance }
       } : c),
@@ -91,7 +91,7 @@ export const createSquadSlice: StateCreator<
       const updatedManagers = exists
         ? state.managers.map((m) => m.id === manager.id ? { ...m, clubId, relationshipWithChairman: 70, wantsToLeave: false } : m)
         : [...state.managers, { ...manager, clubId, relationshipWithChairman: 70, wantsToLeave: false }];
-      
+
       return {
         managers: updatedManagers,
         clubs: state.clubs.map(c => c.id === clubId ? {
@@ -169,7 +169,7 @@ export const createSquadSlice: StateCreator<
 
   toggleShortlist: (playerId) =>
     set((state) => ({
-      shortlist: state.shortlist?.includes(playerId) 
+      shortlist: state.shortlist?.includes(playerId)
         ? state.shortlist.filter(id => id !== playerId)
         : [...(state.shortlist || []), playerId]
     })),
@@ -244,9 +244,12 @@ export const createSquadSlice: StateCreator<
       ? Math.max(0, Math.round(amount * (1 - sportingDirector.rating / 1500)))
       : amount;
 
-    // Check budget for user clubs
-    if (club.isUserControlled && finalAmount > (club.transferBudget || 0)) {
-       return; 
+    // Check budget for user clubs — use balance if no warchest has been set
+    const effectiveBudget = (club.transferBudget && club.transferBudget > 0)
+      ? club.transferBudget
+      : club.finances.balance;
+    if (club.isUserControlled && finalAmount > effectiveBudget) {
+      return;
     }
 
     const bid: TransferBid = {

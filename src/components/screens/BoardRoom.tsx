@@ -5,7 +5,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
 import { Input } from '../ui/input';
-import { 
+import {
   History, Crown, Target, DollarSign,
   Briefcase, Handshake, ShieldCheck
 } from 'lucide-react';
@@ -76,8 +76,8 @@ const BoardRoom: React.FC = () => {
                       onClick={() => setSeasonTarget(club.id, target)}
                       className={cn(
                         "p-4 rounded-2xl border text-center transition-all",
-                        club.seasonTarget === target 
-                          ? "bg-indigo-600 border-indigo-500 shadow-lg shadow-indigo-600/20" 
+                        club.seasonTarget === target
+                          ? "bg-indigo-600 border-indigo-500 shadow-lg shadow-indigo-600/20"
                           : "bg-white/5 border-white/5 hover:border-white/10 text-zinc-500 hover:text-zinc-300"
                       )}
                     >
@@ -105,8 +105,8 @@ const BoardRoom: React.FC = () => {
                       onClick={() => setFormation(club.id, formation)}
                       className={cn(
                         "p-4 rounded-2xl border text-center transition-all",
-                        club.formation === formation 
-                          ? "bg-emerald-600 border-emerald-500 shadow-lg shadow-emerald-600/20" 
+                        club.formation === formation
+                          ? "bg-emerald-600 border-emerald-500 shadow-lg shadow-emerald-600/20"
                           : "bg-white/5 border-white/5 hover:border-white/10 text-zinc-500 hover:text-zinc-300"
                       )}
                     >
@@ -131,8 +131,8 @@ const BoardRoom: React.FC = () => {
                       onClick={() => setTactics(club.id, tactic)}
                       className={cn(
                         "p-4 rounded-2xl border text-center transition-all",
-                        club.tactics === tactic 
-                          ? "bg-sky-600 border-sky-500 shadow-lg shadow-sky-600/20" 
+                        club.tactics === tactic
+                          ? "bg-sky-600 border-sky-500 shadow-lg shadow-sky-600/20"
                           : "bg-white/5 border-white/5 hover:border-white/10 text-zinc-500 hover:text-zinc-300"
                       )}
                     >
@@ -153,22 +153,34 @@ const BoardRoom: React.FC = () => {
                   </div>
                   <p className="text-2xl font-black text-emerald-400 italic">£{(club.transferBudget / 1000000).toFixed(1)}M</p>
                 </div>
-                
+
                 <div className="space-y-4">
-                  <Slider 
-                    value={[tempBudget]} 
-                    max={club.finances.balance} 
-                    step={500000}
+                  <Slider
+                    value={[tempBudget]}
+                    max={Math.max(1, club.finances.balance)}
+                    min={0}
+                    step={Math.max(10000, Math.floor(club.finances.balance / 100))}
                     onValueChange={(val) => setTempBudget(val[0])}
                     className="py-4"
                   />
                   <div className="flex justify-between text-[10px] font-black text-zinc-600 uppercase">
                     <span>£0</span>
-                    <span>Max: £{(club.finances.balance / 1000000).toFixed(1)}M</span>
+                    <span>Max: £{(club.finances.balance / 1000000).toFixed(2)}M</span>
                   </div>
+                  <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                      style={{ width: `${club.finances.balance > 0 ? (tempBudget / club.finances.balance) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-600 font-bold text-center">
+                    {club.finances.balance > 0
+                      ? `${((tempBudget / club.finances.balance) * 100).toFixed(0)}% of balance allocated`
+                      : 'No funds available'}
+                  </p>
                 </div>
 
-                <Button 
+                <Button
                   onClick={() => setTransferBudget(club.id, tempBudget)}
                   disabled={tempBudget === club.transferBudget}
                   className="w-full bg-white/5 hover:bg-white/10 text-white font-black h-12 rounded-2xl uppercase tracking-widest text-[10px]"
@@ -188,13 +200,13 @@ const BoardRoom: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Input 
-                  placeholder="New Club Name..." 
+                <Input
+                  placeholder="New Club Name..."
                   className="bg-zinc-800 border-white/5 text-white text-xs h-10 rounded-lg"
                   value={newClubName}
                   onChange={(e) => setNewClubName(e.target.value)}
                 />
-                <Button 
+                <Button
                   onClick={() => {
                     if (newClubName.trim()) {
                       renameClub(club.id, newClubName);
@@ -212,26 +224,26 @@ const BoardRoom: React.FC = () => {
 
           {/* History / Timeline */}
           <Card className="bg-zinc-900 border-white/5">
-             <CardHeader className="border-b border-white/5">
-                <CardTitle className="text-xs font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                  <History className="w-4 h-4" /> Board Archives
-                </CardTitle>
-             </CardHeader>
-             <CardContent className="p-8">
-                <div className="space-y-6">
-                  {club.history.slice(-5).reverse().map((entry, i) => (
-                    <div key={i} className="flex gap-6 items-start">
-                      <div className="w-8 h-8 rounded-xl bg-zinc-950 flex items-center justify-center text-[10px] font-black text-zinc-700 border border-white/5 shrink-0">
-                        {i + 1}
-                      </div>
-                      <div className="flex-1 pt-1.5">
-                        <p className="text-xs text-zinc-400 font-medium leading-relaxed">{entry}</p>
-                        <div className="h-px w-full bg-white/5 mt-4" />
-                      </div>
+            <CardHeader className="border-b border-white/5">
+              <CardTitle className="text-xs font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                <History className="w-4 h-4" /> Board Archives
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8">
+              <div className="space-y-6">
+                {club.history.slice(-5).reverse().map((entry, i) => (
+                  <div key={i} className="flex gap-6 items-start">
+                    <div className="w-8 h-8 rounded-xl bg-zinc-950 flex items-center justify-center text-[10px] font-black text-zinc-700 border border-white/5 shrink-0">
+                      {i + 1}
                     </div>
-                  ))}
-                </div>
-             </CardContent>
+                    <div className="flex-1 pt-1.5">
+                      <p className="text-xs text-zinc-400 font-medium leading-relaxed">{entry}</p>
+                      <div className="h-px w-full bg-white/5 mt-4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
           </Card>
         </div>
 
@@ -266,29 +278,29 @@ const BoardRoom: React.FC = () => {
                             <Badge className="bg-white/5 text-zinc-500 text-[8px] font-black uppercase mt-1 px-1.5">{sponsor.type} PARTNER</Badge>
                           </div>
                           <div className="text-right">
-                             <p className="text-sm font-black text-emerald-400">£{(sponsor.amount / 1000).toFixed(1)}K</p>
-                             <p className="text-[8px] font-black text-zinc-600 uppercase">{sponsor.duration} SEASONS</p>
+                            <p className="text-sm font-black text-emerald-400">£{(sponsor.amount / 1000).toFixed(1)}K</p>
+                            <p className="text-[8px] font-black text-zinc-600 uppercase">{sponsor.duration} SEASONS</p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between gap-4">
-                           <div className="flex items-center gap-2">
-                              <ShieldCheck className="w-3 h-3 text-zinc-600" />
-                              <span className="text-[8px] font-black text-zinc-600 uppercase">Req. Rep: {sponsor.reputationRequired}</span>
-                           </div>
-                           <Button 
-                             size="sm"
-                             onClick={() => acceptSponsor(club.id, sponsor.id)}
-                             disabled={club.reputation < sponsor.reputationRequired}
-                             className={cn(
-                               "h-8 font-black text-[9px] uppercase tracking-widest rounded-lg px-4 transition-all",
-                               club.reputation < sponsor.reputationRequired 
-                                 ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50" 
-                                 : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                             )}
-                           >
-                             {club.reputation < sponsor.reputationRequired ? 'REP TOO LOW' : 'SIGN DEAL'}
-                           </Button>
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="w-3 h-3 text-zinc-600" />
+                            <span className="text-[8px] font-black text-zinc-600 uppercase">Req. Rep: {sponsor.reputationRequired}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => acceptSponsor(club.id, sponsor.id)}
+                            disabled={club.reputation < sponsor.reputationRequired}
+                            className={cn(
+                              "h-8 font-black text-[9px] uppercase tracking-widest rounded-lg px-4 transition-all",
+                              club.reputation < sponsor.reputationRequired
+                                ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50"
+                                : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                            )}
+                          >
+                            {club.reputation < sponsor.reputationRequired ? 'REP TOO LOW' : 'SIGN DEAL'}
+                          </Button>
 
                         </div>
                       </CardContent>
@@ -302,7 +314,7 @@ const BoardRoom: React.FC = () => {
           {/* Board Confidence Card (Refined) */}
           <Card className="bg-indigo-600 border-none shadow-2xl shadow-indigo-600/20 text-white overflow-hidden relative">
             <div className="absolute top-0 right-0 p-8 opacity-10">
-               <Crown className="w-24 h-24 rotate-12" />
+              <Crown className="w-24 h-24 rotate-12" />
             </div>
             <CardContent className="p-8 relative z-10 space-y-6">
               <div>

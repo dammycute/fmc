@@ -50,7 +50,7 @@ export const createGameSlice: StateCreator<
 
     // 1. Finalize current week matches
     state.finalizeMatchday(null);
-    
+
     // IMPORTANT: Get fresh state after match simulation
     const freshState = get() as any;
     const { players: freshPlayers, matches: freshMatches, clubs: freshClubs, staff: freshStaff } = freshState;
@@ -71,7 +71,7 @@ export const createGameSlice: StateCreator<
 
     const clubsWithUpdates = freshClubs.map((club: any) => {
       const tier = leagues.find((l: any) => l.id === club.leagueId)?.tier || 3;
-      
+
       // Transfer Logic
       let currentClub = { ...club };
       const transferClub = transferUpdates.clubs?.find((c: any) => c.id === club.id);
@@ -82,12 +82,12 @@ export const createGameSlice: StateCreator<
       const sponsorIncome = currentClub.activeSponsors.reduce((sum: number, s: any) => sum + (s.amount / Math.max(1, s.duration) / 38), 0);
       const tvRights = (tier === 1 ? 240000 : tier === 2 ? 120000 : tier === 3 ? 75000 : 40000);
       const merchandise = Math.floor(currentClub.reputation * 350 + (20 - tier) * 250);
-      
+
       const weeklyMatches = freshMatches.filter((m: any) => m.week === currentWeek && m.season === currentSeason && m.homeClubId === currentClub.id);
       const ticketIncome = weeklyMatches.reduce((sum: number) => {
-         const ticketPrice = tier === 1 ? 60 : tier === 2 ? 40 : 25;
-         const attendance = Math.min(currentClub.facilities.stadium.capacity, currentClub.reputation * 90 + Math.random() * 1000);
-         return sum + (attendance * ticketPrice);
+        const ticketPrice = tier === 1 ? 60 : tier === 2 ? 40 : 25;
+        const attendance = Math.min(currentClub.facilities.stadium.capacity, currentClub.reputation * 90 + Math.random() * 1000);
+        return sum + (attendance * ticketPrice);
       }, 0);
 
       finances.balance += sponsorIncome + tvRights + merchandise + ticketIncome;
@@ -167,13 +167,13 @@ export const createGameSlice: StateCreator<
           .filter((m: any) => (m.homeClubId === currentClub.id || m.awayClubId === currentClub.id) && m.played && m.season === currentSeason)
           .sort((a: any, b: any) => b.week - a.week)
           .slice(0, 3);
-        
+
         recentMatches.forEach((m: any) => {
           const isHome = m.homeClubId === currentClub.id;
           const isWin = isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
           confidenceChange += isWin ? 5 : (m.homeScore === m.awayScore ? 1 : -3);
         });
-        
+
         if (finances.balance < 0) confidenceChange -= 2;
         boardConfidence = Math.max(0, Math.min(100, boardConfidence + confidenceChange));
 
@@ -187,11 +187,11 @@ export const createGameSlice: StateCreator<
           else if (isDraw) relationshipChange += 1;
           else relationshipChange -= 6;
         });
-        
+
         if (finances.balance < 0) relationshipChange -= 3;
-        
+
         let updatedManager = { ...clubManager, relationshipWithChairman: Math.max(0, Math.min(100, clubManager.relationshipWithChairman + relationshipChange)) };
-        
+
         // Manager Relationship Consequences
         if (updatedManager.relationshipWithChairman < 30 && !clubManager.history?.includes('publicly questioned transfer policy')) {
           newNews.push({
@@ -201,7 +201,7 @@ export const createGameSlice: StateCreator<
           });
           clubHistory.push(`${clubManager.name} publicly questioned transfer policy.`);
         }
-        
+
         if (updatedManager.relationshipWithChairman < 15) {
           newNews.push({
             title: `${clubManager.name} Hands In Transfer Request`,
@@ -211,11 +211,11 @@ export const createGameSlice: StateCreator<
           updatedManager = { ...updatedManager, wantsToLeave: true };
           clubHistory.push(`${clubManager.name} handed in transfer request.`);
         }
-        
+
         if (updatedManager.relationshipWithChairman > 80) {
           boardConfidence = Math.min(100, boardConfidence + 1);
         }
-        
+
         updatedManagers = updatedManagers.map(m => m.id === clubManager.id ? updatedManager : m);
 
         if (boardConfidence < 15) {
@@ -241,12 +241,20 @@ export const createGameSlice: StateCreator<
       const staffAds = (currentClub.staffAds || []).map((ad: any) => ({ ...ad, weeksRemaining: ad.weeksRemaining - 1 }));
       const activeAds = staffAds.filter((ad: any) => ad.weeksRemaining > 0);
       const applicants = [...(currentClub.staffApplicants || [])];
+      // Salary scales by tier and rating for realistic figures
+      const staffSalaryBase: Record<number, number> = { 1: 120, 2: 45, 3: 18, 4: 6, 5: 2 };
+      const salaryMultiplier = staffSalaryBase[tier] || 10;
       staffAds.filter((ad: any) => ad.weeksRemaining <= 0).forEach((ad: any) => {
         for (let i = 0; i < 2; i++) {
+          const applicantRating = Math.floor(30 + Math.random() * 50);
           applicants.push({
             id: Math.random().toString(36).substring(2, 11),
             name: `${generatePlayer('', 1).firstName} ${generatePlayer('', 1).lastName}`,
-            role: ad.role, rating: 30 + Math.random() * 50, salary: 15000, clubId: currentClub.id, isApplicant: true
+            role: ad.role,
+            rating: applicantRating,
+            salary: Math.max(100, Math.floor(applicantRating * salaryMultiplier * (0.8 + Math.random() * 0.4))),
+            clubId: currentClub.id,
+            isApplicant: true
           });
         }
       });
@@ -267,14 +275,14 @@ export const createGameSlice: StateCreator<
         availableSponsors.push(newSponsor);
       }
 
-      return { 
-        ...currentClub, 
-        finances, 
-        scoutAssignments, 
-        scoutReports, 
-        history: clubHistory, 
-        boardConfidence, 
-        staffAds: activeAds, 
+      return {
+        ...currentClub,
+        finances,
+        scoutAssignments,
+        scoutReports,
+        history: clubHistory,
+        boardConfidence,
+        staffAds: activeAds,
         staffApplicants: applicants,
         availableSponsors
       };
@@ -292,16 +300,16 @@ export const createGameSlice: StateCreator<
 
       const sortedLeagues = [...leagues].sort((a: any, b: any) => a.tier - b.tier);
       const changes: { clubId: string; updates: any }[] = [];
-      
+
       sortedLeagues.forEach((league, index) => {
         const leagueClubs = clubsWithUpdates.filter((c: any) => c.leagueId === league.id);
         const standings = leagueClubs.map((club: any) => {
-          const clubMatches = freshMatches.filter((m: any) => 
-            (m.homeClubId === club.id || m.awayClubId === club.id) && 
-            m.played && 
+          const clubMatches = freshMatches.filter((m: any) =>
+            (m.homeClubId === club.id || m.awayClubId === club.id) &&
+            m.played &&
             m.season === currentSeason
           );
-          
+
           let pts = 0, gf = 0, ga = 0;
           clubMatches.forEach(m => {
             const isHome = m.homeClubId === club.id;
@@ -311,7 +319,7 @@ export const createGameSlice: StateCreator<
             if (clubScore > oppScore) pts += 3;
             else if (clubScore === oppScore) pts += 1;
           });
-          
+
           return { clubId: club.id, pts, gd: gf - ga, gf };
         }).sort((a, b) => b.pts !== a.pts ? b.pts - a.pts : b.gd !== a.gd ? b.gd - a.gd : b.gf - a.gf);
 
@@ -334,8 +342,8 @@ export const createGameSlice: StateCreator<
       changes.forEach(change => {
         const clubIdx = clubsWithUpdates.findIndex(c => c.id === change.clubId);
         if (clubIdx !== -1) {
-          clubsWithUpdates[clubIdx] = { 
-            ...clubsWithUpdates[clubIdx], 
+          clubsWithUpdates[clubIdx] = {
+            ...clubsWithUpdates[clubIdx],
             ...change.updates,
             history: [...clubsWithUpdates[clubIdx].history, `Season transition: Moved to new division.`]
           };
@@ -350,7 +358,7 @@ export const createGameSlice: StateCreator<
       });
 
       newMatches = generateFixtures(sortedLeagues, nextSeasonClubsByLeague, nextSeason);
-      
+
       newNews.push({
         title: `Season ${currentSeason} Concluded`,
         content: `A dramatic season comes to an end. Promotions and relegations have been finalized.`,
