@@ -116,15 +116,25 @@ export function simulateMatch(
       homeScore: 0, awayScore: 0, played: true,
       leagueId: homeClub.leagueId, season, week,
       events: [{ minute: 1, type: 'COMMENTARY', description: 'Match abandoned — insufficient players.' }],
-      stats: { homePossession: 50, awayPossession: 50, homeShots: 0, awayShots: 0, homePassRate: 0, awayPassRate: 0 },
+      stats: { homePossession: 50, awayPossession: 50, homeShots: 0, awayShots: 0, homePassRate: 0, awayPassRate: 0, homeXg: 0, awayXg: 0 },
     };
   }
 
   const homeStats = calculateTeamStats(homePlayers);
   const awayStats = calculateTeamStats(awayPlayers);
 
+  // --- TACTICAL FAMILIARITY ---
+  const getFamiliarityMod = (players: Player[]) => {
+    if (players.length === 0) return 1.0;
+    const avgFam = players.reduce((sum, p) => sum + (p.tacticalFamiliarity || 0), 0) / players.length;
+    if (avgFam < 60) return 0.90;
+    if (avgFam > 80) return 1.05;
+    return 1.0;
+  };
+  const homeFamMod = getFamiliarityMod(homePlayers);
+  const awayFamMod = getFamiliarityMod(awayPlayers);
+
   // --- TACTICAL MODIFIERS ---
-  // Use club.tactics (boardroom choice) first, fall back to manager philosophy
   const homeTactics = homeClub.tactics || homeManager?.philosophy || 'DIRECT';
   const awayTactics = awayClub.tactics || awayManager?.philosophy || 'DIRECT';
   const homeTacMod = getTacticalModifiers(homeTactics);
@@ -134,138 +144,148 @@ export function simulateMatch(
   const homeFormBonus = FORMATION_BONUSES[homeClub.formation] || FORMATION_BONUSES['4-4-2'];
   const awayFormBonus = FORMATION_BONUSES[awayClub.formation] || FORMATION_BONUSES['4-4-2'];
 
-  // Apply both tactical + formation modifiers
-  let homeAtk = homeStats.attackStrength * homeTacMod.atkMod * homeFormBonus.atkMod;
-  let homeDef = homeStats.defenseStrength * homeTacMod.defMod * homeFormBonus.defMod;
-  let homeMid = homeStats.midfieldControl * homeTacMod.midMod * homeFormBonus.midMod;
-
-  let awayAtk = awayStats.attackStrength * awayTacMod.atkMod * awayFormBonus.atkMod;
-  let awayDef = awayStats.defenseStrength * awayTacMod.defMod * awayFormBonus.defMod;
-  let awayMid = awayStats.midfieldControl * awayTacMod.midMod * awayFormBonus.midMod;
+  let homeMid = homeStats.midfieldControl * homeTacMod.midMod * homeFormBonus.midMod * homeFamMod;
+  let awayMid = awayStats.midfieldControl * awayTacMod.midMod * awayFormBonus.midMod * awayFamMod;
 
   // Home advantage
   const HOME_BONUS = 3;
-  homeAtk += HOME_BONUS;
   homeMid += HOME_BONUS;
-
-  // --- PHASE 2: MIDFIELD BATTLE → POSSESSION ---
-  const rawPoss = (homeMid / (homeMid + awayMid)) * 100;
-  const homePossession = Math.max(35, Math.min(65, Math.floor(rawPoss + (Math.random() * 6 - 3))));
-  const awayPossession = 100 - homePossession;
 
   let homeScore = 0;
   let awayScore = 0;
   let homeShots = 0;
   let awayShots = 0;
+  let homeXg = 0;
+  let awayXg = 0;
   const events: MatchEvent[] = [];
 
-  // Momentum tracking — changes when goals are scored
+  // Momentum tracking
   let homeMoraleMod = 0;
   let awayMoraleMod = 0;
 
-  // Pressure tracking — sustained possession builds pressure
-  let homePressure = 0;
-  let awayPressure = 0;
+  // Zone simulation state
+  // Zones: 0: Deep Def, 1: Def Mid, 2: Mid, 3: Att Mid, 4: Final Third
+  let possessionTeam: 'home' | 'away' = (homeMid / (homeMid + awayMid)) > Math.random() ? 'home' : 'away';
+  let currentZone = 2; // MID
+  let isFastBreak = false;
+  let homePossessionChunks = 0;
+
+  const homeDefCount = homePlayers.filter(p => p.position === 'DEF').length;
+  const awayDefCount = awayPlayers.filter(p => p.position === 'DEF').length;
+  const homePress = homeManager?.pressing || 50;
+  const awayPress = awayManager?.pressing || 50;
 
   // --- SIMULATE 90 MINUTES IN 5-MIN CHUNKS ---
   for (let minute = 5; minute <= 90; minute += 5) {
-    // --- PHASE 5: FATIGUE DECAY ---
+    if (possessionTeam === 'home') homePossessionChunks++;
     const fatigueMinuteFactor = minute > 75 ? 0.82 : minute > 60 ? 0.90 : 1.0;
     const homeFatiguePenalty = (1 - (homeStats.fatigue / 300)) * fatigueMinuteFactor;
     const awayFatiguePenalty = (1 - (awayStats.fatigue / 300)) * fatigueMinuteFactor;
 
-    // Momentum from morale + leadership (safe from NaN)
-    const homeBaseMomentum = ((homeStats.morale + homeMoraleMod) / 100) + (homeStats.leadership / 250);
-    const awayBaseMomentum = ((awayStats.morale + awayMoraleMod) / 100) + (awayStats.leadership / 250);
+    const homeMomentum = ((homeStats.morale + homeMoraleMod) / 100) + (homeStats.leadership / 250);
+    const awayMomentum = ((awayStats.morale + awayMoraleMod) / 100) + (awayStats.leadership / 250);
 
-    // Effective strengths for this chunk
-    const effHomeAtk = homeAtk * homeBaseMomentum * homeFatiguePenalty;
-    const effHomeDef = homeDef * homeBaseMomentum * homeFatiguePenalty;
-    const effAwayAtk = awayAtk * awayBaseMomentum * awayFatiguePenalty;
-    const effAwayDef = awayDef * awayBaseMomentum * awayFatiguePenalty;
+    const effHomeMid = homeMid * homeMomentum * homeFatiguePenalty;
+    const effAwayMid = awayMid * awayMomentum * awayFatiguePenalty;
 
-    // --- PHASE 4: MOMENTUM — GAME STATE ---
-    // Leading team defends deeper, trailing team pushes forward
+    // Game state adaptation
     let homeAtkMod = 1.0, homeDefMod = 1.0;
     let awayAtkMod = 1.0, awayDefMod = 1.0;
     if (homeScore > awayScore) {
-      homeAtkMod = 0.90; homeDefMod = 1.10; // protect lead
-      awayAtkMod = 1.15; awayDefMod = 0.85;  // chase game
+      homeAtkMod = 0.90; homeDefMod = 1.10;
+      awayAtkMod = 1.15; awayDefMod = 0.85;
     } else if (awayScore > homeScore) {
       awayAtkMod = 0.90; awayDefMod = 1.10;
       homeAtkMod = 1.15; homeDefMod = 0.85;
     }
 
-    // --- PHASE 3: CHANCE CREATION ---
-    // Chance of a shot opportunity each 5-minute block
-    const chanceRate = 0.38; // ~7 shots per team per game on average
+    // --- POSSESSION & ZONE MOVEMENT ---
+    const currentAttMid = possessionTeam === 'home' ? effHomeMid : effAwayMid;
+    const currentDefMid = possessionTeam === 'home' ? effAwayMid : effHomeMid;
+    const midRatio = currentAttMid / (currentAttMid + currentDefMid);
 
-    // Home chance
-    if (Math.random() < chanceRate * (homePossession / 50)) {
-      homeShots++;
-      homePressure += 1;
+    const defPressing = (possessionTeam === 'home' ? awayPress : homePress) / 100;
 
-      // Pressure bonus: sustained attacks increase chance quality
-      const pressureBonus = Math.min(homePressure * 0.02, 0.10);
+    // Turnover chance
+    let turnoverChance = 0.25 + (1 - midRatio) * 0.4;
+    if (currentZone > 2) {
+      turnoverChance += defPressing * 0.2; // Pressing effective in opponent zones
+    }
+    turnoverChance *= (possessionTeam === 'home' ? awayDefMod : homeDefMod);
 
-      // Conversion: attack quality vs defense + GK
-      const convRaw = (effHomeAtk * homeAtkMod + homeStats.composure * 0.3) /
-        (effHomeAtk * homeAtkMod + effAwayDef * awayDefMod + awayStats.gkRating * 0.5 + 20);
-      const conversionChance = Math.max(0.08, Math.min(0.45, convRaw + pressureBonus));
-
-      if (Math.random() < conversionChance) {
-        homeScore++;
-        homePressure = 0; // reset pressure after goal
-
-        // Momentum shift
-        homeMoraleMod = Math.min(homeMoraleMod + 10, 25);
-        awayMoraleMod = Math.max(awayMoraleMod - 10, -25);
-
-        // Pick scorer — weight towards attackers
-        const scorers = homePlayers.filter(p => p.position === 'ATT' || p.position === 'MID');
-        const scorer = scorers.length > 0
-          ? (Math.random() > 0.25 ? scorers.sort((a, b) => b.technical.shooting - a.technical.shooting)[0] : getRandomElement(scorers))
-          : getRandomElement(homePlayers);
-
-        const goalTypes = ['a powerful header', 'a clinical finish', 'a long-range screamer', 'a poacher\'s instinct', 'a curling effort into the top corner', 'a tap-in from close range'];
-        events.push({
-          minute, type: 'GOAL', clubId: homeClub.id, playerId: scorer?.id,
-          description: `GOAL! ${scorer?.lastName || 'Unknown'} with ${getRandomElement(goalTypes)} for ${homeClub.name}!`,
-        });
-      }
+    if (Math.random() < turnoverChance) {
+      const oldZone = currentZone;
+      possessionTeam = possessionTeam === 'home' ? 'away' : 'home';
+      currentZone = Math.max(1, 4 - oldZone);
+      const attTactics = possessionTeam === 'home' ? homeTactics : awayTactics;
+      isFastBreak = attTactics === 'COUNTER_ATTACK' && oldZone > 2;
     } else {
-      homePressure = Math.max(0, homePressure - 0.5); // pressure bleeds off
+      // Advance zones
+      const attTactics = possessionTeam === 'home' ? homeTactics : awayTactics;
+      let moveChance = 0.35 + midRatio * 0.4;
+      moveChance *= (possessionTeam === 'home' ? homeAtkMod : awayAtkMod);
+      if (attTactics === 'COUNTER_ATTACK') moveChance += 0.1;
+
+      if (Math.random() < moveChance) {
+        currentZone++;
+        if (attTactics === 'COUNTER_ATTACK' && Math.random() < 0.3) {
+          currentZone++; // COUNTER_ATTACK skip zone
+        }
+      }
     }
 
-    // Away chance
-    if (Math.random() < chanceRate * (awayPossession / 50)) {
-      awayShots++;
-      awayPressure += 1;
+    // --- CHANCE CREATION ---
+    if (currentZone >= 4) {
+      currentZone = 4;
+      const attackingPlayers = possessionTeam === 'home' ? homePlayers : awayPlayers;
 
-      const pressureBonus = Math.min(awayPressure * 0.02, 0.10);
-      const convRaw = (effAwayAtk * awayAtkMod + awayStats.composure * 0.3) /
-        (effAwayAtk * awayAtkMod + effHomeDef * homeDefMod + homeStats.gkRating * 0.5 + 20);
-      const conversionChance = Math.max(0.08, Math.min(0.45, convRaw + pressureBonus));
+      // Select shooter
+      const atts = attackingPlayers.filter(p => p.position === 'ATT');
+      const mids = attackingPlayers.filter(p => p.position === 'MID');
+      const defs = attackingPlayers.filter(p => p.position === 'DEF');
+      const r = Math.random();
+      const shooter = r < 0.6 && atts.length > 0 ? getRandomElement(atts) :
+                     (r < 0.9 && mids.length > 0 ? getRandomElement(mids) :
+                     getRandomElement(defs.length > 0 ? defs : attackingPlayers));
 
-      if (Math.random() < conversionChance) {
-        awayScore++;
-        awayPressure = 0;
-        awayMoraleMod = Math.min(awayMoraleMod + 10, 25);
-        homeMoraleMod = Math.max(homeMoraleMod - 10, -25);
+      if (possessionTeam === 'home') homeShots++; else awayShots++;
 
-        const scorers = awayPlayers.filter(p => p.position === 'ATT' || p.position === 'MID');
-        const scorer = scorers.length > 0
-          ? (Math.random() > 0.25 ? scorers.sort((a, b) => b.technical.shooting - a.technical.shooting)[0] : getRandomElement(scorers))
-          : getRandomElement(awayPlayers);
+      // xG Calculation
+      const base_xG = shooter?.position === 'ATT' ? 0.18 : (shooter?.position === 'MID' ? 0.09 : 0.04);
+      let chanceXg = base_xG;
+      if (isFastBreak) chanceXg += 0.1;
 
-        const goalTypes = ['a clinical counter-attack goal', 'a tap-in from close range', 'an absolute rocket', 'a deft chip over the keeper', 'a header from a corner', 'a thunderous volley'];
+      const opponentDefCount = possessionTeam === 'home' ? awayDefCount : homeDefCount;
+      chanceXg -= opponentDefCount * 0.03;
+
+      const opponentGkRating = possessionTeam === 'home' ? awayStats.gkRating : homeStats.gkRating;
+      chanceXg -= (opponentGkRating / 100) * 0.08;
+
+      chanceXg += ((shooter?.mental.composure || 50) / 100) * 0.05;
+
+      if ((shooter?.fatigue || 0) > 60) chanceXg *= 0.85;
+
+      chanceXg = Math.max(0.01, Math.min(0.65, chanceXg));
+
+      if (possessionTeam === 'home') homeXg += chanceXg; else awayXg += chanceXg;
+
+      if (Math.random() < chanceXg) {
+        if (possessionTeam === 'home') homeScore++; else awayScore++;
+
+        homeMoraleMod = possessionTeam === 'home' ? Math.min(homeMoraleMod + 10, 25) : Math.max(homeMoraleMod - 10, -25);
+        awayMoraleMod = possessionTeam === 'away' ? Math.min(awayMoraleMod + 10, 25) : Math.max(awayMoraleMod - 10, -25);
+
+        const goalTypes = ['a clinical finish', 'a powerful header', 'a long-range screamer', 'a poacher\'s instinct', 'a curling effort', 'a tap-in'];
         events.push({
-          minute, type: 'GOAL', clubId: awayClub.id, playerId: scorer?.id,
-          description: `GOAL! ${scorer?.lastName || 'Unknown'} scores with ${getRandomElement(goalTypes)} for ${awayClub.name}!`,
+          minute, type: 'GOAL', clubId: possessionTeam === 'home' ? homeClub.id : awayClub.id, playerId: shooter?.id,
+          description: `GOAL! ${shooter?.lastName || 'Unknown'} with ${getRandomElement(goalTypes)} for ${possessionTeam === 'home' ? homeClub.name : awayClub.name}!`,
         });
       }
-    } else {
-      awayPressure = Math.max(0, awayPressure - 0.5);
+
+      // Reset possession
+      currentZone = 2;
+      possessionTeam = possessionTeam === 'home' ? 'away' : 'home';
+      isFastBreak = false;
     }
 
     // --- BOOKINGS ---
@@ -304,6 +324,9 @@ export function simulateMatch(
   // Final whistle commentary
   events.push({ minute: 90, type: 'COMMENTARY', description: `Full time: ${homeClub.name} ${homeScore} - ${awayScore} ${awayClub.name}` });
 
+  const homePossession = Math.floor((homePossessionChunks / 18) * 100);
+  const awayPossession = 100 - homePossession;
+
   return {
     id: Math.random().toString(36).substr(2, 9),
     homeClubId: homeClub.id,
@@ -322,6 +345,8 @@ export function simulateMatch(
       awayShots,
       homePassRate: Math.floor(70 + (homePossession / 5) + Math.random() * 10),
       awayPassRate: Math.floor(70 + (awayPossession / 5) + Math.random() * 10),
+      homeXg: Number(homeXg.toFixed(2)),
+      awayXg: Number(awayXg.toFixed(2)),
     },
   };
 }

@@ -30,18 +30,18 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     const availableClubs = clubs
         .filter(c => !c.isUserControlled)
         .filter(c => {
-            const league = leagues.find(l => l.id === c.leagueId);
+            const league = leagues.find(l => String(l.id) === String(c.leagueId));
             return league && league.tier >= 3; // Start from Tier 3 (non-league / lower)
         })
         .filter(c => {
             const matchSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchLeague = selectedLeagueFilter === 'all' || c.leagueId === selectedLeagueFilter;
+            const matchLeague = selectedLeagueFilter === 'all' || String(c.leagueId) === String(selectedLeagueFilter);
             return matchSearch && matchLeague;
         })
         .sort((a, b) => a.valuation - b.valuation);
 
-    const selectedClub = clubs.find(c => c.id === selectedClubId);
-    const selectedLeague = leagues.find(l => l.id === selectedClub?.leagueId);
+    const selectedClub = clubs.find(c => String(c.id) === String(selectedClubId));
+    const selectedLeague = leagues.find(l => String(l.id) === String(selectedClub?.leagueId));
 
     const canAfford = selectedClub ? personalBalance >= selectedClub.valuation : false;
 

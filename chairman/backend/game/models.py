@@ -38,6 +38,13 @@ class SeasonTarget(TextChoices):
     MID_TABLE = 'MID_TABLE', 'MID_TABLE'
     AVOID_RELEGATION = 'AVOID_RELEGATION', 'AVOID_RELEGATION'
 
+class TrainingFocus(TextChoices):
+    ATTACKING = 'ATTACKING', 'ATTACKING'
+    DEFENSIVE = 'DEFENSIVE', 'DEFENSIVE'
+    PHYSICAL = 'PHYSICAL', 'PHYSICAL'
+    MENTAL = 'MENTAL', 'MENTAL'
+    BALANCED = 'BALANCED', 'BALANCED'
+
 class StaffRole(TextChoices):
     SPORTING_DIRECTOR = 'SPORTING_DIRECTOR', 'SPORTING_DIRECTOR'
     SCOUT = 'SCOUT', 'SCOUT'
@@ -120,6 +127,7 @@ class Club(Model):
     formation = CharField(max_length=20, choices=Formation.choices, default='4-4-2')
     tactics = CharField(max_length=20, choices=TacticalPhilosophy.choices, default='DIRECT')
     season_target = CharField(max_length=30, choices=SeasonTarget.choices, default='MID_TABLE')
+    training_focus = CharField(max_length=20, choices=TrainingFocus.choices, default='BALANCED')
 
     # Lineup: stored as JSON {position_slot: player_id}
     starting_lineup = JSONField(default=dict)
