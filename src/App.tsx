@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeMatchSimulation, setActiveMatchSimulation] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!userClubId) {
@@ -83,26 +84,36 @@ const App: React.FC = () => {
         setActiveTab={setActiveTab}
         pendingRequestsCount={pendingRequests.length}
         pendingBidsCount={pendingBids.length}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <main className="flex-1 ml-64 p-8 pb-24 overflow-y-auto">
+      <main className="flex-1 md:ml-64 p-4 sm:p-6 md:p-8 pb-24 overflow-y-auto min-w-0">
         <>
           {/* Header Stats */}
-          <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/5">
-            <div>
-              <h2 className="text-sm font-medium text-zinc-500 uppercase tracking-widest">Season {currentSeason} • Week {currentWeek}</h2>
-              <div className="flex items-center gap-4 mt-1">
-                <h1 className="text-3xl font-bold text-white">{userClub.name}</h1>
-                <span className="px-2 py-1 rounded bg-white/5 text-xs text-zinc-400 font-mono">ID: {userClub.id}</span>
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/5 gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              {/* Mobile hamburger */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden flex-shrink-0 p-2 rounded-lg bg-white/5 text-zinc-400 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <div className="min-w-0">
+                <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Season {currentSeason} • Week {currentWeek}</h2>
+                <h1 className="text-lg sm:text-2xl font-bold text-white truncate">{userClub.name}</h1>
               </div>
             </div>
 
-            <div className="flex items-center gap-6">
-              <div className="text-right">
+            <div className="flex items-center gap-3 sm:gap-6 flex-shrink-0">
+              <div className="text-right hidden sm:block">
                 <p className="text-xs text-zinc-500 uppercase font-bold tracking-tight">Balance</p>
-                <p className="text-xl font-mono text-emerald-400">£{((userClub.finances.balance || 0) / 1000000).toFixed(1)}M</p>
+                <p className="text-lg sm:text-xl font-mono text-emerald-400">£{((userClub.finances.balance || 0) / 1000000).toFixed(1)}M</p>
               </div>
-              <div className="h-10 w-px bg-white/5" />
+              <div className="h-10 w-px bg-white/5 hidden sm:block" />
               <Button
                 size="lg"
                 onClick={() => {
@@ -118,7 +129,7 @@ const App: React.FC = () => {
                     }, 800);
                   }
                 }}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 shadow-lg shadow-indigo-600/20"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 sm:px-8 shadow-lg shadow-indigo-600/20 text-sm sm:text-base"
               >
                 CONTINUE
               </Button>
@@ -130,7 +141,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Global Footer / Ticker Placeholder */}
-      <footer className="fixed bottom-0 left-64 right-0 h-12 bg-black border-t border-white/5 flex items-center px-8 z-40">
+      <footer className="fixed bottom-0 left-0 md:left-64 right-0 h-12 bg-black border-t border-white/5 flex items-center px-4 sm:px-8 z-40">
         <div className="flex items-center gap-4 text-xs text-zinc-500 overflow-hidden">
           <span className="font-bold text-indigo-400 shrink-0">NEWS TICKET</span>
           <div className="animate-marquee whitespace-nowrap">
