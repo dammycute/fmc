@@ -7,13 +7,13 @@ import { Slider } from '../ui/slider';
 import { Input } from '../ui/input';
 import {
   History, Crown, Target, DollarSign,
-  Briefcase, Handshake, ShieldCheck
+  Briefcase, Handshake, ShieldCheck, Dumbbell
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import type { SeasonTarget, Formation } from '../../types/game';
+import type { SeasonTarget, Formation, TrainingFocus } from '../../types/game';
 
 const BoardRoom: React.FC = () => {
-  const { userClubId, clubs, managers, setSeasonTarget, setTransferBudget, acceptSponsor, renameClub, setFormation, setTactics } = useGameStore();
+  const { userClubId, clubs, managers, setSeasonTarget, setTransferBudget, acceptSponsor, renameClub, setFormation, setTactics, setTrainingFocus } = useGameStore();
   const [newClubName, setNewClubName] = useState('');
   const club = clubs.find(c => c.id === userClubId);
   const manager = managers.find(m => m.clubId === userClubId);
@@ -138,6 +138,32 @@ const BoardRoom: React.FC = () => {
                     >
                       <p className="text-[10px] font-black uppercase tracking-tighter whitespace-nowrap">
                         {tactic.replace('_', ' ')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Training Focus */}
+              <div className="space-y-6 pt-10 border-t border-white/5">
+                <div className="flex justify-between items-end">
+                  <h3 className="text-sm font-black text-white uppercase tracking-tight">Training Focus</h3>
+                  <Badge className="bg-rose-600 text-white font-black text-[10px] px-3 py-1 uppercase">{club.trainingFocus}</Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {(['ATTACKING', 'DEFENSIVE', 'PHYSICAL', 'MENTAL', 'BALANCED'] as TrainingFocus[]).map(focus => (
+                    <button
+                      key={focus}
+                      onClick={() => setTrainingFocus(club.id, focus)}
+                      className={cn(
+                        "p-4 rounded-2xl border text-center transition-all",
+                        club.trainingFocus === focus
+                          ? "bg-rose-600 border-rose-500 shadow-lg shadow-rose-600/20"
+                          : "bg-white/5 border-white/5 hover:border-white/10 text-zinc-500 hover:text-zinc-300"
+                      )}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-tighter whitespace-nowrap">
+                        {focus}
                       </p>
                     </button>
                   ))}

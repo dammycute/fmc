@@ -44,7 +44,10 @@ class ApiClient {
   advanceWeek = () => this.request<any>('/advance-week/', { method: 'POST' });
 
   // Clubs
-  getClubs = (leagueId?: string) => this.request<any>(`/clubs/${leagueId ? `?league_id=${leagueId}` : ''}`);
+  getClubs = (params: any = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return this.request<any>(`/clubs/?${query}`);
+  };
   getClub = (id: string) => this.request<any>(`/clubs/${id}/`);
   updateClub = (id: string, data: any) => this.request<any>(`/clubs/${id}/`, { method: 'PATCH', body: JSON.stringify(data) });
   upgradeFacility = (id: string, type: string) =>
@@ -115,3 +118,7 @@ class ApiClient {
 }
 
 export const client = new ApiClient();
+
+if (typeof window !== 'undefined') {
+  (window as any).apiClient = client;
+}

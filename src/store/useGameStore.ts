@@ -19,6 +19,12 @@ export const useGameStore = create<StoreState>()(
     }),
     {
       name: 'chairman-game-storage',
+      partialize: (state) => ({
+        // We only persist the intent to be in-game and the ID to prevent hydration flashes.
+        // All actual collection data is restored via syncData() from the SQLite backend.
+        userClubId: state.userClubId ? String(state.userClubId) : null,
+        hasActiveSession: state.hasActiveSession,
+      }),
     }
   )
 );

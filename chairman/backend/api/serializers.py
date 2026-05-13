@@ -61,6 +61,7 @@ class ClubSerializer(serializers.ModelSerializer):
     transferBudget = serializers.IntegerField(source='transfer_budget')
     seasonTarget = serializers.CharField(source='season_target')
     startingLineup = serializers.JSONField(source='starting_lineup')
+    trainingFocus = serializers.CharField(source='training_focus')
 
     facilities = ClubFacilitiesSerializer(read_only=True)
     finances = serializers.SerializerMethodField()
@@ -74,7 +75,8 @@ class ClubSerializer(serializers.ModelSerializer):
             'stadiumName', 'reputation', 'isUserControlled', 'fanConfidence',
             'boardConfidence', 'facilities', 'finances', 'board', 'culture',
             'rivals', 'history', 'records', 'transferBudget', 'seasonTarget',
-            'valuation', 'isForSale', 'formation', 'tactics', 'startingLineup'
+            'valuation', 'isForSale', 'formation', 'tactics', 'startingLineup',
+            'trainingFocus'
         ]
 
     def get_finances(self, obj):
@@ -324,7 +326,7 @@ class GameStateSerializer(serializers.ModelSerializer):
     class Meta:
         model = GameState
         fields = [
-            'currentSeason', 'currentWeek', 'isTransferWindowOpen', 'userClubId',
+            'id', 'currentSeason', 'currentWeek', 'isTransferWindowOpen', 'userClubId',
             'personalBalance', 'shortlist'
         ]
 

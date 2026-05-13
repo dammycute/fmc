@@ -3,6 +3,7 @@ export type SeasonTarget = 'CHAMPIONS' | 'PROMOTION' | 'PLAYOFFS' | 'TOP_HALF' |
 export type PersonalityStyle = 'LOYAL' | 'AMBITIOUS' | 'LAZY' | 'INJURY_PRONE' | 'PROFESSIONAL' | 'TEMPERAMENTAL';
 export type TacticalPhilosophy = 'POSSESSION' | 'HIGH_PRESSING' | 'COUNTER_ATTACK' | 'DEFENSIVE' | 'WING_PLAY' | 'DIRECT';
 export type Formation = '4-4-2' | '4-3-3' | '3-5-2' | '4-2-3-1' | '5-4-1' | '4-4-2_DIAMOND';
+export type TrainingFocus = 'ATTACKING' | 'DEFENSIVE' | 'PHYSICAL' | 'MENTAL' | 'BALANCED';
 export type OwnershipType = 'LOCAL' | 'BILLIONAIRE' | 'CORPORATE' | 'FAN_OWNED';
 export type BoardExpectation = 'AVOID_RELEGATION' | 'MID_TABLE' | 'PROMOTION' | 'TITLE_CONTENDER' | 'QUALIFY_EUROPE';
 export type ClubCultureType = 'YOUTH_DEVELOPMENT' | 'WINNING' | 'SELLING' | 'PRAGMATIC' | 'LUXURY_FOOTBALL';
@@ -66,6 +67,7 @@ export interface Club {
   isForSale: boolean;
   formation: Formation;
   tactics: TacticalPhilosophy;
+  trainingFocus: TrainingFocus;
   startingLineup: { [pos: string]: string | null };
 }
 

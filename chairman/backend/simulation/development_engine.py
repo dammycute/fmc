@@ -4,7 +4,7 @@ def develop_player(player, club) -> None:
     """
     Handles weekly player development and decline.
     """
-    # GROWTH PHASE (age <= 26)
+    # 1. GROWTH PHASE (age <= 26)
     if player.age <= 20:
         weekly_growth_cap = 0.8
     elif player.age <= 23:
@@ -15,6 +15,21 @@ def develop_player(player, club) -> None:
         weekly_growth_cap = 0.0
 
     if weekly_growth_cap > 0 and player.overall_rating < player.potential_rating:
+        # PROFESSIONALISM GATE
+        # professionalism < 30: max growth = weeklyGrowthCap * 0.5
+        # professionalism 30-60: max growth = weeklyGrowthCap * 0.8
+        # professionalism 60-80: max growth = weeklyGrowthCap * 1.0
+        # professionalism > 80: max growth = weeklyGrowthCap * 1.15
+        prof = player.hidden_professionalism
+        if prof < 30:
+            growth_cap = weekly_growth_cap * 0.5
+        elif prof <= 60:
+            growth_cap = weekly_growth_cap * 0.8
+        elif prof <= 80:
+            growth_cap = weekly_growth_cap * 1.0
+        else:
+            growth_cap = weekly_growth_cap * 1.15
+
         # Modifiers
         # Training Level: level 5 = 1.5x
         facilities = getattr(club, 'facilities', None)
@@ -24,11 +39,7 @@ def develop_player(player, club) -> None:
         # Morale: 0.5 to 1.5
         morale_mod = 0.5 + (player.morale / 100)
 
-        # Professionalism: 0.4 to 1.6
-        prof_mod = player.hidden_professionalism / 50
-
         # Playing time modifier based on recent form
-        # If they have form entries, they've been playing
         playing_time_mod = 1.2 if len(player.form) >= 3 else 0.7
 
         # Academy coach bonus for U21s
@@ -38,27 +49,32 @@ def develop_player(player, club) -> None:
             if academy_coach:
                 academy_mod = 1.0 + (academy_coach.rating / 200)
 
-        growth = weekly_growth_cap * training_mod * morale_mod * prof_mod * playing_time_mod * academy_mod
-        growth = min(growth, weekly_growth_cap)  # cap at weekly max
+        growth = growth_cap * training_mod * morale_mod * playing_time_mod * academy_mod
+        growth = min(growth, growth_cap)  # cap at professionalism-gated max
 
         player.overall_rating = min(float(player.potential_rating), float(player.overall_rating) + growth)
 
         # Also grow individual attributes slightly
-        _grow_attributes(player, growth * 0.5)
+        training_focus = getattr(club, 'training_focus', 'BALANCED') if club else 'BALANCED'
+        _grow_attributes(player, growth * 0.5, training_focus)
 
-    # DECLINE PHASE (age >= 31)
+    # 2. DECLINE & VETERAN IMPROVEMENT (age >= 31)
     elif player.age >= 31:
+        # PEAK LOCK check is implicitly handled because weekly_growth_cap is 0 for age > 26
+
+        # Modeling the "wily veteran" effect: mental attributes improve by 0.3/week until age 36
+        if player.age <= 36:
+            player.ment_composure = min(99.0, float(player.ment_composure) + 0.3)
+            player.ment_decisions = min(99.0, float(player.ment_decisions) + 0.3)
+            player.ment_leadership = min(99.0, float(player.ment_leadership) + 0.3)
+
+        # Physical decline
         decline_factor = min(1.0, (player.age - 30) / 10)
 
         # Physical attributes decline faster
         player.phys_pace = max(20, int(player.phys_pace * (1 - decline_factor * 0.008)))
         player.phys_acceleration = max(20, int(player.phys_acceleration * (1 - decline_factor * 0.008)))
         player.phys_stamina = max(25, int(player.phys_stamina * (1 - decline_factor * 0.006)))
-
-        # Mental attributes can IMPROVE with age
-        player.ment_decisions = min(99, player.ment_decisions + int(decline_factor * 0.5 + 0.5))
-        player.ment_composure = min(99, player.ment_composure + int(decline_factor * 0.3 + 0.5))
-        player.ment_leadership = min(99, player.ment_leadership + int(decline_factor * 0.4 + 0.5))
 
         # Recalculate overall after attribute changes
         player.overall_rating = _calculate_overall(player)
@@ -72,10 +88,11 @@ def develop_player(player, club) -> None:
         'tech_reflexes', 'tech_command_of_area'
     ])
 
-def _grow_attributes(player, amount: float) -> None:
+def _grow_attributes(player, amount: float, training_focus: str = 'BALANCED') -> None:
     """
-    Increments attributes relevant to player position.
+    Increments attributes relevant to player position and training focus.
     """
+    # Base attributes to grow by position
     if player.position == 'GK':
         attrs = ['tech_handling', 'tech_reflexes', 'tech_command_of_area', 'phys_agility']
     elif player.position == 'DEF':
@@ -85,12 +102,30 @@ def _grow_attributes(player, amount: float) -> None:
     else: # ATT
         attrs = ['tech_finishing', 'tech_shooting', 'tech_dribbling', 'phys_pace']
 
-    for attr in attrs:
+    # Attribute groups for training focus
+    focus_map = {
+        'ATTACKING': ['tech_shooting', 'tech_finishing', 'tech_dribbling'],
+        'DEFENSIVE': ['tech_tackling', 'tech_positioning', 'ment_decisions'],
+        'PHYSICAL': ['phys_pace', 'phys_stamina', 'phys_strength'],
+        'MENTAL': ['ment_composure', 'ment_leadership', 'ment_determination']
+    }
+
+    focus_attrs = focus_map.get(training_focus, [])
+
+    # Combine and deduplicate
+    all_attrs = list(set(attrs + focus_attrs))
+
+    for attr in all_attrs:
         current = getattr(player, attr)
         if current < 99:
+            # Apply training focus multiplier
+            effective_amount = amount * 1.3 if attr in focus_attrs else amount
+
+            # Growth is capped at potential rating (approximated for individual stats as 99)
             # Add a bit of randomness to which stat grows
             if random.random() < 0.7:
-                setattr(player, attr, min(99, current + 1 if random.random() < amount else current))
+                if random.random() < effective_amount:
+                     setattr(player, attr, min(99, current + 1))
 
 def _calculate_overall(player) -> float:
     # Weight attributes by position

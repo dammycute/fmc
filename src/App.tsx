@@ -19,27 +19,58 @@ import MatchSimulation from './components/screens/MatchSimulation';
 import { Button } from './components/ui/button';
 
 const App: React.FC = () => {
-  const { initializeGame, currentSeason, currentWeek, news, userClubId, clubs, advanceWeek, prepareMatchday, finalizeMatchday, transferRequests, transferBids } = useGameStore();
+  const { initializeGame, syncData, currentSeason, currentWeek, news, userClubId, clubs, advanceWeek, prepareMatchday, finalizeMatchday, transferRequests, transferBids, hasActiveSession } = useGameStore();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeMatchSimulation, setActiveMatchSimulation] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    if (!userClubId) {
-      initializeGame();
-    }
-  }, [userClubId, initializeGame]);
+  // Use store's state to determine initial syncing need
+  const [isSyncing, setIsSyncing] = useState(true);
 
-  const userClub = clubs.find(c => c.id === userClubId);
-  const pendingRequests = transferRequests.filter(r => r.clubId === userClubId && r.status === 'PENDING');
-  const pendingBids = transferBids.filter(b => b.toClubId === userClubId && b.status === 'PENDING');
+  useEffect(() => {
+    let isMounted = true;
+    const init = async () => {
+      try {
+        if (hasActiveSession || userClubId) {
+          await syncData();
+        } else {
+          // If no session/userClubId, we might still need to init the game state
+          // (fetching leagues/clubs for onboarding)
+          if (!userClubId) {
+            await initializeGame();
+          }
+        }
+      } catch (error) {
+        console.error("Initialization error:", error);
+      } finally {
+        if (isMounted) setIsSyncing(false);
+      }
+    };
+    init();
+    return () => { isMounted = false; };
+  }, [syncData, initializeGame, hasActiveSession, userClubId]);
+
+  const userClub = clubs.find(c => String(c.id) === String(userClubId));
+  const pendingRequests = (transferRequests || []).filter(r => String(r.clubId) === String(userClubId) && r.status === 'PENDING');
+  const pendingBids = (transferBids || []).filter(b => String(b.toClubId) === String(userClubId) && b.status === 'PENDING');
+
+  if (isSyncing) {
+    return (
+      <div className="h-screen bg-[#09090b] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">Syncing Game State...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!userClubId) {
     return <Onboarding onComplete={() => { }} />;
   }
 
-  if (!userClub || !userClub.finances) {
+  if (!userClub && !isSyncing) {
     return (
       <div className="h-screen bg-[#09090b] flex flex-col items-center justify-center text-white p-8 text-center">
         <h2 className="text-2xl font-bold mb-4">Incompatible Save Data Detected</h2>
