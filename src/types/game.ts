@@ -292,6 +292,8 @@ export interface Match {
     awayShots: number;
     homePassRate: number;
     awayPassRate: number;
+    homeXg?: number;
+    awayXg?: number;
   };
 }
 

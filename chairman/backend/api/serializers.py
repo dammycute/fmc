@@ -272,7 +272,9 @@ class MatchSerializer(serializers.ModelSerializer):
             "homeShots": obj.home_shots,
             "awayShots": obj.away_shots,
             "homePassRate": 80,
-            "awayPassRate": 80
+            "awayPassRate": 80,
+            "homeXg": obj.home_xg,
+            "awayXg": obj.away_xg,
         }
 
 class TransferBidSerializer(serializers.ModelSerializer):
