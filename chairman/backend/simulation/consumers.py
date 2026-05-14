@@ -3,8 +3,9 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class MatchSimulationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        # Using hardcoded user_id=1 as per requirements for single-user desktop game
-        self.user_id = 1
+        # Allow multi-user support by using club_id if provided in URL, otherwise fallback to 1
+        # In this desktop simulation, we mostly expect 1
+        self.user_id = self.scope.get('session', {}).get('user_id', 1)
         self.group_name = f"match_simulation_{self.user_id}"
 
         # Join group

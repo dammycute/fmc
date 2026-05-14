@@ -115,6 +115,31 @@ def develop_player(player, club) -> None:
     if changed_fields:
         player.save(update_fields=list(changed_fields))
 
+def recalculate_player_for_position(player, new_position: str) -> None:
+    """
+    Adjusts attributes slightly when a player changes position.
+    """
+    if player.position == new_position:
+        return
+
+    player.position = new_position
+
+    # Randomly adjust relevant attributes by -2 to +2 to simulate adaptation
+    # (Simplified: in a real game we'd target specific stat groups)
+    attrs_to_jitter = [
+        'tech_passing', 'tech_shooting', 'tech_dribbling', 'tech_tackling',
+        'tech_positioning', 'tech_vision', 'tech_finishing', 'phys_pace',
+        'phys_strength', 'phys_stamina', 'phys_agility', 'phys_acceleration'
+    ]
+
+    for attr in attrs_to_jitter:
+        val = getattr(player, attr)
+        jitter = random.randint(-2, 2)
+        setattr(player, attr, max(1, min(99, val + jitter)))
+
+    player.overall_rating = _calculate_overall(player)
+    player.save(update_fields=attrs_to_jitter + ['position', 'overall_rating'])
+
 def _calculate_overall(player) -> float:
     # GK weights: handling 0.20, reflexes 0.20, command_of_area 0.15, composure 0.15, agility 0.15, positioning 0.15
     # DEF weights: tackling 0.20, positioning 0.18, strength 0.15, decisions 0.15, pace 0.12, passing 0.10, composure 0.10

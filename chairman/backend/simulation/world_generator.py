@@ -37,6 +37,12 @@ GERMAN_LAST = ['Muller', 'Kroos', 'Reus', 'Werner', 'Sane', 'Kimmich', 'Goretzka
 SCANDINAVIAN_FIRST = ['Erling', 'Martin', 'Kasper', 'Christian', 'Mikkel', 'Victor', 'Andreas', 'Joachim', 'Emil', 'Rasmus', 'Magnus', 'Fredrik', 'Sander', 'Jonas', 'Mathias', 'Henrik', 'Lars', 'Bjorn', 'Erik']
 SCANDINAVIAN_LAST = ['Haaland', 'Odegaard', 'Schmeichel', 'Eriksen', 'Damsgaard', 'Skov Olsen', 'Lindstrom', 'Norgaard', 'Braithwaite', 'Forsberg', 'Larsson', 'Berg', 'Johnsen', 'Hansen', 'Nielsen', 'Andersen']
 
+ASIAN_FIRST = ['Hiroshi', 'Kenji', 'Takashi', 'Min-jun', 'Ji-hoon', 'Wei', 'Li', 'Hao', 'Sunil', 'Arjun', 'Sanjay', 'Yoshi', 'Akira', 'Yuki', 'Binh', 'Duc', 'Ravi', 'Anil']
+ASIAN_LAST = ['Tanaka', 'Sato', 'Suzuki', 'Kim', 'Lee', 'Park', 'Wang', 'Zhang', 'Chen', 'Singh', 'Sharma', 'Patel', 'Nguyen', 'Tran', 'Le', 'Wong', 'Lin', 'Liu']
+
+NORTH_AMERICAN_FIRST = ['Christian', 'Weston', 'Tyler', 'Brenden', 'Sergino', 'Alphonso', 'Jonathan', 'Cyle', 'Tajon', 'Landon', 'Clint', 'Tim', 'Miles', 'Walker', 'Antonee']
+NORTH_AMERICAN_LAST = ['Pulisic', 'McKennie', 'Adams', 'Aaronson', 'Dest', 'Davies', 'David', 'Larin', 'Buchanan', 'Donovan', 'Dempsey', 'Howard', 'Robinson', 'Zimmerman', 'Robinson']
+
 TIER_RATINGS = {
     1: {'min': 76, 'max': 94, 'variance': 5},
     2: {'min': 63, 'max': 78, 'variance': 7},
@@ -133,13 +139,15 @@ FORMATION_CONFIG = {
 def pick_nationality(tier):
     rand = random.random()
     if tier == 1:
-        if rand < 0.18: return {'first': ENGLISH_FIRST, 'last': ENGLISH_LAST, 'name': 'English'}
-        if rand < 0.30: return {'first': BRAZILIAN_FIRST, 'last': BRAZILIAN_LAST, 'name': 'Brazilian'}
-        if rand < 0.42: return {'first': FRENCH_FIRST, 'last': FRENCH_LAST, 'name': 'French'}
-        if rand < 0.54: return {'first': SPANISH_FIRST, 'last': SPANISH_LAST, 'name': 'Spanish'}
-        if rand < 0.66: return {'first': AFRICAN_FIRST, 'last': AFRICAN_LAST, 'name': 'African'}
-        if rand < 0.78: return {'first': GERMAN_FIRST, 'last': GERMAN_LAST, 'name': 'German'}
-        return {'first': SCANDINAVIAN_FIRST, 'last': SCANDINAVIAN_LAST, 'name': 'Scandinavian'}
+        if rand < 0.16: return {'first': ENGLISH_FIRST, 'last': ENGLISH_LAST, 'name': 'English'}
+        if rand < 0.28: return {'first': BRAZILIAN_FIRST, 'last': BRAZILIAN_LAST, 'name': 'Brazilian'}
+        if rand < 0.40: return {'first': FRENCH_FIRST, 'last': FRENCH_LAST, 'name': 'French'}
+        if rand < 0.52: return {'first': SPANISH_FIRST, 'last': SPANISH_LAST, 'name': 'Spanish'}
+        if rand < 0.62: return {'first': AFRICAN_FIRST, 'last': AFRICAN_LAST, 'name': 'African'}
+        if rand < 0.72: return {'first': GERMAN_FIRST, 'last': GERMAN_LAST, 'name': 'German'}
+        if rand < 0.82: return {'first': SCANDINAVIAN_FIRST, 'last': SCANDINAVIAN_LAST, 'name': 'Scandinavian'}
+        if rand < 0.91: return {'first': ASIAN_FIRST, 'last': ASIAN_LAST, 'name': 'Asian'}
+        return {'first': NORTH_AMERICAN_FIRST, 'last': NORTH_AMERICAN_LAST, 'name': 'North American'}
     if tier == 2:
         if rand < 0.45: return {'first': ENGLISH_FIRST, 'last': ENGLISH_LAST, 'name': 'English'}
         if rand < 0.60: return {'first': FRENCH_FIRST, 'last': FRENCH_LAST, 'name': 'French'}

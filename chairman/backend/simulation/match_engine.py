@@ -327,6 +327,28 @@ def simulate_match(
         for p in get_active(poss_team_players):
             match_data['player_ratings'][p.id] += 0.1
 
+        # Add basic commentary for every block to ensure regular ticker updates
+        commentary_pool = [
+            f"Battle in midfield as {home_name} and {away_name} fight for control.",
+            f"{home_name} showing some good tactical shape in this phase.",
+            f"{away_name} looking to break through the {home_name} defense.",
+            f"The game is finely balanced as we approach the {minute} minute mark.",
+            f"{home_name} keep the ball well in the middle of the park.",
+            f"{away_name} are sitting deep and absorbing pressure.",
+            f"A cagey affair so far, neither side wanting to overcommit.",
+            f"The crowd is finding its voice as {home_name} push forward.",
+            f"{away_name} looking dangerous on the counter-attack.",
+            f"Tactical battle unfolding here, both managers barking instructions.",
+        ]
+        comm_event = {
+            "minute": minute, "type": "COMMENTARY", "club_id": None, "player_id": None,
+            "description": random.choice(commentary_pool),
+            "home_score": match_data['home_score'],
+            "away_score": match_data['away_score'],
+        }
+        match_data['events'].append(comm_event)
+        if on_event: on_event(comm_event)
+
         if minute == 45:
             event = {
                 "minute": 45, "type": "COMMENTARY", "club_id": None, "player_id": None,

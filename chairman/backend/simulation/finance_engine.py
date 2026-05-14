@@ -57,6 +57,10 @@ def process_week(week: int, season: int) -> None:
         manager_salary = 0
         if hasattr(club, 'manager') and club.manager:
             manager_salary = club.manager.salary
+            # Implement Manager Economy: Increment personal balance
+            Manager.objects.filter(id=club.manager.id).update(
+                personal_balance=F('personal_balance') + manager_salary
+            )
 
         # Maintenance
         maintenance_map = {1: 50000, 2: 25000, 3: 10000, 4: 5000, 5: 2000}
