@@ -5,7 +5,9 @@ from game.models import (
     GameState, Match, Player, Club, Manager, Staff,
     NewsStory, TransferRequest, League
 )
+from asgiref.sync import async_to_sync
 from .match_engine import simulate_match, PlayerSnapshot
+from .broadcaster import broadcast_match_event
 from .development_engine import develop_player
 from .transfer_engine import process_week as process_transfers
 from .finance_engine import process_week as process_finances
@@ -21,10 +23,11 @@ def advance_week() -> dict:
         # ── STEP 1: SIMULATE ALL MATCHES ───────────────────
         matches = list(Match.objects.filter(week=week, season=season, played=False).select_related('home_club', 'away_club'))
 
-        # Pre-fetch all players grouped by club_id
-        all_players = Player.objects.all()
+        # Pre-fetch all matches and participants to optimize queries
+        match_club_ids = [m.home_club_id for m in matches] + [m.away_club_id for m in matches]
+        involved_players = Player.objects.filter(club_id__in=match_club_ids)
         players_by_club = {}
-        for p in all_players:
+        for p in involved_players:
             if p.club_id not in players_by_club:
                 players_by_club[p.club_id] = []
             players_by_club[p.club_id].append(p)
@@ -56,10 +59,15 @@ def advance_week() -> dict:
             h_snaps = [make_snapshot(p) for p in home_players]
             a_snaps = [make_snapshot(p) for p in away_players]
 
+            def on_match_event(event):
+                if m.home_club_id == state.user_club_id or m.away_club_id == state.user_club_id:
+                    async_to_sync(broadcast_match_event)(event)
+
             res = simulate_match(
                 m.home_club, m.away_club, h_snaps, a_snaps,
                 getattr(m.home_club, 'manager', None), getattr(m.away_club, 'manager', None),
-                season, week
+                season, week,
+                on_event=on_match_event
             )
 
             # Write results back
@@ -95,7 +103,16 @@ def advance_week() -> dict:
                 "score": f"{m.home_score}-{m.away_score}"
             })
 
+            # Update player stats (goals and assists)
+            for event in res['events']:
+                if event['type'] == 'GOAL':
+                    Player.objects.filter(id=event['player_id']).update(goals=F('goals') + 1)
+                    if event.get('assister_id'):
+                        Player.objects.filter(id=event['assister_id']).update(assists=F('assists') + 1)
+
         # ── STEP 2: POST-MATCH PLAYER UPDATES ────────────────
+        # Loop all players for growth and status updates
+        all_players = Player.objects.all()
         for p in all_players:
             if p.id in played_this_week_stats:
                 stats = played_this_week_stats[p.id]

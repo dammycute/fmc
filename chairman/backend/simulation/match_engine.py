@@ -60,7 +60,8 @@ def simulate_match(
     home_manager,
     away_manager,
     season: int,
-    week: int
+    week: int,
+    on_event=None
 ) -> dict:
     # 2. Return structure
     match_data = {
@@ -243,20 +244,28 @@ def simulate_match(
                     # Assist
                     others = [p for p in active if p.id != shooter.id]
                     assist_desc = ""
+                    assister_id = None
                     if others:
                         assister = random.choices(others, weights=[1.5 if p.position == 'MID' else 1.0 if p.position == 'ATT' else 0.5 for p in others])[0]
                         match_data['player_ratings'][assister.id] += 0.3
                         assist_desc = f" Assisted by {assister.last_name}."
+                        assister_id = assister.id
 
                     # Defender penalty
                     for op in get_active(opp_players):
                         if op.position == 'DEF':
                             match_data['player_ratings'][op.id] -= 0.3
 
-                    match_data['events'].append({
+                    event = {
                         "minute": minute, "type": "GOAL", "club_id": club_id, "player_id": shooter.id,
-                        "description": f"GOAL! {shooter.last_name} scores for {home_name if team == 'home' else away_name}!{assist_desc}"
-                    })
+                        "assister_id": assister_id,
+                        "description": f"GOAL! {shooter.last_name} scores for {home_name if team == 'home' else away_name}!{assist_desc}",
+                        "home_score": match_data['home_score'],
+                        "away_score": match_data['away_score'],
+                    }
+                    match_data['events'].append(event)
+                    if on_event:
+                        on_event(event)
                 elif random.random() < 0.4:
                     match_data[f'{team}_shots_on_target'] += 1
 
@@ -277,22 +286,34 @@ def simulate_match(
                 yellows[fouler.id] = yellows.get(fouler.id, 0) + 1
                 if yellows[fouler.id] == 2:
                     red_cards.add(fouler.id)
-                    match_data['events'].append({
+                    event = {
                         "minute": minute, "type": "CARD", "club_id": club_id, "player_id": fouler.id,
-                        "description": f"RED CARD! {fouler.last_name} sent off after second yellow!"
-                    })
+                    "description": f"RED CARD! {fouler.last_name} sent off after second yellow!",
+                    "home_score": match_data['home_score'],
+                    "away_score": match_data['away_score'],
+                    }
+                    match_data['events'].append(event)
+                    if on_event: on_event(event)
                 else:
-                    match_data['events'].append({
+                    event = {
                         "minute": minute, "type": "CARD", "club_id": club_id, "player_id": fouler.id,
-                        "description": f"Yellow card: {fouler.last_name} booked."
-                    })
+                    "description": f"Yellow card: {fouler.last_name} booked.",
+                    "home_score": match_data['home_score'],
+                    "away_score": match_data['away_score'],
+                    }
+                    match_data['events'].append(event)
+                    if on_event: on_event(event)
             elif random.random() < 0.003 * (fouler.ment_aggression / 50):
                 # Direct red: 0.3% * (player.ment_aggression/50)
                 red_cards.add(fouler.id)
-                match_data['events'].append({
+                event = {
                     "minute": minute, "type": "CARD", "club_id": club_id, "player_id": fouler.id,
-                    "description": f"DIRECT RED CARD! {fouler.last_name} sent off!"
-                })
+                "description": f"DIRECT RED CARD! {fouler.last_name} sent off!",
+                "home_score": match_data['home_score'],
+                "away_score": match_data['away_score'],
+                }
+                match_data['events'].append(event)
+                if on_event: on_event(event)
 
         # 7. Possession involvement +0.1 per block if on possessing team
         poss_team_players = home_players if block_home_poss > 50 else away_players
