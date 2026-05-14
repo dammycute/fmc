@@ -6,8 +6,8 @@ REGION_NATIONALITIES = {
     'Europe': ['English', 'French', 'Spanish', 'German', 'Scandinavian'],
     'South America': ['Brazilian'],
     'Africa': ['African'],
-    'Asia': [], # Currently empty pool in world_generator
-    'North America': [] # Currently empty pool in world_generator
+    'Asia': ['Asian'],
+    'North America': ['North American']
 }
 
 def process_week(week: int, season: int) -> int:

@@ -182,6 +182,17 @@ class ScoutReport(Model):
     created_week = IntegerField()
     created_season = IntegerField()
 
+class PlayerSeasonStats(Model):
+    player = ForeignKey('Player', on_delete=CASCADE, related_name='season_history')
+    season = IntegerField()
+    appearances = IntegerField(default=0)
+    goals = IntegerField(default=0)
+    assists = IntegerField(default=0)
+    average_rating = FloatField(default=0.0)
+
+    class Meta:
+        unique_together = ('player', 'season')
+
 # ── PLAYER ───────────────────────────────────────────
 
 class Player(Model):
@@ -312,6 +323,7 @@ class Manager(Model):
 
     # State
     salary = IntegerField(default=5000)
+    personal_balance = BigIntegerField(default=0)
     contract_weeks_remaining = IntegerField(default=104)
     morale = FloatField(default=70.0)
     relationship_with_chairman = FloatField(default=70.0)
