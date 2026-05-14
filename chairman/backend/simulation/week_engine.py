@@ -1,6 +1,6 @@
 import random
 from django.db import transaction
-from django.db.models import Q, F
+from django.db.models import Q, F, Case, When
 from game.models import (
     GameState, Match, Player, Club, Manager, Staff,
     NewsStory, TransferRequest, League
@@ -111,26 +111,37 @@ def advance_week() -> dict:
                         Player.objects.filter(id=event['assister_id']).update(assists=F('assists') + 1)
 
         # ── STEP 2: POST-MATCH PLAYER UPDATES ────────────────
-        # Loop all players for growth and status updates
-        all_players = Player.objects.all()
-        for p in all_players:
-            if p.id in played_this_week_stats:
-                stats = played_this_week_stats[p.id]
-                p.appearances += 1
-                p.form = (p.form + [stats['rating']])[-5:]
-                p.fatigue += 12
-                p.tactical_familiarity = min(100.0, float(p.tactical_familiarity) + 0.3)
+        # Players who did NOT play: batch update recovery
+        Player.objects.exclude(id__in=played_this_week_stats.keys()).update(
+            fatigue=Case(
+                When(fatigue__gte=10, then=F('fatigue') - 10),
+                default=0.0
+            ),
+            morale=Case(
+                When(morale__gt=31, then=F('morale') - 1),
+                default=30.0
+            ),
+            happiness_playing_time=Case(
+                When(club__isnull=False, happiness_playing_time__gte=2, then=F('happiness_playing_time') - 2),
+                When(club__isnull=False, then=0),
+                default=F('happiness_playing_time')
+            )
+        )
 
-                if stats['won']: p.morale = min(100.0, float(p.morale) + 8)
-                elif stats['drawn']: p.morale = min(100.0, float(p.morale) + 2)
-                else: p.morale = max(0.0, float(p.morale) - 6)
+        # Players who played: individual updates (due to unique match stats)
+        players_who_played = Player.objects.filter(id__in=played_this_week_stats.keys())
+        for p in players_who_played:
+            stats = played_this_week_stats[p.id]
+            p.appearances += 1
+            p.form = (p.form + [stats['rating']])[-5:]
+            p.fatigue += 12
+            p.tactical_familiarity = min(100.0, float(p.tactical_familiarity) + 0.3)
 
-                p.happiness_playing_time = min(100, p.happiness_playing_time + 2)
-            else:
-                p.fatigue = max(0.0, float(p.fatigue) - 10)
-                if p.club_id:
-                    p.happiness_playing_time = max(0, p.happiness_playing_time - 2)
-                    p.morale = max(30.0, float(p.morale) - 1)
+            if stats['won']: p.morale = min(100.0, float(p.morale) + 8)
+            elif stats['drawn']: p.morale = min(100.0, float(p.morale) + 2)
+            else: p.morale = max(0.0, float(p.morale) - 6)
+
+            p.happiness_playing_time = min(100, p.happiness_playing_time + 2)
 
             # All players: if avg of last 3 form < 6.0, happiness_manager -= 5
             if len(p.form) >= 3:
@@ -144,10 +155,11 @@ def advance_week() -> dict:
             ])
 
         # ── STEP 3: INJURY PROCESSING ──────────────────────
+        # Fetch all players again to include recovery updates
+        all_players = Player.objects.all()
+
         # Fetch physios by club
-        physios_by_club = {}
-        for staff in Staff.objects.filter(role='PHYSIO'):
-            physios_by_club[staff.club_id] = staff
+        physios_by_club = {s.club_id: s for s in Staff.objects.filter(role='PHYSIO')}
 
         for p in all_players:
             if p.is_injured:

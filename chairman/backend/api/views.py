@@ -385,16 +385,18 @@ class TransferBidViewSet(viewsets.ModelViewSet):
 
         # Buyer pays
         if buying_club:
-            buying_club.balance -= bid.amount
-            buying_club.transfer_budget -= bid.amount
-            buying_club.weekly_wages += player.wage
-            buying_club.save()
+            Club.objects.filter(id=buying_club.id).update(
+                balance=F('balance') - bid.amount,
+                transfer_budget=F('transfer_budget') - bid.amount,
+                weekly_wages=F('weekly_wages') + player.wage
+            )
 
         # Seller receives
         if selling_club:
-            selling_club.balance += bid.amount
-            selling_club.weekly_wages -= player.wage
-            selling_club.save()
+            Club.objects.filter(id=selling_club.id).update(
+                balance=F('balance') + bid.amount,
+                weekly_wages=F('weekly_wages') - player.wage
+            )
 
         bid.status = 'COMPLETED'
         bid.save()
