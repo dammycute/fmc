@@ -16,21 +16,20 @@ def advance_week() -> dict:
         state = GameState.objects.select_for_update().get(pk=1)
         week = state.current_week
         season = state.current_season
-        summary = {"week": week, "season": season, "matches": [], "news": []}
+        summary = {"week": week, "season": season, "matches": [], "news": [], "user_match": None}
 
         # ── STEP 1: SIMULATE ALL MATCHES ───────────────────
         matches = list(Match.objects.filter(week=week, season=season, played=False).select_related('home_club', 'away_club'))
 
-        # Pre-fetch players for all matches
-        match_club_ids = [m.home_club_id for m in matches] + [m.away_club_id for m in matches]
-        all_match_players = Player.objects.filter(club_id__in=match_club_ids)
+        # Pre-fetch all players grouped by club_id
+        all_players = Player.objects.all()
         players_by_club = {}
-        for p in all_match_players:
+        for p in all_players:
             if p.club_id not in players_by_club:
                 players_by_club[p.club_id] = []
             players_by_club[p.club_id].append(p)
 
-        played_this_week_stats = {} # player_id -> dict
+        played_this_week_stats = {} # player_id -> {won, drawn, lost, rating}
 
         for m in matches:
             home_players = players_by_club.get(m.home_club_id, [])
@@ -63,6 +62,7 @@ def advance_week() -> dict:
                 season, week
             )
 
+            # Write results back
             m.home_score = res['home_score']
             m.away_score = res['away_score']
             m.home_xg = res['home_xg']
@@ -78,22 +78,16 @@ def advance_week() -> dict:
             m.played = True
             m.save()
 
+            # Track players
             is_draw = m.home_score == m.away_score
             for pid_str, rating in res['player_ratings'].items():
                 pid = int(pid_str)
                 is_home = any(p.id == pid for p in home_players)
                 won = (is_home and m.home_score > m.away_score) or (not is_home and m.away_score > m.home_score)
-                played_this_week_stats[pid] = {'won': won, 'drawn': is_draw, 'rating': rating}
+                lost = (is_home and m.home_score < m.away_score) or (not is_home and m.away_score < m.home_score)
+                played_this_week_stats[pid] = {'won': won, 'drawn': is_draw, 'lost': lost, 'rating': rating}
 
-            for event in res['events']:
-                if event['type'] == 'GOAL':
-                    Player.objects.filter(id=event['player_id']).update(goals=F('goals') + 1)
-                    # Simple assist parsing from description if present
-                    if 'Assisted by' in event['description']:
-                        # This is a bit fragile but works for our generated strings
-                        summary['news'].append(f"Goal event: {event['description']}")
-
-            if m.home_club == state.user_club or m.away_club == state.user_club:
+            if m.home_club_id == state.user_club_id or m.away_club_id == state.user_club_id:
                 summary['user_match'] = res
 
             summary['matches'].append({
@@ -101,8 +95,7 @@ def advance_week() -> dict:
                 "score": f"{m.home_score}-{m.away_score}"
             })
 
-        # ── STEP 2: POST-MATCH CASCADE ──────────────────────
-        all_players = Player.objects.all()
+        # ── STEP 2: POST-MATCH PLAYER UPDATES ────────────────
         for p in all_players:
             if p.id in played_this_week_stats:
                 stats = played_this_week_stats[p.id]
@@ -118,17 +111,25 @@ def advance_week() -> dict:
                 p.happiness_playing_time = min(100, p.happiness_playing_time + 2)
             else:
                 p.fatigue = max(0.0, float(p.fatigue) - 10)
-                if p.club:
+                if p.club_id:
                     p.happiness_playing_time = max(0, p.happiness_playing_time - 2)
                     p.morale = max(30.0, float(p.morale) - 1)
 
-            if len(p.form) >= 3 and sum(p.form[-3:]) / 3 < 6.0:
-                p.happiness_manager = max(0, p.happiness_manager - 5)
+            # All players: if avg of last 3 form < 6.0, happiness_manager -= 5
+            if len(p.form) >= 3:
+                avg_form = sum(p.form[-3:]) / 3
+                if avg_form < 6.0:
+                    p.happiness_manager = max(0, p.happiness_manager - 5)
 
             p.save()
 
         # ── STEP 3: INJURY PROCESSING ──────────────────────
-        for p in Player.objects.all():
+        # Fetch physios by club
+        physios_by_club = {}
+        for staff in Staff.objects.filter(role='PHYSIO'):
+            physios_by_club[staff.club_id] = staff
+
+        for p in all_players:
             if p.is_injured:
                 p.injury_weeks_remaining -= 1
                 if p.injury_weeks_remaining <= 0:
@@ -137,9 +138,9 @@ def advance_week() -> dict:
                 p.save()
             elif p.id in played_this_week_stats:
                 chance = 0.015 * (p.hidden_injury_proneness / 50) * (1 + p.fatigue / 200)
-                if p.club:
-                    physio = p.club.staff.filter(role='PHYSIO').first()
-                    if physio: chance *= (1 - physio.rating / 200)
+                physio = physios_by_club.get(p.club_id)
+                if physio:
+                    chance *= (1 - physio.rating / 200)
 
                 if random.random() < chance:
                     p.is_injured = True
@@ -155,31 +156,36 @@ def advance_week() -> dict:
                     )
 
         # ── STEP 4: PLAYER DEVELOPMENT ─────────────────────
-        # Pre-fetch clubs and facilities for development
-        clubs_with_facilities = {c.id: c for c in Club.objects.all().select_related('facilities')}
-        for p in Player.objects.all():
-            club = clubs_with_facilities.get(p.club_id)
+        clubs_by_id = {c.id: c for c in Club.objects.all().select_related('facilities')}
+        for p in all_players:
+            club = clubs_by_id.get(p.club_id)
             develop_player(p, club)
 
         # ── STEP 5: AI MANAGER DECISIONS ───────────────────
-        for club in Club.objects.filter(is_user_controlled=False):
+        for club in Club.objects.filter(is_user_controlled=False).select_related('manager'):
             manager = getattr(club, 'manager', None)
             if not manager: continue
 
-            for pos in ['GK', 'DEF', 'MID', 'ATT']:
-                if club.players.filter(position=pos).count() < {'GK': 2, 'DEF': 5, 'MID': 5, 'ATT': 3}[pos]:
-                    if manager.relationship_with_chairman > 40:
-                        if not TransferRequest.objects.filter(club=club, suggested_position=pos, status='PENDING').exists():
-                            TransferRequest.objects.create(
-                                manager=manager, club=club, request_type='DEPTH',
-                                priority='MEDIUM', message=f"Need {pos} depth.",
-                                suggested_position=pos, week_requested=week, season_requested=season
-                            )
+            # Squad depth check
+            for pos, min_count in {'GK': 2, 'DEF': 5, 'MID': 5, 'ATT': 3}.items():
+                count = Player.objects.filter(club=club, position=pos).count()
+                if count < min_count:
+                    if not TransferRequest.objects.filter(club=club, suggested_position=pos, status='PENDING').exists():
+                        TransferRequest.objects.create(
+                            manager=manager, club=club, request_type='DEPTH',
+                            priority='MEDIUM', message=f"Need {pos} depth.",
+                            suggested_position=pos, week_requested=week, season_requested=season
+                        )
 
+            # Manager morale check
             if manager.morale < 25 and not manager.wants_to_leave:
                 manager.wants_to_leave = True
                 manager.save()
-                NewsStory.objects.create(title=f"Manager unrest at {club.name}", content=f"{manager.name} considering future.", category='CLUB', club=club, week=week, season=season)
+                NewsStory.objects.create(
+                    title=f"Manager unrest at {club.name}",
+                    content=f"{manager.name} considering future.",
+                    category='CLUB', club=club, week=week, season=season
+                )
 
         # ── STEP 6 & 7: TRANSFERS & FINANCES ───────────────
         process_transfers(week, season)
@@ -187,23 +193,47 @@ def advance_week() -> dict:
 
         # ── STEP 8: BOARD & FAN CONFIDENCE ─────────────────
         for club in Club.objects.all():
-            recent = Match.objects.filter(Q(home_club=club) | Q(away_club=club), played=True).order_by('-week')[:5]
-            score = sum(3 if (m.home_club == club and m.home_score > m.away_score) or (m.away_club == club and m.away_score > m.home_score) else (1 if m.home_score == m.away_score else 0) for m in recent)
+            last_5 = Match.objects.filter(Q(home_club=club) | Q(away_club=club), played=True).order_by('-season', '-week')[:5]
+            score = 0
+            for m in last_5:
+                is_home = m.home_club_id == club.id
+                if m.home_score == m.away_score:
+                    score += 1
+                elif (is_home and m.home_score > m.away_score) or (not is_home and m.away_score > m.home_score):
+                    score += 3
+
             delta = (score - 7.5) * 2
-            if club.balance < 0: delta -= 5
+            if club.balance < 0:
+                delta -= 5
+
             club.board_confidence = max(0, min(100, int(club.board_confidence + delta)))
             club.fan_confidence = max(0, min(100, int(club.fan_confidence + delta * 1.5)))
             club.save()
 
-        # ── STEP 9: MANAGER RELATIONSHIP ───────────────────
+        # ── STEP 9: MANAGER-CHAIRMAN RELATIONSHIP ──────────
         for manager in Manager.objects.filter(club__isnull=False).select_related('club'):
-            recent = Match.objects.filter(Q(home_club=manager.club) | Q(away_club=manager.club), played=True).order_by('-week')[:3]
-            delta = sum(4 if (m.home_club == manager.club and m.home_score > m.away_score) or (m.away_club == manager.club and m.away_score > m.home_score) else (1 if m.home_score == m.away_score else -6) for m in recent)
-            if manager.club.balance < 0: delta -= 3
+            last_3 = Match.objects.filter(Q(home_club=manager.club) | Q(away_club=manager.club), played=True).order_by('-season', '-week')[:3]
+            delta = 0
+            for m in last_3:
+                is_home = m.home_club_id == manager.club_id
+                if m.home_score == m.away_score:
+                    delta += 1
+                elif (is_home and m.home_score > m.away_score) or (not is_home and m.away_score > m.home_score):
+                    delta += 4
+                else:
+                    delta -= 6
+
+            if manager.club.balance < 0:
+                delta -= 3
+
             manager.relationship_with_chairman = max(0.0, min(100.0, float(manager.relationship_with_chairman) + delta))
             if manager.relationship_with_chairman < 15 and not manager.wants_to_leave:
                 manager.wants_to_leave = True
-                NewsStory.objects.create(title=f"Chairman loses patience", content=f"{manager.name} on verge of sack.", category='CLUB', importance='BREAKING', club=manager.club, week=week, season=season)
+                NewsStory.objects.create(
+                    title=f"Chairman loses patience",
+                    content=f"{manager.name} on verge of sack.",
+                    category='CLUB', importance='BREAKING', club=manager.club, week=week, season=season
+                )
             manager.save()
 
         # ── STEP 10: ADVANCE TIME ──────────────────────────
@@ -224,14 +254,21 @@ def handle_season_end(state, season):
         for c in Club.objects.filter(league=league):
             pts = 0
             for m in Match.objects.filter(Q(home_club=c) | Q(away_club=c), season=season, played=True):
-                if (m.home_club == c and m.home_score > m.away_score) or (m.away_club == c and m.away_score > m.home_score): pts += 3
-                elif m.home_score == m.away_score: pts += 1
+                is_home = m.home_club_id == c.id
+                if m.home_score == m.away_score:
+                    pts += 1
+                elif (is_home and m.home_score > m.away_score) or (not is_home and m.away_score > m.home_score):
+                    pts += 3
             results.append((c, pts))
         results.sort(key=lambda x: x[1], reverse=True)
         tables[league.id] = results
-        results[0][0].balance += league.prize_money_champion
-        results[0][0].save()
 
+        # Champion prize
+        champion = results[0][0]
+        champion.balance += league.prize_money_champion
+        champion.save()
+
+    # Promotion / Relegation
     for league in leagues:
         res = tables[league.id]
         if league.tier > 1:
@@ -246,9 +283,16 @@ def handle_season_end(state, season):
                 c.balance += league.prize_money_relegated
                 c.save()
 
+    # Player aging
     Player.objects.all().update(age=F('age') + 1, contract_years=F('contract_years') - 1)
+
     state.current_week = 1
     state.current_season = season + 1
     state.save()
+
     generate_fixtures(state.current_season)
-    NewsStory.objects.create(title=f"Season {season} concludes!", content="New fixtures released.", category='WORLD', week=1, season=state.current_season)
+    NewsStory.objects.create(
+        title=f"Season {season} concludes!",
+        content="New fixtures released.",
+        category='WORLD', week=1, season=state.current_season
+    )
