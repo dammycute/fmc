@@ -2,7 +2,7 @@ from rest_framework import serializers
 from game.models import (
     League, Club, ClubFacilities, Player, Manager, Staff,
     Match, TransferBid, TransferRequest, NewsStory, GameState,
-    ScoutAssignment, Sponsor
+    ScoutAssignment, ScoutReport, Sponsor
 )
 
 class LeagueSerializer(serializers.ModelSerializer):
@@ -330,13 +330,23 @@ class GameStateSerializer(serializers.ModelSerializer):
             'personalBalance', 'shortlist'
         ]
 
+class ScoutReportSerializer(serializers.ModelSerializer):
+    playerId = serializers.PrimaryKeyRelatedField(source='player', read_only=True)
+    reportedRating = serializers.FloatField(source='reported_rating')
+    week = serializers.IntegerField(source='created_week')
+    season = serializers.IntegerField(source='created_season')
+
+    class Meta:
+        model = ScoutReport
+        fields = ['id', 'playerId', 'reportedRating', 'week', 'season']
+
 class ScoutAssignmentSerializer(serializers.ModelSerializer):
     scoutId = serializers.PrimaryKeyRelatedField(source='scout', read_only=True)
-    playersFound = serializers.JSONField(source='players_found')
+    reports = ScoutReportSerializer(many=True, read_only=True)
 
     class Meta:
         model = ScoutAssignment
-        fields = ['scoutId', 'region', 'progress', 'playersFound']
+        fields = ['id', 'scoutId', 'region', 'progress', 'reports']
 
 class SponsorSerializer(serializers.ModelSerializer):
     duration = serializers.IntegerField(source='duration_seasons')

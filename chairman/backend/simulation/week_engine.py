@@ -11,6 +11,7 @@ from .broadcaster import broadcast_match_event
 from .development_engine import develop_player
 from .transfer_engine import process_week as process_transfers
 from .finance_engine import process_week as process_finances
+from .scouting_engine import process_week as process_scouting
 from .fixture_generator import generate_fixtures
 
 def advance_week() -> dict:
@@ -222,6 +223,7 @@ def advance_week() -> dict:
         # ── STEP 6 & 7: TRANSFERS & FINANCES ───────────────
         process_transfers(week, season)
         process_finances(week, season)
+        process_scouting(week, season)
 
         # ── STEP 8: BOARD & FAN CONFIDENCE ─────────────────
         for club in Club.objects.all():

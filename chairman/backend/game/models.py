@@ -174,7 +174,13 @@ class ScoutAssignment(Model):
     scout = ForeignKey('Staff', on_delete=CASCADE)
     region = CharField(max_length=50)
     progress = FloatField(default=0.0)   # 0-100
-    players_found = JSONField(default=list)   # list of player_ids
+
+class ScoutReport(Model):
+    assignment = ForeignKey(ScoutAssignment, on_delete=CASCADE, related_name='reports')
+    player = ForeignKey('Player', on_delete=CASCADE)
+    reported_rating = FloatField()
+    created_week = IntegerField()
+    created_season = IntegerField()
 
 # ── PLAYER ───────────────────────────────────────────
 
