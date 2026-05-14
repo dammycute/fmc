@@ -293,6 +293,81 @@ class TransferBidViewSet(viewsets.ModelViewSet):
             qs = qs.filter(Q(from_club_id=club_id) | Q(to_club_id=club_id))
         return qs
 
+    @action(detail=False, methods=['post'], url_path='make-bid')
+    def make_bid(self, request):
+        state = GameState.objects.get(pk=1)
+        if not state.is_transfer_window_open:
+            return Response({"error": "Transfer window is closed", "code": "WINDOW_CLOSED"}, status=400)
+
+        player_id = request.data.get('player_id')
+        amount = int(request.data.get('amount', 0))
+        user_club = state.user_club
+
+        if not user_club:
+            return Response({"error": "User does not control a club"}, status=400)
+
+        if amount > user_club.transfer_budget:
+            return Response({"error": "Insufficient transfer budget", "code": "INSUFFICIENT_BUDGET"}, status=400)
+
+        player = get_object_or_404(Player, id=player_id)
+        if TransferBid.objects.filter(player=player, from_club=user_club, status='PENDING').exists():
+            return Response({"error": "Bid already pending for this player"}, status=400)
+
+        bid = TransferBid.objects.create(
+            player=player,
+            from_club=user_club,
+            to_club=player.club,
+            amount=amount,
+            status='PENDING',
+            created_week=state.current_week,
+            created_season=state.current_season
+        )
+
+        return Response(TransferBidSerializer(bid).data)
+
+    @action(detail=True, methods=['post'])
+    def accept(self, request, pk=None):
+        bid = self.get_object()
+        state = GameState.objects.get(pk=1)
+        if bid.to_club != state.user_club:
+            return Response({"error": "Not your player", "code": "FORBIDDEN"}, status=403)
+
+        if bid.status != 'PENDING':
+            return Response({"error": "Bid is not pending"}, status=400)
+
+        player = bid.player
+        # Loyalty roll: if loyalty > 80, random chance they refuse
+        import random
+        if player.hidden_loyalty > 80 and random.random() < 0.5:
+            return Response({"error": "Player refused to leave", "code": "PLAYER_REFUSED", "status": "PLAYER_REFUSED"}, status=200)
+
+        bid.status = 'ACCEPTED'
+        bid.is_player_interested = True
+        bid.save()
+        return Response(TransferBidSerializer(bid).data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        bid = self.get_object()
+        bid.status = 'REJECTED'
+        bid.save()
+        return Response({"status": "Bid rejected"})
+
+    @action(detail=True, methods=['post'])
+    def counter(self, request, pk=None):
+        bid = self.get_object()
+        if bid.negotiation_count >= 3:
+            return Response({"error": "Maximum negotiations reached", "code": "MAX_NEGOTIATIONS"}, status=400)
+
+        counter_amount = int(request.data.get('counter_amount', 0))
+        if counter_amount < bid.amount * 1.05:
+            return Response({"error": "Counter must be at least 5% higher"}, status=400)
+
+        bid.amount = counter_amount
+        bid.negotiation_count += 1
+        bid.save()
+        return Response(TransferBidSerializer(bid).data)
+
     @action(detail=True, methods=['post'])
     def finalize(self, request, pk=None):
         bid = self.get_object()
@@ -300,22 +375,43 @@ class TransferBidViewSet(viewsets.ModelViewSet):
             return Response({"error": "Bid not accepted", "code": "NOT_ACCEPTED"}, status=400)
 
         player = bid.player
-        from_club = bid.from_club
-        to_club = bid.to_club
+        buying_club = bid.from_club # The one who made the bid
+        selling_club = bid.to_club # The user's club or AI club
 
         # Execute transfer
-        player.club = to_club
+        player.club = buying_club
+        player.is_transfer_listed = False
         player.save()
 
-        to_club.balance -= bid.amount
-        to_club.save()
+        # Buyer pays
+        if buying_club:
+            Club.objects.filter(id=buying_club.id).update(
+                balance=F('balance') - bid.amount,
+                transfer_budget=F('transfer_budget') - bid.amount,
+                weekly_wages=F('weekly_wages') + player.wage
+            )
 
-        if from_club:
-            from_club.balance += bid.amount
-            from_club.save()
+        # Seller receives
+        if selling_club:
+            Club.objects.filter(id=selling_club.id).update(
+                balance=F('balance') + bid.amount,
+                weekly_wages=F('weekly_wages') - player.wage
+            )
 
         bid.status = 'COMPLETED'
         bid.save()
+
+        state = GameState.objects.get(pk=1)
+        NewsStory.objects.create(
+            title=f"TRANSFER: {player.last_name} joins {buying_club.name if buying_club else 'Free Agency'}",
+            content=f"{player.first_name} {player.last_name} has completed a move to {buying_club.name if buying_club else 'Free Agency'} for £{bid.amount:,}.",
+            category='TRANSFER',
+            importance='HIGH',
+            club=buying_club,
+            week=state.current_week,
+            season=state.current_season
+        )
+
         return Response({"status": "Transfer completed"})
 
 class TransferRequestViewSet(viewsets.ModelViewSet):
