@@ -138,7 +138,10 @@ def advance_week() -> dict:
                 if avg_form < 6.0:
                     p.happiness_manager = max(0, p.happiness_manager - 5)
 
-            p.save()
+            p.save(update_fields=[
+                'appearances', 'form', 'fatigue', 'tactical_familiarity',
+                'morale', 'happiness_playing_time', 'happiness_manager'
+            ])
 
         # ── STEP 3: INJURY PROCESSING ──────────────────────
         # Fetch physios by club
@@ -152,7 +155,7 @@ def advance_week() -> dict:
                 if p.injury_weeks_remaining <= 0:
                     p.is_injured = False
                     p.fitness = 60.0
-                p.save()
+                p.save(update_fields=['injury_weeks_remaining', 'is_injured', 'fitness'])
             elif p.id in played_this_week_stats:
                 chance = 0.015 * (p.hidden_injury_proneness / 50) * (1 + p.fatigue / 200)
                 physio = physios_by_club.get(p.club_id)
@@ -163,7 +166,7 @@ def advance_week() -> dict:
                     p.is_injured = True
                     p.injury_weeks_remaining = random.randint(1, 6)
                     p.fitness = 0.0
-                    p.save()
+                    p.save(update_fields=['is_injured', 'injury_weeks_remaining', 'fitness'])
                     importance = 'HIGH' if p.overall_rating > 80 else 'MEDIUM' if p.overall_rating > 70 else 'LOW'
                     NewsStory.objects.create(
                         title=f"Injury blow for {p.last_name}",

@@ -131,16 +131,21 @@ def simulate_match(
 
         gk_rating = sum(p.tech_reflexes * 0.5 + p.tech_handling * 0.5 for p in gks) / len(gks) if gks else 30
 
+        # 10. Home advantage: +3 to home attack and midfield base
+        if is_home:
+            atk_base += 3
+            mid_base += 3
+
         atk = atk_base * tac['atk_mod'] * form['atk_mod']
         dfn = def_base * tac['def_mod'] * form['def_mod']
         mid = mid_base * tac['mid_mod'] * form['mid_mod']
 
-        # 10. Home advantage: +3 to home attack and midfield base
-        if is_home:
-            atk += 3
-            mid += 3
-
         return atk, dfn, mid, gk_rating
+
+    # Initial strengths
+    h_atk, h_def, h_mid, h_gk = calc_strengths(home_players, home_tac_mod, home_form_mod, True)
+    a_atk, a_def, a_mid, a_gk = calc_strengths(away_players, away_tac_mod, away_form_mod, False)
+    red_card_count = 0
 
     # 3. Simulation loop: 5-minute blocks, 18 blocks = 90 minutes
     for block in range(1, 19):
@@ -151,9 +156,11 @@ def simulate_match(
         if minute > 75: fatigue_mod = 0.88
         elif minute > 60: fatigue_mod = 0.95
 
-        # Recalculate strengths each block
-        h_atk, h_def, h_mid, h_gk = calc_strengths(home_players, home_tac_mod, home_form_mod, True)
-        a_atk, a_def, a_mid, a_gk = calc_strengths(away_players, away_tac_mod, away_form_mod, False)
+        # Recalculate strengths only if a red card happened
+        if len(red_cards) > red_card_count:
+            h_atk, h_def, h_mid, h_gk = calc_strengths(home_players, home_tac_mod, home_form_mod, True)
+            a_atk, a_def, a_mid, a_gk = calc_strengths(away_players, away_tac_mod, away_form_mod, False)
+            red_card_count = len(red_cards)
 
         # 4f. Game state adaptation
         h_state_atk, h_state_def = 1.0, 1.0
@@ -321,10 +328,14 @@ def simulate_match(
             match_data['player_ratings'][p.id] += 0.1
 
         if minute == 45:
-            match_data['events'].append({
+            event = {
                 "minute": 45, "type": "COMMENTARY", "club_id": None, "player_id": None,
-                "description": f"Half-time: {home_name} {match_data['home_score']} - {match_data['away_score']} {away_name}"
-            })
+                "description": f"Half-time: {home_name} {match_data['home_score']} - {match_data['away_score']} {away_name}",
+                "home_score": match_data['home_score'],
+                "away_score": match_data['away_score'],
+            }
+            match_data['events'].append(event)
+            if on_event: on_event(event)
 
     # Finalize match stats
     match_data['home_possession'] = round(total_home_poss / 18, 1)
@@ -339,9 +350,13 @@ def simulate_match(
         match_data['player_ratings'][p.id] += random.uniform(-noise_range, noise_range)
         match_data['player_ratings'][p.id] = round(max(3.0, min(10.0, match_data['player_ratings'][p.id])), 1)
 
-    match_data['events'].append({
+    event = {
         "minute": 90, "type": "COMMENTARY", "club_id": None, "player_id": None,
-        "description": f"Full-time: {home_name} {match_data['home_score']} - {match_data['away_score']} {away_name}"
-    })
+        "description": f"Full-time: {home_name} {match_data['home_score']} - {match_data['away_score']} {away_name}",
+        "home_score": match_data['home_score'],
+        "away_score": match_data['away_score'],
+    }
+    match_data['events'].append(event)
+    if on_event: on_event(event)
 
     return match_data

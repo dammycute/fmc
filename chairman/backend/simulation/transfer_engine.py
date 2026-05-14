@@ -70,10 +70,12 @@ def _resolve_ai_bids(state, week: int, season: int) -> None:
 
             buying_club.balance -= bid.amount
             buying_club.transfer_budget -= bid.amount
-            buying_club.save(update_fields=['balance', 'transfer_budget'])
+            buying_club.weekly_wages += player.wage
+            buying_club.save(update_fields=['balance', 'transfer_budget', 'weekly_wages'])
 
             selling_club.balance += bid.amount
-            selling_club.save(update_fields=['balance'])
+            selling_club.weekly_wages -= player.wage
+            selling_club.save(update_fields=['balance', 'weekly_wages'])
 
             bid.status = 'ACCEPTED' # We use ACCEPTED then resolve OR COMPLETED directly
             bid.status = 'COMPLETED'
