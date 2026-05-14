@@ -1,85 +1,99 @@
-from game.models import GameState, Club, Match, NewsStory, Sponsor, Player
-from django.db.models import Q
+from game.models import Club, Match, NewsStory, Sponsor, Player, Manager
+from django.db.models import Q, Prefetch
 
 def process_week(week: int, season: int) -> None:
     """
     Processes weekly finances for all clubs.
     """
-    # state = GameState.objects.get(pk=1) # Not explicitly used in the logic provided but fetched in prompt
+    # Pre-fetch all home matches played this week to avoid N+1
+    home_matches = {
+        m.home_club_id: m
+        for m in Match.objects.filter(week=week, season=season, played=True)
+    }
 
-    for club in Club.objects.select_related('league', 'facilities').prefetch_related('sponsors'):
+    # Fetch clubs with necessary relations
+    clubs = Club.objects.select_related(
+        'league',
+        'facilities',
+        'manager'
+    ).prefetch_related(
+        Prefetch('sponsors', queryset=Sponsor.objects.filter(status='ACTIVE'))
+    ).all()
+
+    for club in clubs:
         league_tier = club.league.tier
 
-        # INCOME
-        # 1. TV Rights (weekly slice of annual deal)
-        tv_rights = {1: 240000, 2: 120000, 3: 75000, 4: 40000, 5: 15000}
-        tv_income = tv_rights.get(league_tier, 10000)
+        # ── INCOME ──────────────────────────────────────────
 
-        # 2. Matchday (if they have a home match this week)
-        home_match = Match.objects.filter(
-            home_club=club, week=week, season=season, played=True
-        ).first()
+        # 1. TV Rights
+        tv_rights_map = {1: 240000, 2: 120000, 3: 75000, 4: 40000, 5: 15000}
+        tv_income = tv_rights_map.get(league_tier, 0)
 
+        # 2. Matchday
         matchday_income = 0
-        if home_match:
-            ticket_price = {1: 60, 2: 40, 3: 25, 4: 15, 5: 8}.get(league_tier, 8)
+        if club.id in home_matches:
+            ticket_prices = {1: 60, 2: 40, 3: 25, 4: 15, 5: 8}
+            price = ticket_prices.get(league_tier, 0)
+
             attendance_pct = min(1.0, 0.6 + (club.reputation / 200))
-            capacity = club.facilities.stadium_capacity
-            matchday_income = int(capacity * attendance_pct * ticket_price)
+            capacity = club.facilities.stadium_capacity if hasattr(club, 'facilities') else 0
+            matchday_income = int(capacity * attendance_pct * price)
 
-        # 3. Sponsorship (weekly slice)
-        sponsor_income = 0
-        for sponsor in club.sponsors.filter(status='ACTIVE'):
-            weekly = sponsor.amount // 38  # spread over season
-            sponsor_income += weekly
+        # 3. Sponsorship
+        sponsor_income = sum(s.amount // 38 for s in club.sponsors.all())
 
-        # 4. Merchandise (reputation-based)
-        merch = int(club.reputation * 300 + (6 - league_tier) * 200)
+        # 4. Merchandise
+        merchandise_income = int(club.reputation * 300 + (6 - league_tier) * 200)
 
-        total_income = tv_income + matchday_income + sponsor_income + merch
+        total_income = tv_income + matchday_income + sponsor_income + merchandise_income
 
-        # EXPENSES
+        # ── EXPENSES ────────────────────────────────────────
+
+        # Player and Staff wages
         player_wages = club.weekly_wages
         staff_wages = club.weekly_staff_wages
+
+        # Manager salary
         manager_salary = 0
         if hasattr(club, 'manager') and club.manager:
             manager_salary = club.manager.salary
 
-        maintenance = {1: 50000, 2: 25000, 3: 10000, 4: 5000, 5: 2000}.get(league_tier, 2000)
+        # Maintenance
+        maintenance_map = {1: 50000, 2: 25000, 3: 10000, 4: 5000, 5: 2000}
+        maintenance = maintenance_map.get(league_tier, 0)
 
         total_expenses = player_wages + staff_wages + manager_salary + maintenance
 
-        # Update balance
+        # ── UPDATE BALANCE ──────────────────────────────────
+
         club.balance += (total_income - total_expenses)
         club.save(update_fields=['balance'])
 
-        # Trigger financial crisis events
+        # ── CRISIS HANDLING ─────────────────────────────────
+
         if club.balance < 0:
             if club.is_user_controlled:
-                # Generate urgent news for user
+                # User-controlled crisis
                 NewsStory.objects.get_or_create(
-                    title="Financial Warning",
-                    week=week, season=season,
                     club=club,
+                    week=week,
+                    season=season,
+                    category='FINANCE',
+                    importance='BREAKING',
                     defaults={
-                        'content': f"{club.name} is operating at a deficit. Immediate action required.",
-                        'category': 'FINANCE',
-                        'importance': 'BREAKING'
+                        'title': "Financial Crisis!",
+                        'content': f"The balance of {club.name} has fallen into the negative (£{club.balance:,}). Immediate financial measures are required to stabilize the club."
                     }
                 )
             else:
-                # AI club lists their most valuable non-essential player
-                _ai_emergency_sale(club)
+                # AI-controlled crisis: List highest-rated non-GK player
+                target_player = Player.objects.filter(
+                    club=club,
+                    is_transfer_listed=False
+                ).exclude(
+                    position='GK'
+                ).order_by('-overall_rating').first()
 
-def _ai_emergency_sale(club: Club) -> None:
-    """
-    AI emergency logic: list a top player to raise funds.
-    """
-    # Find the most valuable (highest rated) non-goalkeeper to list
-    player = club.players.filter(
-        is_transfer_listed=False
-    ).exclude(position='GK').order_by('-overall_rating').first()
-
-    if player:
-        player.is_transfer_listed = True
-        player.save(update_fields=['is_transfer_listed'])
+                if target_player:
+                    target_player.is_transfer_listed = True
+                    target_player.save(update_fields=['is_transfer_listed'])
