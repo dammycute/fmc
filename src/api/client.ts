@@ -64,6 +64,7 @@ class ApiClient {
   };
   getPlayer = (id: string) => this.request<any>(`/players/${id}/`);
   updatePlayer = (id: string, data: any) => this.request<any>(`/players/${id}/`, { method: 'PATCH', body: JSON.stringify(data) });
+  retrainPlayer = (id: string, position: string) => this.request<any>(`/players/${id}/retrain/`, { method: 'POST', body: JSON.stringify({ position }) });
 
   // Managers
   getManagers = (params: any = {}) => {

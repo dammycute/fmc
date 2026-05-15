@@ -171,6 +171,7 @@ const App: React.FC = () => {
                     setActiveMatchSimulation(simulated || match);
                   } else {
                     await advanceWeek();
+                    setActiveTab('dashboard'); // Auto-return to dashboard on week advance
                   }
                 }}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 sm:px-8 shadow-lg shadow-indigo-600/20 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"

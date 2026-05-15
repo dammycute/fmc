@@ -22,6 +22,7 @@ from .serializers import (
 )
 from simulation.week_engine import advance_week
 from simulation.match_engine import simulate_match, PlayerSnapshot
+from simulation.development_engine import recalculate_player_for_position
 
 VALID_FACILITY_TYPES = {'stadium', 'training', 'medical', 'youth'}
 
@@ -237,6 +238,16 @@ class PlayerViewSet(viewsets.ModelViewSet):
         if listed: qs = qs.filter(is_transfer_listed=(listed.lower() == 'true'))
 
         return qs
+
+    @action(detail=True, methods=['post'], url_path='retrain')
+    def retrain(self, request, pk=None):
+        player = self.get_object()
+        new_pos = request.data.get('position')
+        if new_pos not in ['GK', 'DEF', 'MID', 'ATT']:
+            return Response({"error": "Invalid position"}, status=400)
+
+        recalculate_player_for_position(player, new_pos)
+        return Response(PlayerSerializer(player).data)
 
 # ── MANAGERS & STAFF ─────────────────────────────────
 

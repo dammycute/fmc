@@ -152,6 +152,25 @@ def simulate_match(
     for block in range(1, 19):
         minute = block * 5
 
+        # Crowd Reaction chance
+        if random.random() < 0.15:
+            reactions = [
+                "The home fans are absolutely deafening now!",
+                "Jeers from the away end as they feel a decision went against them.",
+                "A Mexican wave has started in the East Stand.",
+                "The atmosphere is electric as we approach a crucial phase.",
+                "Supporters are on their feet, urging their team forward!"
+            ]
+            match_data['events'].append({
+                "minute": minute - random.randint(0, 4),
+                "type": "COMMENTARY",
+                "club_id": None,
+                "player_id": None,
+                "description": random.choice(reactions),
+                "home_score": match_data['home_score'],
+                "away_score": match_data['away_score'],
+            })
+
         # 4e. Fatigue modifier
         fatigue_mod = 1.0
         if minute > 75: fatigue_mod = 0.88
@@ -240,6 +259,27 @@ def simulate_match(
 
                 # 4d. Determine goal from xG roll
                 if random.random() < xg:
+                    # VAR Check (5% chance)
+                    is_var_disallowed = False
+                    if random.random() < 0.05:
+                        match_data['events'].append({
+                            "minute": minute, "type": "COMMENTARY", "club_id": club_id, "player_id": shooter.id,
+                            "description": f"VAR CHECK: Possible offside in the build-up to the goal...",
+                            "home_score": match_data['home_score'],
+                            "away_score": match_data['away_score'],
+                        })
+                        if random.random() < 0.4: # 40% chance VAR disallows it
+                            is_var_disallowed = True
+                            match_data['events'].append({
+                                "minute": minute, "type": "COMMENTARY", "club_id": club_id, "player_id": shooter.id,
+                                "description": f"GOAL DISALLOWED! VAR rules there was an offside.",
+                                "home_score": match_data['home_score'],
+                                "away_score": match_data['away_score'],
+                            })
+
+                    if is_var_disallowed:
+                        continue
+
                     match_data[f'{team}_score'] += 1
                     match_data[f'{team}_shots_on_target'] += 1
 
@@ -282,13 +322,25 @@ def simulate_match(
                 elif random.random() < 0.4:
                     match_data[f'{team}_shots_on_target'] += 1
 
-        # 5. Card logic per block
+        # 5. Card & Injury logic per block
         for team, players, club_id, opp_mgr in [
             ('home', home_players, home_id, away_manager),
             ('away', away_players, away_id, home_manager)
         ]:
             active = get_active(players)
             if not active: continue
+
+            # Injury check (0.5% chance per block for each team)
+            if random.random() < 0.005:
+                injured = random.choice(active)
+                event = {
+                    "minute": minute - random.randint(0, 4), "type": "INJURY", "club_id": club_id, "player_id": injured.id,
+                    "description": f"Injury! {injured.last_name} is down and receiving treatment.",
+                    "home_score": match_data['home_score'],
+                    "away_score": match_data['away_score'],
+                }
+                match_data['events'].append(event)
+                if on_event: on_event(event)
 
             opp_press = getattr(opp_mgr, 'pressing', 50) if opp_mgr else 50
             fouler = random.choice(active)
@@ -396,6 +448,21 @@ def simulate_match(
             }
             match_data['events'].append(event)
             if on_event: on_event(event)
+
+        # Substitution flavor (random chance between 60-80 mins)
+        if 60 <= minute <= 80 and random.random() < 0.1:
+            team_for_sub = random.choice(['home', 'away'])
+            sub_club_id = home_id if team_for_sub == 'home' else away_id
+            sub_club_name = home_name if team_for_sub == 'home' else away_name
+
+            sub_event = {
+                "minute": minute, "type": "COMMENTARY", "club_id": sub_club_id, "player_id": None,
+                "description": f"Substitution for {sub_club_name}. The manager is looking to freshen things up.",
+                "home_score": match_data['home_score'],
+                "away_score": match_data['away_score'],
+            }
+            match_data['events'].append(sub_event)
+            if on_event: on_event(sub_event)
 
     # Finalize match stats
     match_data['home_possession'] = round(total_home_poss / 18, 1)
