@@ -327,6 +327,18 @@ def handle_season_end(state, season):
         champion.balance += league.prize_money_champion
         champion.save()
 
+    # Persistence: Save season stats for all players before resetting counters
+    for p in Player.objects.all():
+        avg_r = sum(p.form) / len(p.form) if p.form else 0.0
+        PlayerSeasonStats.objects.create(
+            player=p,
+            season=season,
+            appearances=p.appearances,
+            goals=p.goals,
+            assists=p.assists,
+            average_rating=round(avg_r, 2)
+        )
+
     # Promotion / Relegation
     for league in leagues:
         res = tables[league.id]
@@ -341,18 +353,6 @@ def handle_season_end(state, season):
                 c.league = prv
                 c.balance += league.prize_money_relegated
                 c.save()
-
-    # Persistence: Save season stats for all players before resetting counters
-    for p in Player.objects.all():
-        avg_r = sum(p.form) / len(p.form) if p.form else 0.0
-        PlayerSeasonStats.objects.create(
-            player=p,
-            season=season,
-            appearances=p.appearances,
-            goals=p.goals,
-            assists=p.assists,
-            average_rating=round(avg_r, 2)
-        )
 
     # Player aging and reset season counters
     Player.objects.all().update(

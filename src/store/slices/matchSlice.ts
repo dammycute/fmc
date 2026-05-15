@@ -91,14 +91,11 @@ export const createMatchSlice: StateCreator<
     }
 
     // Step 3: Local state update only. 
-    // Player stats (goals, apps, fatigue) are now handled by backend advance_week().
-    // We only update the matches array to mark the user match as played.
-    // AI matches are left unplayed locally; they will be simulated by the backend during advance_week().
+    // We update the user's match to played=true so the UI reflects the result immediately.
+    // The analyst report is also generated based on this local state.
     const updatedMatches = state.matches.map((match) => {
-      if (match.week === currentWeek && match.season === currentSeason) {
-        if (userMatch && match.id === userMatch.id) {
-          return { ...userMatch, played: true };
-        }
+      if (userMatch && match.id === userMatch.id) {
+        return { ...userMatch, played: true };
       }
       return match;
     });
@@ -107,10 +104,10 @@ export const createMatchSlice: StateCreator<
 
     // --- Post-Match Analyst Report ---
     const userClubId = state.userClubId;
-    const matchThisWeek = updatedMatches.find(m => (m.homeClubId === userClubId || m.awayClubId === userClubId) && m.week === currentWeek && m.season === currentSeason);
+    const matchThisWeek = userMatch ? { ...userMatch, played: true } : null;
     const analyst = state.staff?.find((s: any) => s.clubId === userClubId && s.role === 'ANALYST');
     
-    if (matchThisWeek && analyst && matchThisWeek.played) {
+    if (matchThisWeek && analyst) {
       const isHome = matchThisWeek.homeClubId === userClubId;
       const userScore = isHome ? matchThisWeek.homeScore : matchThisWeek.awayScore;
       const oppScore = isHome ? matchThisWeek.awayScore : matchThisWeek.homeScore;
@@ -135,7 +132,8 @@ export const createMatchSlice: StateCreator<
       });
     }
 
-    // Step 4: Sync all data from backend to ensure state consistency
+    // Step 4: Sync all data from backend to ensure state consistency.
+    // This will correctly update all stats (goals, apps, fatigue) as calculated by the backend.
     await state.syncData();
   },
 });

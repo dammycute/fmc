@@ -348,18 +348,22 @@ export interface NewsStory {
 }
 
 export interface ScoutAssignment {
+  id: string;
   scoutId: string;
+  clubId: string;
   region: string;
   progress: number;
   playersFound: string[];
+  reports: ScoutReport[];
 }
 
 export interface ScoutReport {
+  id: string;
   playerId: string;
   scoutId: string;
-  knowledgeLevel: number;
-  recommendation: number;
   reportedRating: number;
+  week: number;
+  season: number;
 }
 
 export interface LeagueTableEntry {

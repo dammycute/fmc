@@ -30,6 +30,8 @@ def process_week(week: int, season: int) -> None:
         all_recent_home = Match.objects.filter(
             home_club_id__in=relevant_club_ids,
             played=True
+        ).exclude(
+            week=week, season=season
         ).order_by('home_club_id', '-season', '-week')
 
         for m in all_recent_home:

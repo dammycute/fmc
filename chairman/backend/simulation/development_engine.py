@@ -4,14 +4,23 @@ def develop_player(player, club) -> None:
     """
     Handles weekly player development and decline.
     """
+    changed_fields = set()
+
+    # Problem 4: Injury recovery does not restore fitness gradually.
+    # If a player is no longer injured but fitness is below 100, restore it by 8.0 per week.
+    # This applies to ALL players regardless of age or potential.
+    if not player.is_injured and player.fitness < 100.0:
+        player.fitness = min(100.0, float(player.fitness) + 8.0)
+        changed_fields.add('fitness')
+
     # Problem 3: Youth development applies to all ages.
     # Skip players whose potential is already achieved, unless they are young enough to still have variance,
     # or old enough to be in the decline phase.
     if player.overall_rating >= player.potential_rating and player.age > 22:
         if player.age < 31:
+            if changed_fields:
+                player.save(update_fields=list(changed_fields))
             return
-
-    changed_fields = set()
 
     # GROWTH PHASE (age <= 26)
     weekly_growth_cap = 0.0
@@ -54,12 +63,6 @@ def develop_player(player, club) -> None:
             academy_mod = 1.0 + (academy_coach.rating / 200)
 
     effective_amount = growth_gate * training_mod * morale_mod * playing_time_mod * academy_mod
-
-    # Problem 4: Injury recovery does not restore fitness gradually.
-    # If a player is no longer injured but fitness is below 100, restore it by 8.0 per week.
-    if not player.is_injured and player.fitness < 100.0:
-        player.fitness = min(100.0, float(player.fitness) + 8.0)
-        changed_fields.add('fitness')
 
     # ATTRIBUTE GROWTH
     if effective_amount > 0:
