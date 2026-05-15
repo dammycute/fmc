@@ -133,6 +133,7 @@ def simulate_match(
 
         # 10. Home advantage: +3 to home attack and midfield base
         if is_home:
+            # TODO: Add a form bonus: if the home club's last 3 matches show 2+ wins, add +2 to h_atk and h_mid.
             atk_base += 3
             mid_base += 3
 
@@ -207,8 +208,8 @@ def simulate_match(
 
         # Momentum boosts shot chance by up to 50%
         # Combine a baseline chance (0.15) with an efficiency-based chance
-        h_shot_chance = (0.25 + 0.40 * h_entries) * (block_home_poss / 50) * (1 + home_momentum * 0.5)
-        a_shot_chance = (0.25 + 0.40 * a_entries) * ((100 - block_home_poss) / 50) * (1 + away_momentum * 0.5)
+        h_shot_chance = (0.12 + 0.40 * h_entries) * (block_home_poss / 50) * (1 + home_momentum * 0.5)
+        a_shot_chance = (0.12 + 0.40 * a_entries) * ((100 - block_home_poss) / 50) * (1 + away_momentum * 0.5)
 
         for team, chance, atk_eff, def_eff, opp_gk, players, opp_players, club_id, opp_club_id in [
             ('home', h_shot_chance, h_atk_eff, a_def_eff, a_gk, home_players, away_players, home_id, away_id),
@@ -220,8 +221,8 @@ def simulate_match(
             shots_this_block = 0
             # Higher base shot counts
             if random.random() < chance: shots_this_block += 1
-            if random.random() < chance * 0.6: shots_this_block += 1
-            if random.random() < chance * 0.3: shots_this_block += 1
+            if random.random() < chance * 0.4: shots_this_block += 1
+            if random.random() < chance * 0.2: shots_this_block += 1
 
             for _ in range(shots_this_block):
                 match_data[f'{team}_shots'] += 1
@@ -231,10 +232,10 @@ def simulate_match(
                 pos_mod = 1.5 if shooter.position.upper() == 'ATT' else 1.1 if shooter.position.upper() == 'MID' else 0.7
                 comp_mod = 0.6 + (shooter.ment_composure / 100)
                 pressure_ratio = def_eff / (def_eff + atk_eff + 1)
-                gk_mod = 75 / (opp_gk + 1)
+                gk_mod = 75 / (opp_gk * fatigue_mod + 1)
 
-                xg = 0.45 * pos_mod * comp_mod * (1.5 - pressure_ratio) * gk_mod
-                xg = max(0.12, min(0.92, xg)) 
+                xg = 0.18 * pos_mod * comp_mod * (1.5 - pressure_ratio) * gk_mod
+                xg = max(0.03, min(0.45, xg)) 
                 match_data[f'{team}_xg'] += xg
 
                 # 4d. Determine goal from xG roll
@@ -333,7 +334,23 @@ def simulate_match(
             match_data['player_ratings'][p.id] += 0.1
 
         # Add basic commentary for every block to ensure regular ticker updates
-        commentary_pool = [
+        early_pool = [
+            "Early pressure from the home side, looking to set the tempo.",
+            "A fast start here as both teams fly into challenges.",
+            "Tentative opening minutes as the teams size each other up.",
+            "The home fans are in full voice in these early stages.",
+            "Early tactical battle, managers already making adjustments.",
+        ]
+        late_pool = [
+            "Entering the final stages, nerves are starting to show.",
+            "The players are looking tired, fatigue could be a factor now.",
+            "One last push from the visitors, throwing men forward.",
+            "Desperate defending as the home side clings on.",
+            "The clock is ticking down, tension rising in the stadium.",
+            "All or nothing now, tactics have gone out the window!",
+            "A dramatic finish looks likely as we enter the closing minutes.",
+        ]
+        general_pool = [
             f"Battle in midfield as {home_name} and {away_name} fight for control.",
             f"{home_name} showing some good tactical shape in this phase.",
             f"{away_name} looking to break through the {home_name} defense.",
@@ -344,10 +361,26 @@ def simulate_match(
             f"The crowd is finding its voice as {home_name} push forward.",
             f"{away_name} looking dangerous on the counter-attack.",
             f"Tactical battle unfolding here, both managers barking instructions.",
+            f"The referee is letting the game flow, a very physical encounter.",
+            "Scrappy play in the middle as possession keeps changing hands.",
+            "Looking for an opening, but the defenses remain resolute.",
+            "A lull in the action as the pace slows down slightly.",
+            "Both teams looking comfortable on the ball under pressure.",
+            "The midfield engine room is working overtime today.",
+            "The managers will be preparing their half-time team talks.",
+            "End-to-end stuff now as the game really starts to open up.",
         ]
+
+        if minute <= 15:
+            current_pool = early_pool + general_pool
+        elif minute >= 75:
+            current_pool = late_pool + general_pool
+        else:
+            current_pool = general_pool
+
         comm_event = {
             "minute": minute, "type": "COMMENTARY", "club_id": None, "player_id": None,
-            "description": random.choice(commentary_pool),
+            "description": random.choice(current_pool),
             "home_score": match_data['home_score'],
             "away_score": match_data['away_score'],
         }

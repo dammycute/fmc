@@ -152,7 +152,7 @@ const App: React.FC = () => {
                 onClick={async () => {
                   const match = prepareMatchday();
                   if (match) {
-                    const simulated = (useGameStore.getState() as any).startUserMatch(match.id);
+                    const simulated = await (useGameStore.getState() as any).startUserMatch(match.id);
                     setActiveMatchSimulation(simulated || match);
                   } else {
                     setIsProcessing(true);
@@ -187,8 +187,8 @@ const App: React.FC = () => {
       {activeMatchSimulation && (
         <MatchSimulation
           match={activeMatchSimulation}
-          onComplete={(result: any) => {
-            finalizeMatchday(result);
+          onComplete={async (result: any) => {
+            await finalizeMatchday(result);
             setActiveMatchSimulation(null);
             setActiveTab('dashboard');
           }}

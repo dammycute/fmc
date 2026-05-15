@@ -1,3 +1,4 @@
+// DEPRECATED: backend is now the single simulation authority. This file is kept for reference only.
 import { type Club, type Player, type Match, type MatchEvent } from '../types/game';
 
 const getRandomElement = <T>(arr: T[]): T | undefined => arr[Math.floor(Math.random() * arr.length)];
