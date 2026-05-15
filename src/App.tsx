@@ -31,7 +31,6 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
     const init = async () => {
       try {
         if (hasActiveSession || userClubId) {
@@ -48,7 +47,6 @@ const App: React.FC = () => {
       }
     };
     init();
-    return () => { isMounted = false; };
   }, [syncData, initializeGame, hasActiveSession, userClubId]);
 
   const userClub = clubs.find(c => String(c.id) === String(userClubId));
