@@ -137,7 +137,3 @@ class ApiClient {
 }
 
 export const client = new ApiClient();
-
-if (typeof window !== 'undefined') {
-  (window as any).apiClient = client;
-}

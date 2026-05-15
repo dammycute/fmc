@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
-import type { Player, Manager, Staff, StaffRole, TransferBid, TransferRequest } from '../../types/game';
+import type { Player, Manager, Staff, StaffRole, TransferBid, TransferRequest, ScoutAssignment } from '../../types/game';
+import type { StoreState } from '../types';
 import { client } from '../../api/client';
 
 export interface SquadSlice {
@@ -9,6 +10,7 @@ export interface SquadSlice {
   staff: Staff[];
   transferBids: TransferBid[];
   transferRequests: TransferRequest[];
+  scoutAssignments: ScoutAssignment[];
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   sackManager: (managerId: string) => Promise<void>;
   hireManager: (clubId: string, manager: Manager) => Promise<void>;
@@ -30,7 +32,7 @@ export interface SquadSlice {
 }
 
 export const createSquadSlice: StateCreator<
-  SquadSlice & any,
+  StoreState,
   [],
   [],
   SquadSlice
@@ -41,6 +43,7 @@ export const createSquadSlice: StateCreator<
   staff: [],
   transferBids: [],
   transferRequests: [],
+  scoutAssignments: [],
 
   updatePlayer: (playerId, updates) =>
     set((state) => ({
@@ -229,8 +232,8 @@ export const createSquadSlice: StateCreator<
 
   clearScoutAssignment: async (clubId, scoutId) => {
     const assignment = get().clubs
-      .find((c: any) => c.id === clubId)
-      ?.scoutAssignments?.find((a: any) => a.scoutId === scoutId);
+      .find((c) => c.id === clubId)
+      ?.scoutAssignments?.find((a) => a.scoutId === scoutId);
     if (assignment?.id) {
       try {
         await client.deleteScoutAssignment(assignment.id);
@@ -327,7 +330,7 @@ export const createSquadSlice: StateCreator<
 
     const sportingDirector = state.staff.find(s => s.clubId === clubId && s.role === 'SPORTING_DIRECTOR');
     const finalAmount = sportingDirector && sportingDirector.rating > 60
-      ? Math.max(0, Math.round(amount * (1 - sportingDirector.rating / 1500)))
+      ? Math.max(0, Math.round(amount * (1 - sportingDirector.rating * 15 / 10000)))
       : amount;
 
     // Check budget for user clubs — use balance if no warchest has been set
@@ -376,7 +379,7 @@ export const createSquadSlice: StateCreator<
       transferBids: state.transferBids.map(b => b.id === bidId ? {
         ...b,
         amount: counterAmount,
-        negotiationCount: b.negotiationCount + 1
+        negotiationCount: (b.negotiationCount || 0) + 1
       } : b)
     }));
   },
@@ -387,9 +390,9 @@ export const createSquadSlice: StateCreator<
     if (!bid || bid.status !== 'ACCEPTED') return;
 
     const player = state.players.find(p => p.id === bid.playerId);
-    const seller = state.clubs.find(c => c.id === bid.toClubId);
-    const buyer = state.clubs.find(c => c.id === bid.fromClubId);
-    if (!player || !buyer) return;
+    const buyingClub = state.clubs.find(c => c.id === bid.fromClubId);
+    const sellingClub = state.clubs.find(c => c.id === bid.toClubId);
+    if (!player || !buyingClub) return;
 
     try {
       await client.finalizeTransfer(bidId);
@@ -401,14 +404,14 @@ export const createSquadSlice: StateCreator<
     set({
       players: state.players.map(p => p.id === bid.playerId ? { ...p, clubId: bid.fromClubId, isTransferListed: false } : p),
       clubs: state.clubs.map(c => {
-        if (c.id === buyer.id) {
+        if (buyingClub && c.id === buyingClub.id) {
           return {
             ...c,
             finances: { ...c.finances, balance: c.finances.balance - bid.amount },
             history: [...c.history, `Signed ${player.firstName} ${player.lastName} for £${(bid.amount / 1000000).toFixed(1)}M`]
           };
         }
-        if (seller && c.id === seller.id) {
+        if (sellingClub && c.id === sellingClub.id) {
           return {
             ...c,
             finances: { ...c.finances, balance: c.finances.balance + bid.amount },

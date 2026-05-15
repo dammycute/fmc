@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGameStore } from '../../store/useGameStore';
+import type { TransferBid } from '../../types/game';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -30,7 +31,7 @@ const TransferMarket: React.FC = () => {
     makeTransferBid 
   } = useGameStore();
   const [activeTab, setActiveTab] = useState<'market' | 'inbox'>('market');
-  const [selectedBid, setSelectedBid] = useState<any>(null);
+  const [selectedBid, setSelectedBid] = useState<TransferBid | null>(null);
   const [counterAmount, setCounterAmount] = useState<string>('');
 
   const userClub = clubs.find(c => c.id === userClubId);
@@ -38,21 +39,27 @@ const TransferMarket: React.FC = () => {
 
   // Market List: Discovered players or top talent
   // Assuming player overall rating is comparable to club reputation
-  const marketPlayers = players
-    .filter(p => p.isTransferListed || (p.clubId !== userClubId && Math.abs(p.overallRating - userClub.reputation) <= 15))
-    .sort((a, b) => {
-      if (a.isTransferListed && !b.isTransferListed) return -1;
-      if (!a.isTransferListed && b.isTransferListed) return 1;
-      return b.overallRating - a.overallRating;
-    })
-    .slice(0, 20);
+  const marketPlayers = useMemo(() =>
+    players
+      .filter(p => p.isTransferListed || (p.clubId !== userClubId && Math.abs(p.overallRating - userClub.reputation) <= 15))
+      .sort((a, b) => {
+        if (a.isTransferListed && !b.isTransferListed) return -1;
+        if (!a.isTransferListed && b.isTransferListed) return 1;
+        return b.overallRating - a.overallRating;
+      })
+      .slice(0, 20),
+    [players, userClubId, userClub?.reputation]
+  );
 
   // Inbox: Bids for MY players
-  const incomingBids = (transferBids || []).filter(b => b.toClubId === userClubId && b.status !== 'CANCELLED');
+  const incomingBids = useMemo(() =>
+    (transferBids || []).filter(b => b.toClubId === userClubId && b.status !== 'CANCELLED'),
+    [transferBids, userClubId]
+  );
 
   const handleNegotiate = () => {
     if (!selectedBid || !counterAmount) return;
-    const amount = parseInt(counterAmount);
+    const amount = parseInt(counterAmount, 10);
     if (isNaN(amount)) return;
 
     negotiateBid(selectedBid.id, amount);

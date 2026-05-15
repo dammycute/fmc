@@ -91,9 +91,13 @@ def _discover_players(assignment: ScoutAssignment, week: int, season: int) -> in
 
     weights = [get_weight(p) for p in candidates]
 
-    selected_players = random.choices(candidates, weights=weights, k=min(num_to_discover, len(candidates)))
-    # Ensure uniqueness if random.choices picked the same one (unlikely with k <= 3 and pool of 50, but possible)
-    selected_players = list(set(selected_players))
+    selected_players = []
+    pool = list(candidates)
+    for _ in range(min(num_to_discover, len(pool))):
+        if not pool:
+            break
+        idx = random.choices(range(len(pool)), weights=[get_weight(p) for p in pool], k=1)[0]
+        selected_players.append(pool.pop(idx))
 
     for player in selected_players:
         # e. Create "scout report" with slightly obscured rating:

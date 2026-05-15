@@ -287,6 +287,7 @@ export interface Match {
   season: number;
   week: number;
   events: MatchEvent[];
+  playerRatings?: Record<string, number>;
   stats?: {
     homePossession: number;
     awayPossession: number;
@@ -345,6 +346,11 @@ export interface NewsStory {
   category: 'MATCH' | 'TRANSFER' | 'CLUB' | 'WORLD' | 'RUMOUR' | 'FINANCE' | 'BOARD';
   importance: 'LOW' | 'MEDIUM' | 'HIGH' | 'BREAKING';
   clubId?: string;
+  impact?: {
+    morale?: number;
+    fans?: number;
+    board?: number;
+  };
 }
 
 export interface ScoutAssignment {

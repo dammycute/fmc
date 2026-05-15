@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { Match, League } from '../../types/game';
+import type { StoreState } from '../types';
 import { client } from '../../api/client';
 
 export interface MatchSlice {
@@ -11,7 +12,7 @@ export interface MatchSlice {
 }
 
 export const createMatchSlice: StateCreator<
-  MatchSlice & any,
+  StoreState,
   [],
   [],
   MatchSlice
@@ -82,7 +83,7 @@ export const createMatchSlice: StateCreator<
           home_score: userMatch.homeScore,
           away_score: userMatch.awayScore,
           events: userMatch.events,
-          player_ratings: (userMatch as any).playerRatings,
+          player_ratings: userMatch.playerRatings,
           stats: userMatch.stats
         });
       } catch (error) {
@@ -105,18 +106,18 @@ export const createMatchSlice: StateCreator<
     // --- Post-Match Analyst Report ---
     const userClubId = state.userClubId;
     const matchThisWeek = userMatch ? { ...userMatch, played: true } : null;
-    const analyst = state.staff?.find((s: any) => s.clubId === userClubId && s.role === 'ANALYST');
+    const analyst = state.staff?.find((s) => s.clubId === userClubId && s.role === 'ANALYST');
     
     if (matchThisWeek && analyst) {
       const isHome = matchThisWeek.homeClubId === userClubId;
       const userScore = isHome ? matchThisWeek.homeScore : matchThisWeek.awayScore;
       const oppScore = isHome ? matchThisWeek.awayScore : matchThisWeek.homeScore;
-      const oppClub = state.clubs.find((c: any) => c.id === (isHome ? matchThisWeek.awayClubId : matchThisWeek.homeClubId));
+      const oppClub = state.clubs.find((c) => c.id === (isHome ? matchThisWeek.awayClubId : matchThisWeek.homeClubId));
       
       const headline = userScore > oppScore ? 'Dominant Performance' : userScore === oppScore ? 'Tactical Stalemate' : 'Areas for Improvement';
       let content = `Analyst ${analyst.name} reports: Our team showed ${userScore > oppScore ? 'excellent control' : 'mixed results'} against ${oppClub?.name}. `;
       
-      const goals = (matchThisWeek.events || []).filter((e: any) => e.type === 'GOAL' && e.clubId === userClubId);
+      const goals = (matchThisWeek.events || []).filter((e) => e.type === 'GOAL' && e.clubId === userClubId);
       if (goals.length > 0) {
         content += `Clinical finishing was key. `;
       } else {

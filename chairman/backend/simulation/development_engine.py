@@ -66,7 +66,7 @@ def develop_player(player, club) -> None:
 
     # ATTRIBUTE GROWTH
     if effective_amount > 0:
-        training_focus = getattr(club, 'training_focus', 'BALANCED') if club else 'BALANCED'
+        training_focus = club.training_focus if club else 'BALANCED'
 
         # Attribute groups for training focus
         focus_map = {
@@ -83,7 +83,7 @@ def develop_player(player, club) -> None:
                 # Each attribute has 70% chance to grow by 1 point if random roll < effective_amount
                 if random.random() < 0.7:
                     if random.random() < effective_amount:
-                        setattr(player, attr, current_val + 1)
+                        setattr(player, attr, min(99, current_val + 1))
                         changed_fields.add(attr)
 
     # DECLINE PHASE (age >= 31)
@@ -95,17 +95,17 @@ def develop_player(player, club) -> None:
         # phys_stamina: * (1 - decline_factor * 0.006) per week
 
         old_pace = player.phys_pace
-        player.phys_pace = float(player.phys_pace) * (1 - decline_factor * 0.008)
+        player.phys_pace = max(1.0, float(player.phys_pace) * (1 - decline_factor * 0.008))
         if player.phys_pace != old_pace:
             changed_fields.add('phys_pace')
 
         old_accel = player.phys_acceleration
-        player.phys_acceleration = float(player.phys_acceleration) * (1 - decline_factor * 0.008)
+        player.phys_acceleration = max(1.0, float(player.phys_acceleration) * (1 - decline_factor * 0.008))
         if player.phys_acceleration != old_accel:
             changed_fields.add('phys_acceleration')
 
         old_stamina = player.phys_stamina
-        player.phys_stamina = float(player.phys_stamina) * (1 - decline_factor * 0.006)
+        player.phys_stamina = max(1.0, float(player.phys_stamina) * (1 - decline_factor * 0.006))
         if player.phys_stamina != old_stamina:
             changed_fields.add('phys_stamina')
 

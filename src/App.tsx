@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStore } from './store/useGameStore';
+import type { Match } from './types/game';
 import Sidebar from './components/layout/Sidebar';
 import Dashboard from './components/screens/Dashboard';
 import Squad from './components/screens/Squad';
@@ -26,7 +27,7 @@ const App: React.FC = () => {
     hasActiveSession, isOffline, syncError, isSyncing 
   } = useGameStore();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [activeMatchSimulation, setActiveMatchSimulation] = useState<any>(null);
+  const [activeMatchSimulation, setActiveMatchSimulation] = useState<Match | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -51,8 +52,14 @@ const App: React.FC = () => {
   }, [syncData, initializeGame, hasActiveSession, userClubId]);
 
   const userClub = clubs.find(c => String(c.id) === String(userClubId));
-  const pendingRequests = (transferRequests || []).filter(r => String(r.clubId) === String(userClubId) && r.status === 'PENDING');
-  const pendingBids = (transferBids || []).filter(b => String(b.toClubId) === String(userClubId) && b.status === 'PENDING');
+  const pendingRequests = useMemo(() =>
+    (transferRequests || []).filter(r => String(r.clubId) === String(userClubId) && r.status === 'PENDING'),
+    [transferRequests, userClubId]
+  );
+  const pendingBids = useMemo(() =>
+    (transferBids || []).filter(b => String(b.toClubId) === String(userClubId) && b.status === 'PENDING'),
+    [transferBids, userClubId]
+  );
 
   if (isSyncing && !clubs.length) {
     return (
@@ -160,7 +167,7 @@ const App: React.FC = () => {
                 onClick={async () => {
                   const match = prepareMatchday();
                   if (match) {
-                    const simulated = await (useGameStore.getState() as any).startUserMatch(match.id);
+                    const simulated = await useGameStore.getState().startUserMatch(match.id);
                     setActiveMatchSimulation(simulated || match);
                   } else {
                     await advanceWeek();
@@ -190,7 +197,7 @@ const App: React.FC = () => {
       {activeMatchSimulation && (
         <MatchSimulation
           match={activeMatchSimulation}
-          onComplete={async (result: any) => {
+          onComplete={async (result: Match) => {
             await finalizeMatchday(result);
             setActiveMatchSimulation(null);
             setActiveTab('dashboard');

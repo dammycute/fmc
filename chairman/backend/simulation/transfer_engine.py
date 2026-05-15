@@ -117,6 +117,8 @@ def _generate_ai_bids(state, week: int, season: int) -> None:
     """
     Non-user clubs generate bids to fill squad gaps.
     """
+    if not state or not state.user_club:
+        return
     ai_clubs = Club.objects.filter(is_user_controlled=False).prefetch_related('players')
 
     for club in ai_clubs:
@@ -154,7 +156,7 @@ def _generate_ai_bids(state, week: int, season: int) -> None:
         target_player = random.choice(list(potential_targets))
 
         # Problem 1: AI Bids Ignore Wage Cap. Check affordability.
-        projected_wages = club.weekly_wages + target_player.wage
+        projected_wages = (club.weekly_wages or 0) + target_player.wage
         if projected_wages > club.balance * 0.4:  # wages should not exceed 40% of balance
             continue
 

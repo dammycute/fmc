@@ -126,12 +126,36 @@ ARCHETYPE_CONFIG = {
 }
 
 FORMATION_CONFIG = {
-    '4-4-2': ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT'],
-    '4-3-3': ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT'],
-    '3-5-2': ['GK', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT'],
-    '4-2-3-1': ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'MID', 'ATT'],
-    '5-4-1': ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'ATT'],
-    '4-4-2_DIAMOND': ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT'],
+    '4-4-2': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('LM', 'MID'), ('CM1', 'MID'), ('CM2', 'MID'), ('RM', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ],
+    '4-3-3': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CM1', 'MID'), ('CM2', 'MID'), ('CM3', 'MID'),
+        ('LW', 'ATT'), ('RW', 'ATT'), ('ST', 'ATT')
+    ],
+    '3-5-2': [
+        ('GK', 'GK'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('CB3', 'DEF'),
+        ('LWB', 'DEF'), ('RWB', 'DEF'), ('CM1', 'MID'), ('CM2', 'MID'), ('CM3', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ],
+    '4-2-3-1': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CDM1', 'MID'), ('CDM2', 'MID'), ('LAM', 'MID'), ('CAM', 'MID'), ('RAM', 'MID'),
+        ('ST', 'ATT')
+    ],
+    '5-4-1': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('CB3', 'DEF'), ('RB', 'DEF'),
+        ('LM', 'MID'), ('CM1', 'MID'), ('CM2', 'MID'), ('RM', 'MID'),
+        ('ST', 'ATT')
+    ],
+    '4-4-2_DIAMOND': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CDM', 'MID'), ('LM', 'MID'), ('RM', 'MID'), ('CAM', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ],
 }
 
 # ── HELPERS ──────────────────────────────────────────
@@ -388,13 +412,13 @@ def auto_pick_lineup(club):
     lineup = {}
     used = set()
 
-    for i, role in enumerate(needed):
+    for slot_name, role in needed:
         best = next((p for p in players if p.position == role and p.id not in used), None)
         if not best:
             best = next((p for p in players if p.id not in used), None)
 
         if best:
-            lineup[f"slot_{i}"] = best.id
+            lineup[slot_name] = best.id
             used.add(best.id)
 
     club.starting_lineup = lineup

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -18,11 +18,22 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   if (!club) return null;
 
   const manager = managers.find(m => m.clubId === userClubId);
-  const squadSize = players.filter(p => p.clubId === userClubId).length;
+  const squadPlayers = useMemo(() => players.filter(p => p.clubId === userClubId), [players, userClubId]);
+  const squadSize = squadPlayers.length;
+  const avgMorale = useMemo(() =>
+    squadPlayers.reduce((sum, p) => sum + (p.morale || 70), 0) / Math.max(1, squadSize),
+    [squadPlayers, squadSize]
+  );
   const lastMatch = [...(matches || [])].reverse().find(m => m.homeClubId === userClubId || m.awayClubId === userClubId);
   
   // Get latest 3 news stories
   const recentNews = (news || []).slice(0, 3);
+
+  const netFinancial = useMemo(() =>
+    Object.values(club.finances.revenue).reduce((a, b) => a + Number(b), 0) -
+    Object.values(club.finances.expenses).reduce((a, b) => a + Number(b), 0),
+    [club.finances.revenue, club.finances.expenses]
+  );
 
   return (
     <div className="space-y-8 pb-20">
@@ -90,9 +101,9 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                 <div className="flex flex-col items-end gap-4">
                   <Badge className={cn(
                     "px-4 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest border",
-                    (players.filter(p => p.clubId === userClubId).reduce((sum, p) => sum + (p.morale || 70), 0) / Math.max(1, squadSize)) > 60 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                    avgMorale > 60 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                   )}>
-                    {(players.filter(p => p.clubId === userClubId).reduce((sum, p) => sum + (p.morale || 70), 0) / Math.max(1, squadSize)) > 60 ? 'Stable' : 'Unsettled'}
+                    {avgMorale > 60 ? 'Stable' : 'Unsettled'}
                   </Badge>
                   <Button 
                     onClick={() => setActiveTab('squad')}
@@ -204,10 +215,10 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                   <p className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest">Proj. Net</p>
                   <p className={cn(
                     "text-lg font-black",
-                    (Object.values(club.finances.revenue).reduce((a, b) => a + Number(b), 0) - Object.values(club.finances.expenses).reduce((a, b) => a + Number(b), 0)) >= 0 ? "text-emerald-400" : "text-rose-400"
+                    netFinancial >= 0 ? "text-emerald-400" : "text-rose-400"
                   )}>
-                    { (Object.values(club.finances.revenue).reduce((a, b) => a + Number(b), 0) - Object.values(club.finances.expenses).reduce((a, b) => a + Number(b), 0)) >= 0 ? '+' : '-' }
-                    £{Math.abs((Object.values(club.finances.revenue).reduce((a, b) => a + Number(b), 0) - Object.values(club.finances.expenses).reduce((a, b) => a + Number(b), 0)) / 1000).toFixed(1)}K
+                    {netFinancial >= 0 ? '+' : '-'}
+                    £{Math.abs(netFinancial / 1000).toFixed(1)}K
                   </p>
                 </div>
 

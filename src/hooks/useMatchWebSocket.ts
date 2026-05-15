@@ -22,7 +22,8 @@ export function useMatchWebSocket() {
     let reconnectTimeout: ReturnType<typeof setTimeout>;
 
     const connect = () => {
-      socket = new WebSocket('ws://localhost:8000/ws/match/');
+      const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/match/';
+      socket = new WebSocket(wsUrl);
 
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);

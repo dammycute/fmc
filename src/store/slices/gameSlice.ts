@@ -1,6 +1,8 @@
 import type { StateCreator } from 'zustand';
+import type { StoreState } from '../types';
 import { type GameState } from '../../types/game';
 import { client } from '../../api/client';
+import { normalizeData } from '../../utils/normalize';
 
 
 export interface GameSlice {
@@ -23,7 +25,7 @@ export interface GameSlice {
 }
 
 export const createGameSlice: StateCreator<
-  GameSlice & any,
+  StoreState,
   [],
   [],
   GameSlice
@@ -51,13 +53,8 @@ export const createGameSlice: StateCreator<
         client.getLeagues(),
       ]);
 
-      const normalize = (data: any) => {
-        const items = Array.isArray(data) ? data : (data?.results || []);
-        return items.map((item: any) => ({ ...item, id: String(item.id) }));
-      };
-
       const gameState = Array.isArray(gameStateResponse) ? gameStateResponse[0] : gameStateResponse;
-      const clubs = normalize(clubsData).map((club: any) => ({
+      const clubs = normalizeData(clubsData).map((club: any) => ({
         ...club,
         leagueId: club.leagueId ? String(club.leagueId) : club.leagueId,
       }));
@@ -71,7 +68,7 @@ export const createGameSlice: StateCreator<
         personalBalance: gameState.personalBalance || 0,
         userClubId: gameState.userClubId ? String(gameState.userClubId) : null,
         clubs,
-        leagues: normalize(leaguesData),
+        leagues: normalizeData(leaguesData),
         hasActiveSession: !!gameState.userClubId,
         isSyncing: false
       });
@@ -89,7 +86,8 @@ export const createGameSlice: StateCreator<
 
   fetchAllPages: async (fetchPage: (params: any) => Promise<any>, params: any = {}) => {
     try {
-      const firstPage = await fetchPage({ ...params, page_size: 1000 });
+      const pageSize = params.page_size || 1000;
+      const firstPage = await fetchPage({ ...params, page_size: pageSize });
       if (Array.isArray(firstPage)) return firstPage;
 
       const results = [...(firstPage?.results || [])];
@@ -97,7 +95,7 @@ export const createGameSlice: StateCreator<
       let page = 2;
 
       while (next) {
-        const pageData = await fetchPage({ ...params, page_size: 1000, page });
+        const pageData = await fetchPage({ ...params, page_size: pageSize, page });
         results.push(...(pageData?.results || []));
         next = pageData?.next;
         page += 1;
@@ -143,36 +141,30 @@ export const createGameSlice: StateCreator<
         fetchAllPages(client.getScoutAssignments),
       ]);
 
-      const normalize = (data: any) => {
-        if (!data) return [];
-        const items = Array.isArray(data) ? data : (data?.results || []);
-        return items.map((item: any) => ({ ...item, id: String(item.id) }));
-      };
-
       const gameState = Array.isArray(gameStateResponse) ? gameStateResponse[0] : gameStateResponse;
       
-      const players = normalize(playersData).map((player: any) => ({
+      const players = normalizeData(playersData).map((player: any) => ({
         ...player,
         clubId: player.clubId ? String(player.clubId) : player.clubId,
       }));
 
-      const managers = normalize(managersData).map((manager: any) => ({
+      const managers = normalizeData(managersData).map((manager: any) => ({
         ...manager,
         clubId: manager.clubId ? String(manager.clubId) : manager.clubId,
         philosophy: manager.preferredStyle || 'BALANCED',
       }));
 
-      const clubs = normalize(clubsData).map((club: any) => ({
+      const clubs = normalizeData(clubsData).map((club: any) => ({
         ...club,
         leagueId: club.leagueId ? String(club.leagueId) : club.leagueId,
       }));
 
-      const staff = normalize(staffData).map((s: any) => ({
+      const staff = normalizeData(staffData).map((s: any) => ({
         ...s,
         clubId: s.clubId ? String(s.clubId) : s.clubId,
       }));
 
-      const scoutAssignments = normalize(scoutData).map((as: any) => {
+      const scoutAssignments = normalizeData(scoutData).map((as: any) => {
         const reports = (as.reports || []).map((report: any) => ({
           ...report,
           id: String(report.id),
@@ -205,26 +197,26 @@ export const createGameSlice: StateCreator<
         players,
         managers,
         staff,
-        leagues: normalize(leaguesData),
-        matches: normalize(matchesData).map((m: any) => ({
+        leagues: normalizeData(leaguesData),
+        matches: normalizeData(matchesData).map((m: any) => ({
           ...m,
           homeClubId: String(m.homeClubId),
           awayClubId: String(m.awayClubId),
           leagueId: String(m.leagueId),
         })),
-        transferBids: normalize(bidsData).map((bid: any) => ({
+        transferBids: normalizeData(bidsData).map((bid: any) => ({
           ...bid,
           playerId: String(bid.playerId),
           fromClubId: String(bid.fromClubId),
           toClubId: String(bid.toClubId),
         })),
-        transferRequests: normalize(requestsData).map((request: any) => ({
+        transferRequests: normalizeData(requestsData).map((request: any) => ({
           ...request,
           managerId: String(request.managerId),
           clubId: String(request.clubId),
         })),
         scoutAssignments,
-        news: normalize(newsData),
+        news: normalizeData(newsData),
         isSyncing: false,
         isOffline: false,
         syncError: null,
@@ -253,9 +245,9 @@ export const createGameSlice: StateCreator<
       set({ isSyncing: true });
       await client.advanceWeek();
       await get().syncData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to advance week:", error);
-      set({ isSyncing: false });
+      set({ isSyncing: false, syncError: error.message || 'Failed to advance week' });
     }
   },
 
@@ -264,15 +256,13 @@ export const createGameSlice: StateCreator<
       set({ isSyncing: true });
       await client.skipWeeks(weeks);
       await get().syncData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to skip weeks:", error);
-      set({ isSyncing: false });
+      set({ isSyncing: false, syncError: error.message || 'Failed to skip weeks' });
     }
   },
 
-  setGameState: (state: Partial<GameState>) => {
-    set((prev: any) => ({
-      gameState: { ...prev.gameState, ...state }
-    }));
+  setGameState: (partial: Partial<GameState>) => {
+    set(partial as any);
   },
 });

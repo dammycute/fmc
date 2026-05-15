@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
-import type { Club, SeasonTarget } from '../../types/game';
+import type { Club, SeasonTarget, Formation } from '../../types/game';
+import type { StoreState } from '../types';
 import { autoPickLineup } from '../../utils/dataGenerator';
 import { client } from '../../api/client';
 
@@ -8,19 +9,19 @@ export interface ClubSlice {
   updateClub: (clubId: string, updates: Partial<Club>) => void;
   upgradeFacility: (clubId: string, facilityType: 'stadium' | 'trainingGround' | 'medicalCenter' | 'youthAcademy') => Promise<void>;
   buyClub: (clubId: string, newName?: string) => Promise<void>;
-  sellClub: (clubId: string) => void;
-  renameClub: (clubId: string, newName: string) => void;
+  sellClub: (clubId: string) => Promise<void>;
+  renameClub: (clubId: string, newName: string) => Promise<void>;
   acceptSponsor: (clubId: string, sponsorId: string) => Promise<void>;
-  setSeasonTarget: (clubId: string, target: SeasonTarget) => void;
-  setTransferBudget: (clubId: string, amount: number) => void;
-  setFormation: (clubId: string, formation: string) => void;
-  setTactics: (clubId: string, tactics: string) => void;
-  setTrainingFocus: (clubId: string, focus: string) => void;
+  setSeasonTarget: (clubId: string, target: SeasonTarget) => Promise<void>;
+  setTransferBudget: (clubId: string, amount: number) => Promise<void>;
+  setFormation: (clubId: string, formation: string) => Promise<void>;
+  setTactics: (clubId: string, tactics: string) => Promise<void>;
+  setTrainingFocus: (clubId: string, focus: string) => Promise<void>;
 }
 
 
 export const createClubSlice: StateCreator<
-  ClubSlice & any,
+  StoreState,
   [],
   [],
   ClubSlice
@@ -60,9 +61,14 @@ export const createClubSlice: StateCreator<
   buyClub: async (clubId, newName) => {
     const state = get();
     const club = state.clubs.find(c => String(c.id) === String(clubId));
-    if (!club || state.personalBalance < club.valuation) return;
+    if (!club || state.personalBalance == null || state.personalBalance < club.valuation) return;
 
-    await client.buyClub(clubId, newName);
+    try {
+      await client.buyClub(clubId, newName);
+    } catch (error) {
+      console.error('Failed to buy club:', error);
+      return;
+    }
 
     const remainingBalance = state.personalBalance - club.valuation;
     const clubName = newName?.trim() || club.name;
@@ -82,10 +88,17 @@ export const createClubSlice: StateCreator<
     });
   },
 
-  sellClub: (clubId) => {
+  sellClub: async (clubId) => {
     const state = get();
     const club = state.clubs.find(c => String(c.id) === String(clubId));
     if (!club) return;
+
+    try {
+      await client.updateClub(clubId, { is_user_controlled: false });
+    } catch (error) {
+      console.error('Failed to sell club:', error);
+      return;
+    }
 
     set({
       userClubId: null,
@@ -95,13 +108,15 @@ export const createClubSlice: StateCreator<
     });
   },
 
-  renameClub: (clubId, newName) => {
-    client.updateClub(clubId, { name: newName }).catch((error: unknown) => {
+  renameClub: async (clubId, newName) => {
+    try {
+      await client.updateClub(clubId, { name: newName });
+      set((state) => ({
+        clubs: state.clubs.map(c => c.id === clubId ? { ...c, name: newName } : c)
+      }));
+    } catch (error) {
       console.error('Failed to rename club:', error);
-    });
-    set((state) => ({
-      clubs: state.clubs.map(c => c.id === clubId ? { ...c, name: newName } : c)
-    }));
+    }
   },
 
   acceptSponsor: async (clubId, sponsorId) => {
@@ -135,63 +150,70 @@ export const createClubSlice: StateCreator<
     });
   },
 
-  setSeasonTarget: (clubId, target) => {
-    client.updateClub(clubId, { seasonTarget: target } as any).catch((error: unknown) => {
+  setSeasonTarget: async (clubId, target) => {
+    try {
+      await client.updateClub(clubId, { seasonTarget: target });
+      set((state) => ({
+        clubs: state.clubs.map(c => c.id === clubId ? { ...c, seasonTarget: target } : c)
+      }));
+    } catch (error) {
       console.error('Failed to update season target:', error);
-    });
-    set((state) => ({
-      clubs: state.clubs.map(c => c.id === clubId ? { ...c, seasonTarget: target } : c)
-    }));
+    }
   },
 
-  setTransferBudget: (clubId, amount) => {
-    client.updateClub(clubId, { transferBudget: amount } as any).catch((error: unknown) => {
+  setTransferBudget: async (clubId, amount) => {
+    try {
+      await client.updateClub(clubId, { transferBudget: amount });
+      set((state) => ({
+        clubs: state.clubs.map(c => c.id === clubId ? {
+          ...c,
+          transferBudget: Math.min(c.finances.balance, amount)
+        } : c)
+      }));
+    } catch (error) {
       console.error('Failed to update transfer budget:', error);
-    });
-    set((state) => ({
-      clubs: state.clubs.map(c => c.id === clubId ? {
-        ...c,
-        transferBudget: Math.min(c.finances.balance, amount)
-      } : c)
-    }));
+    }
   },
 
-  setFormation: (clubId, formation) => {
+  setFormation: async (clubId, formation) => {
     const state = get();
     const players = (state.players || []).filter(p => p.clubId === clubId);
-    const lineup = autoPickLineup(formation as any, players);
+    const lineup = autoPickLineup(formation as Formation, players);
 
-    client.updateClub(clubId, { formation, startingLineup: lineup }).catch((error: unknown) => {
+    try {
+      await client.updateClub(clubId, { formation, startingLineup: lineup });
+      set((state) => ({
+        clubs: state.clubs.map(c => c.id === clubId ? {
+          ...c,
+          formation: formation as Formation,
+          startingLineup: lineup
+        } : c)
+      }));
+    } catch (error) {
       console.error('Failed to update formation:', error);
-    });
-
-    set((state) => ({
-      clubs: state.clubs.map(c => c.id === clubId ? {
-        ...c,
-        formation: formation as any,
-        startingLineup: lineup
-      } : c)
-    }));
+    }
   },
 
 
-  setTactics: (clubId, tactics) => {
-    client.updateClub(clubId, { tactics }).catch((error: unknown) => {
+  setTactics: async (clubId, tactics) => {
+    try {
+      await client.updateClub(clubId, { tactics });
+      set((state) => ({
+        clubs: state.clubs.map(c => c.id === clubId ? { ...c, tactics } : c)
+      }));
+    } catch (error) {
       console.error('Failed to update tactics:', error);
-    });
-
-    set((state) => ({
-      clubs: state.clubs.map(c => c.id === clubId ? { ...c, tactics } : c)
-    }));
+    }
   },
 
-  setTrainingFocus: (clubId, trainingFocus) => {
-    client.updateClub(clubId, { trainingFocus }).catch((error: unknown) => {
+  setTrainingFocus: async (clubId, trainingFocus) => {
+    try {
+      await client.updateClub(clubId, { trainingFocus });
+      set((state) => ({
+        clubs: state.clubs.map(c => c.id === clubId ? { ...c, trainingFocus } : c)
+      }));
+    } catch (error) {
       console.error('Failed to update training focus:', error);
-    });
-
-    set((state) => ({
-      clubs: state.clubs.map(c => c.id === clubId ? { ...c, trainingFocus } : c)
-    }));
+    }
   },
 });

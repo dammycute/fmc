@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -26,8 +26,6 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
   const [activeSubTab, setActiveSubTab] = useState<'pitch' | 'feed' | 'tactics'>('pitch');
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
   // Authoritative calculated state based on current replay minute
   const visibleEvents = useMemo(() => 
     match.events.filter(e => e.minute <= minute).sort((a, b) => b.minute - a.minute),

@@ -1,13 +1,14 @@
 import type { StateCreator } from 'zustand';
+import type { StoreState } from '../types';
 import type { NewsStory } from '../../types/game';
 
 export interface NewsSlice {
   news: NewsStory[];
-  generateNews: (story: Omit<NewsStory, 'id'>) => void;
+  generateNews: (story: Omit<NewsStory, 'id' | 'week' | 'season'>) => void;
 }
 
 export const createNewsSlice: StateCreator<
-  NewsSlice & any,
+  StoreState,
   [],
   [],
   NewsSlice
