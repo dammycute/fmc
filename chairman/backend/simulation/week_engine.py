@@ -6,7 +6,7 @@ from game.models import (
     NewsStory, TransferRequest, League, PlayerSeasonStats
 )
 from asgiref.sync import async_to_sync
-from .match_engine import simulate_match, PlayerSnapshot
+from .match_engine import simulate_match, PlayerSnapshot, get_starting_11
 from .broadcaster import broadcast_match_event
 from .development_engine import develop_player
 from .transfer_engine import process_week as process_transfers
@@ -36,11 +36,23 @@ def advance_week() -> dict:
 
         played_this_week_stats = {} # player_id -> {won, drawn, lost, rating}
 
+        def _form_bonus(club):
+            last_3 = Match.objects.filter(
+                Q(home_club=club) | Q(away_club=club),
+                played=True
+            ).order_by('-season', '-week')[:3]
+            wins = sum(1 for m in last_3
+                       if (m.home_club_id == club.id and m.home_score > m.away_score)
+                       or (m.away_club_id == club.id and m.away_score > m.home_score))
+            return 2 if wins >= 2 else 0
+
         for m in matches:
             hc_id = str(m.home_club_id)
             ac_id = str(m.away_club_id)
-            home_players = players_by_club.get(hc_id, [])
-            away_players = players_by_club.get(ac_id, [])
+            all_home_players = players_by_club.get(hc_id, [])
+            all_away_players = players_by_club.get(ac_id, [])
+            home_players = get_starting_11(m.home_club.formation or '4-4-2', m.home_club.starting_lineup or {}, all_home_players)
+            away_players = get_starting_11(m.away_club.formation or '4-4-2', m.away_club.starting_lineup or {}, all_away_players)
 
             def make_snapshot(p):
                 return PlayerSnapshot(
@@ -67,11 +79,15 @@ def advance_week() -> dict:
                 if m.home_club_id == state.user_club_id or m.away_club_id == state.user_club_id:
                     async_to_sync(broadcast_match_event)(event)
 
+            hfb = _form_bonus(m.home_club)
+            afb = _form_bonus(m.away_club)
             res = simulate_match(
                 m.home_club, m.away_club, h_snaps, a_snaps,
                 getattr(m.home_club, 'manager', None), getattr(m.away_club, 'manager', None),
                 season, week,
-                on_event=on_match_event
+                on_event=on_match_event,
+                home_form_bonus=hfb,
+                away_form_bonus=afb,
             )
 
             # Write results back

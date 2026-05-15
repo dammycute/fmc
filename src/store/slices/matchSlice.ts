@@ -45,11 +45,21 @@ export const createMatchSlice: StateCreator<
       const response = await client.simulateMatch(matchId);
       
       // Map Snake Case from backend to Camel Case for frontend Match type
+      const mappedEvents = (response.events || []).map((e: any) => ({
+        minute: e.minute,
+        type: e.type,
+        description: e.description,
+        playerId: e.player_id != null ? String(e.player_id) : undefined,
+        clubId: e.club_id != null ? String(e.club_id) : undefined,
+        homeScore: e.home_score,
+        awayScore: e.away_score,
+      }));
+
       const simulatedMatch = {
         ...match,
         homeScore: response.home_score,
         awayScore: response.away_score,
-        events: response.events,
+        events: mappedEvents,
         playerRatings: response.player_ratings,
         stats: {
           homePossession: response.stats?.home_possession || 50,

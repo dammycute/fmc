@@ -34,6 +34,70 @@ class PlayerSnapshot:
     morale: float
     fatigue: float
 
+FORMATION_CONFIG = {
+    '4-4-2': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('LM', 'MID'), ('CM1', 'MID'), ('CM2', 'MID'), ('RM', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ],
+    '4-3-3': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CM1', 'MID'), ('CM2', 'MID'), ('CM3', 'MID'),
+        ('LW', 'ATT'), ('RW', 'ATT'), ('ST', 'ATT')
+    ],
+    '3-5-2': [
+        ('GK', 'GK'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('CB3', 'DEF'),
+        ('LWB', 'DEF'), ('RWB', 'DEF'), ('CM1', 'MID'), ('CM2', 'MID'), ('CM3', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ],
+    '4-2-3-1': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CDM1', 'MID'), ('CDM2', 'MID'), ('LAM', 'MID'), ('CAM', 'MID'), ('RAM', 'MID'),
+        ('ST', 'ATT')
+    ],
+    '5-4-1': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('CB3', 'DEF'), ('RB', 'DEF'),
+        ('LM', 'MID'), ('CM1', 'MID'), ('CM2', 'MID'), ('RM', 'MID'),
+        ('ST', 'ATT')
+    ],
+    '4-4-2_DIAMOND': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CDM', 'MID'), ('LM', 'MID'), ('RM', 'MID'), ('CAM', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ]
+}
+
+
+def get_starting_11(formation, starting_lineup, all_players):
+    slots = FORMATION_CONFIG.get(formation, FORMATION_CONFIG['4-4-2'])
+    lineup = starting_lineup or {}
+    selected = []
+    used_ids = set()
+
+    for slot_name, role in slots:
+        p_id = lineup.get(slot_name)
+        found = None
+        if p_id:
+            found = next((p for p in all_players if str(p.id) == str(p_id)), None)
+        if found and found.id not in used_ids:
+            selected.append(found)
+            used_ids.add(found.id)
+        else:
+            selected.append(None)
+
+    for i, (slot_name, role) in enumerate(slots):
+        if selected[i] is None:
+            available = [p for p in all_players if p.position == role and p.id not in used_ids]
+            if not available:
+                available = [p for p in all_players if p.id not in used_ids]
+            if available:
+                best = max(available, key=lambda p: p.overall_rating)
+                selected[i] = best
+                used_ids.add(best.id)
+
+    return [p for p in selected if p is not None]
+
+
 FORMATION_BONUSES = {
     '4-4-2':         {'atk_mod': 1.0,  'def_mod': 1.0,  'mid_mod': 1.0  },
     '4-3-3':         {'atk_mod': 1.10, 'def_mod': 0.95, 'mid_mod': 0.95 },
@@ -61,7 +125,9 @@ def simulate_match(
     away_manager,
     season: int,
     week: int,
-    on_event=None
+    on_event=None,
+    home_form_bonus=0,
+    away_form_bonus=0,
 ) -> dict:
     # 2. Return structure
     match_data = {
@@ -104,7 +170,10 @@ def simulate_match(
     def get_active(players):
         return [p for p in players if p.id not in red_cards]
 
-    def calc_strengths(players, tac, form, is_home):
+    def fat_factor(p):
+        return max(0.5, 1.0 - p.fatigue / 200)
+
+    def calc_strengths(players, tac, form, is_home, form_bonus=0):
         active = get_active(players)
         if not active: return 0, 0, 0, 30
 
@@ -113,29 +182,30 @@ def simulate_match(
         defs = [p for p in active if p.position.upper() == 'DEF']
         gks = [p for p in active if p.position.upper() == 'GK']
 
-        # 4a. Possession base: MID player avg passing+vision+stamina
         if mids:
-            mid_base = sum(p.tech_passing + p.tech_vision + p.phys_stamina for p in mids) / len(mids)
+            mid_base = sum((p.tech_passing + p.tech_vision + p.phys_stamina) * fat_factor(p) for p in mids) / len(mids)
         else:
-            mid_base = sum(p.overall_rating for p in active) / len(active) * 0.7
+            mid_base = sum(p.overall_rating * fat_factor(p) for p in active) / len(active) * 0.7
 
         if atts:
-            atk_base = sum(p.tech_shooting * 0.5 + p.tech_finishing * 0.5 for p in atts) / len(atts)
+            atk_base = sum((p.tech_shooting * 0.5 + p.tech_finishing * 0.5) * fat_factor(p) for p in atts) / len(atts)
         else:
-            atk_base = sum(p.overall_rating for p in active) / len(active) * 0.4
+            atk_base = sum(p.overall_rating * fat_factor(p) for p in active) / len(active) * 0.4
 
         if defs:
-            def_base = sum(p.tech_tackling * 0.5 + p.tech_positioning * 0.5 for p in defs) / len(defs)
+            def_base = sum((p.tech_tackling * 0.5 + p.tech_positioning * 0.5) * fat_factor(p) for p in defs) / len(defs)
         else:
-            def_base = sum(p.overall_rating for p in active) / len(active) * 0.4
+            def_base = sum(p.overall_rating * fat_factor(p) for p in active) / len(active) * 0.4
 
-        gk_rating = sum(p.tech_reflexes * 0.5 + p.tech_handling * 0.5 for p in gks) / len(gks) if gks else 30
+        gk_rating = sum((p.tech_reflexes * 0.5 + p.tech_handling * 0.5) * fat_factor(p) for p in gks) / len(gks) if gks else 30
 
-        # 10. Home advantage: +3 to home attack and midfield base
+        # Home advantage + form bonus
         if is_home:
-            # TODO: Add a form bonus: if the home club's last 3 matches show 2+ wins, add +2 to h_atk and h_mid.
             atk_base += 3
             mid_base += 3
+
+        atk_base += form_bonus
+        mid_base += form_bonus
 
         atk = atk_base * tac['atk_mod'] * form['atk_mod']
         dfn = def_base * tac['def_mod'] * form['def_mod']
@@ -144,8 +214,8 @@ def simulate_match(
         return max(20, atk), max(20, dfn), max(20, mid), max(20, gk_rating)
 
     # Initial strengths
-    h_atk, h_def, h_mid, h_gk = calc_strengths(home_players, home_tac_mod, home_form_mod, True)
-    a_atk, a_def, a_mid, a_gk = calc_strengths(away_players, away_tac_mod, away_form_mod, False)
+    h_atk, h_def, h_mid, h_gk = calc_strengths(home_players, home_tac_mod, home_form_mod, True, home_form_bonus)
+    a_atk, a_def, a_mid, a_gk = calc_strengths(away_players, away_tac_mod, away_form_mod, False, away_form_bonus)
     red_card_count = 0
 
     # 3. Simulation loop: 5-minute blocks, 18 blocks = 90 minutes
@@ -178,8 +248,8 @@ def simulate_match(
 
         # Recalculate strengths only if a red card happened
         if len(red_cards) > red_card_count:
-            h_atk, h_def, h_mid, h_gk = calc_strengths(home_players, home_tac_mod, home_form_mod, True)
-            a_atk, a_def, a_mid, a_gk = calc_strengths(away_players, away_tac_mod, away_form_mod, False)
+            h_atk, h_def, h_mid, h_gk = calc_strengths(home_players, home_tac_mod, home_form_mod, True, home_form_bonus)
+            a_atk, a_def, a_mid, a_gk = calc_strengths(away_players, away_tac_mod, away_form_mod, False, away_form_bonus)
             red_card_count = len(red_cards)
 
         # 4f. Game state adaptation
@@ -226,9 +296,8 @@ def simulate_match(
         a_entries = a_mid_eff / (h_def_eff + 1)
 
         # Momentum boosts shot chance by up to 50%
-        # Combine a baseline chance (0.15) with an efficiency-based chance
-        h_shot_chance = (0.12 + 0.40 * h_entries) * (block_home_poss / 50) * (1 + home_momentum * 0.5)
-        a_shot_chance = (0.12 + 0.40 * a_entries) * ((100 - block_home_poss) / 50) * (1 + away_momentum * 0.5)
+        h_shot_chance = (0.08 + 0.25 * h_entries) * (block_home_poss / 50) * (1 + home_momentum * 0.5)
+        a_shot_chance = (0.08 + 0.25 * a_entries) * ((100 - block_home_poss) / 50) * (1 + away_momentum * 0.5)
 
         for team, chance, atk_eff, def_eff, opp_gk, players, opp_players, club_id, opp_club_id in [
             ('home', h_shot_chance, h_atk_eff, a_def_eff, a_gk, home_players, away_players, home_id, away_id),
@@ -253,8 +322,8 @@ def simulate_match(
                 pressure_ratio = def_eff / (def_eff + atk_eff + 1)
                 gk_mod = 75 / (opp_gk * fatigue_mod + 1)
 
-                xg = 0.18 * pos_mod * comp_mod * (1.5 - pressure_ratio) * gk_mod
-                xg = max(0.03, min(0.45, xg)) 
+                xg = 0.10 * pos_mod * comp_mod * (1.5 - pressure_ratio) * gk_mod
+                xg = max(0.02, min(0.30, xg)) 
                 match_data[f'{team}_xg'] += xg
 
                 # 4d. Determine goal from xG roll
@@ -368,7 +437,7 @@ def simulate_match(
                     }
                     match_data['events'].append(event)
                     if on_event: on_event(event)
-            elif random.random() < 0.003 * (fouler.ment_aggression / 50):
+            elif random.random() < 0.001 * (fouler.ment_aggression / 50):
                 # Direct red: 0.3% * (player.ment_aggression/50)
                 red_cards.add(fouler.id)
                 event = {

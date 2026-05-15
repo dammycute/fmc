@@ -4,7 +4,7 @@ from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Q, F
+from django.db.models import Q, F, Case, When
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
@@ -21,7 +21,7 @@ from .serializers import (
     ScoutAssignmentSerializer, SponsorSerializer
 )
 from simulation.week_engine import advance_week
-from simulation.match_engine import simulate_match, PlayerSnapshot
+from simulation.match_engine import simulate_match, PlayerSnapshot, get_starting_11
 from simulation.development_engine import recalculate_player_for_position
 
 VALID_FACILITY_TYPES = {'stadium', 'training', 'medical', 'youth'}
@@ -33,39 +33,6 @@ def _get_game_state():
     except GameState.DoesNotExist:
         return None
 
-
-FORMATION_CONFIG = {
-    '4-4-2': [
-        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
-        ('LM', 'MID'), ('CM1', 'MID'), ('CM2', 'MID'), ('RM', 'MID'),
-        ('ST1', 'ATT'), ('ST2', 'ATT')
-    ],
-    '4-3-3': [
-        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
-        ('CM1', 'MID'), ('CM2', 'MID'), ('CM3', 'MID'),
-        ('LW', 'ATT'), ('RW', 'ATT'), ('ST', 'ATT')
-    ],
-    '3-5-2': [
-        ('GK', 'GK'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('CB3', 'DEF'),
-        ('LWB', 'DEF'), ('RWB', 'DEF'), ('CM1', 'MID'), ('CM2', 'MID'), ('CM3', 'MID'),
-        ('ST1', 'ATT'), ('ST2', 'ATT')
-    ],
-    '4-2-3-1': [
-        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
-        ('CDM1', 'MID'), ('CDM2', 'MID'), ('LAM', 'MID'), ('CAM', 'MID'), ('RAM', 'MID'),
-        ('ST', 'ATT')
-    ],
-    '5-4-1': [
-        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('CB3', 'DEF'), ('RB', 'DEF'),
-        ('LM', 'MID'), ('CM1', 'MID'), ('CM2', 'MID'), ('RM', 'MID'),
-        ('ST', 'ATT')
-    ],
-    '4-4-2_DIAMOND': [
-        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
-        ('CDM', 'MID'), ('LM', 'MID'), ('RM', 'MID'), ('CAM', 'MID'),
-        ('ST1', 'ATT'), ('ST2', 'ATT')
-    ]
-}
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50
@@ -321,47 +288,29 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
 
         return qs
 
+    @staticmethod
+    def _form_bonus(club):
+        from game.models import Match as MatchModel
+        last_3 = MatchModel.objects.filter(
+            Q(home_club=club) | Q(away_club=club),
+            played=True
+        ).order_by('-season', '-week')[:3]
+        wins = sum(1 for m in last_3
+                   if (m.home_club_id == club.id and m.home_score > m.away_score)
+                   or (m.away_club_id == club.id and m.away_score > m.home_score))
+        return 2 if wins >= 2 else 0
+
     @action(detail=True, methods=['post'])
     def simulate(self, request, pk=None):
         match = self.get_object()
 
-        def get_starting_11(club):
-            formation = club.formation or '4-4-2'
-            slots = FORMATION_CONFIG.get(formation, FORMATION_CONFIG['4-4-2'])
-            lineup = club.starting_lineup or {}
-            all_club_players = list(club.players.all())
-            selected_players = []
-            used_ids = set()
+        all_home_players = list(match.home_club.players.all())
+        all_away_players = list(match.away_club.players.all())
+        h_players = get_starting_11(match.home_club.formation or '4-4-2', match.home_club.starting_lineup or {}, all_home_players)
+        a_players = get_starting_11(match.away_club.formation or '4-4-2', match.away_club.starting_lineup or {}, all_away_players)
 
-            # Pass 1: Lineup selection
-            for slot_name, role in slots:
-                p_id = lineup.get(slot_name)
-                found = None
-                if p_id:
-                    found = next((p for p in all_club_players if str(p.id) == str(p_id)), None)
-                
-                if found and found.id not in used_ids:
-                    selected_players.append(found)
-                    used_ids.add(found.id)
-                else:
-                    selected_players.append(None)
-
-            # Pass 2: Position-based fallback
-            for i, (slot_name, role) in enumerate(slots):
-                if selected_players[i] is None:
-                    available = [p for p in all_club_players if p.position == role and p.id not in used_ids]
-                    if not available:
-                        available = [p for p in all_club_players if p.id not in used_ids]
-                    
-                    if available:
-                        best = max(available, key=lambda p: p.overall_rating)
-                        selected_players[i] = best
-                        used_ids.add(best.id)
-            
-            return [p for p in selected_players if p is not None]
-
-        h_players = get_starting_11(match.home_club)
-        a_players = get_starting_11(match.away_club)
+        home_form_bonus = self._form_bonus(match.home_club)
+        away_form_bonus = self._form_bonus(match.away_club)
 
         def make_snapshot(p):
             return PlayerSnapshot(
@@ -387,7 +336,9 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
             [make_snapshot(p) for p in a_players],
             getattr(match.home_club, 'manager', None),
             getattr(match.away_club, 'manager', None),
-            match.season, match.week
+            match.season, match.week,
+            home_form_bonus=home_form_bonus,
+            away_form_bonus=away_form_bonus,
         )
         
         # Structure for frontend expectations (matchSlice.ts)
@@ -419,6 +370,7 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
         elif 'awayScore' in request.data:
             match.away_score = request.data['awayScore']
         match.events = request.data.get('events', match.events)
+        match.player_ratings = request.data.get('player_ratings', match.player_ratings)
         stats = request.data.get('stats') or {}
         match.home_possession = stats.get('homePossession', match.home_possession)
         match.away_possession = stats.get('awayPossession', match.away_possession)
@@ -428,7 +380,103 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
         match.away_xg = stats.get('awayXg', match.away_xg)
         match.played = True
         match.save()
-        # Post-match logic would go here in a production app
+
+        # ── POST-MATCH PLAYER UPDATES ──────────────────────
+        player_ratings = request.data.get('player_ratings', {})
+        events = request.data.get('events', [])
+        home_club_id = match.home_club_id
+        away_club_id = match.away_club_id
+
+        # 1. Goals and assists from events
+        for event in events:
+            if event.get('type') == 'GOAL':
+                scorer_id = event.get('playerId') or event.get('player_id')
+                if scorer_id:
+                    Player.objects.filter(id=scorer_id).update(goals=F('goals') + 1)
+                assister = event.get('assisterId') or event.get('assister_id')
+                if assister:
+                    Player.objects.filter(id=assister).update(assists=F('assists') + 1)
+
+        # 2. Per-player post-match updates
+        played_ids = set()
+        for pid_str, rating in player_ratings.items():
+            try:
+                pid = int(pid_str)
+                p = Player.objects.get(id=pid)
+                played_ids.add(pid)
+            except (Player.DoesNotExist, ValueError):
+                continue
+
+            p.appearances += 1
+            p.form = (p.form + [rating])[-5:]
+            p.fatigue += 12
+            p.tactical_familiarity = min(100.0, float(p.tactical_familiarity) + 0.3)
+
+            is_home = p.club_id == home_club_id
+            if is_home:
+                won = match.home_score > match.away_score
+                drawn = match.home_score == match.away_score
+            else:
+                won = match.away_score > match.home_score
+                drawn = match.home_score == match.away_score
+
+            if won:
+                p.morale = min(100.0, float(p.morale) + 8)
+            elif drawn:
+                p.morale = min(100.0, float(p.morale) + 2)
+            else:
+                p.morale = max(0.0, float(p.morale) - 6)
+
+            p.happiness_playing_time = min(100, p.happiness_playing_time + 2)
+
+            if len(p.form) >= 3:
+                avg_form = sum(p.form[-3:]) / 3
+                if avg_form < 6.0:
+                    p.happiness_manager = max(0, p.happiness_manager - 5)
+
+            p.save(update_fields=[
+                'appearances', 'form', 'fatigue', 'tactical_familiarity',
+                'morale', 'happiness_playing_time', 'happiness_manager',
+            ])
+
+        # 3. Recovery for non-playing players of both clubs
+        Player.objects.filter(
+            Q(club_id=home_club_id) | Q(club_id=away_club_id)
+        ).exclude(id__in=list(played_ids)).update(
+            fatigue=Case(
+                When(fatigue__gte=10, then=F('fatigue') - 10),
+                default=0.0
+            ),
+            morale=Case(
+                When(morale__gt=31, then=F('morale') - 1),
+                default=30.0
+            ),
+            happiness_playing_time=Case(
+                When(club__isnull=False, happiness_playing_time__gte=2, then=F('happiness_playing_time') - 2),
+                When(club__isnull=False, then=0),
+                default=F('happiness_playing_time')
+            )
+        )
+
+        # 4. Injury checks for players who played
+        physios_by_club = {s.club_id: s for s in Staff.objects.filter(role='PHYSIO')}
+        for pid in played_ids:
+            try:
+                p = Player.objects.get(id=pid)
+            except Player.DoesNotExist:
+                continue
+            if p.is_injured:
+                continue
+            chance = 0.015 * (p.hidden_injury_proneness / 50) * (1 + p.fatigue / 200)
+            physio = physios_by_club.get(p.club_id)
+            if physio:
+                chance *= (1 - physio.rating / 200)
+            if random.random() < chance:
+                p.is_injured = True
+                p.injury_weeks_remaining = random.randint(1, 6)
+                p.fitness = 0.0
+                p.save(update_fields=['is_injured', 'injury_weeks_remaining', 'fitness'])
+
         return Response({"status": "Match finalized"})
 
 # ── LEAGUES ──────────────────────────────────────────
