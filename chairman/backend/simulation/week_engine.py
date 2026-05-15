@@ -197,6 +197,24 @@ def advance_week() -> dict:
             club = clubs_by_id.get(p.club_id)
             develop_player(p, club)
 
+        # ── STEP 4b: CONTRACT MANAGEMENT ───────────────────
+        # Problem 1: Contract expiry is never processed.
+        # Decrement manager contract weeks
+        Manager.objects.filter(club__isnull=False, contract_weeks_remaining__gt=0).update(
+            contract_weeks_remaining=F('contract_weeks_remaining') - 1
+        )
+        # Release managers whose contracts have expired
+        expired_managers = Manager.objects.filter(contract_weeks_remaining__lte=0, club__isnull=False)
+        for manager in expired_managers:
+            club = manager.club
+            manager.club = None
+            manager.save()
+            NewsStory.objects.create(
+                title=f"Contract expired: {manager.name} leaves {club.name}",
+                content=f"{manager.name}'s contract at {club.name} has expired.",
+                category='CLUB', importance='MEDIUM', club=club, week=week, season=season
+            )
+
         # ── STEP 5: AI MANAGER DECISIONS ───────────────────
         for club in Club.objects.filter(is_user_controlled=False).select_related('manager'):
             manager = getattr(club, 'manager', None)
@@ -239,7 +257,8 @@ def advance_week() -> dict:
                 elif (is_home and m.home_score > m.away_score) or (not is_home and m.away_score > m.home_score):
                     score += 3
 
-            delta = (score - 7.5) * 2
+            # Problem 3: Board confidence delta is unbounded. Clamp to [-5, 5].
+            delta = max(-5, min(5, (score - 7.5) * 2))
             if club.balance < 0:
                 delta -= 5
 
@@ -284,6 +303,9 @@ def advance_week() -> dict:
     return summary
 
 def handle_season_end(state, season):
+    # Problem 4: Idempotent fixture generation. Delete existing matches for next season.
+    Match.objects.filter(season=season + 1).delete()
+
     leagues = League.objects.all().order_by('tier')
     tables = {}
     for league in leagues:
