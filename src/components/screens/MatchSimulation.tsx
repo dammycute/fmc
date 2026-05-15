@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -23,20 +23,32 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
   const { clubs, players, toggleTransferList, userClubId, makeTransferBid } = useGameStore();
   const [minute, setMinute] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
-  const [visibleEvents, setVisibleEvents] = useState<MatchEvent[]>([]);
   const [activeSubTab, setActiveSubTab] = useState<'pitch' | 'feed' | 'tactics'>('pitch');
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Authoritative calculated state based on current replay minute
+  const visibleEvents = useMemo(() => 
+    match.events.filter(e => e.minute <= minute).sort((a, b) => b.minute - a.minute),
+    [minute, match.events]
+  );
+
+  const currentHomeScore = useMemo(() => 
+    match.events.filter(e => e.minute <= minute && e.type === 'GOAL' && e.clubId === match.homeClubId).length,
+    [minute, match.events, match.homeClubId]
+  );
+
+  const currentAwayScore = useMemo(() => 
+    match.events.filter(e => e.minute <= minute && e.type === 'GOAL' && e.clubId === match.awayClubId).length,
+    [minute, match.events, match.awayClubId]
+  );
 
   const homeClub = clubs.find(c => c.id === match.homeClubId);
   const awayClub = clubs.find(c => c.id === match.awayClubId);
 
   const homePlayers = players.filter(p => p.clubId === match.homeClubId);
   const awayPlayers = players.filter(p => p.clubId === match.awayClubId);
-
-  // Score tracking for the simulation
-  const [currentHomeScore, setCurrentHomeScore] = useState(0);
-  const [currentAwayScore, setCurrentAwayScore] = useState(0);
 
   const handlePlayerClick = (player: Player) => {
     setSelectedPlayer(player);
@@ -45,22 +57,21 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
 
   const handleMakeBid = (playerId: string) => {
     if (!selectedPlayer || !userClubId) return;
-    // Basic automatic bid at market value
     makeTransferBid(playerId, userClubId, selectedPlayer.value);
-    setIsPlayerModalOpen(false); // Close modal on bid to show feedback elsewhere? Or keep open?
-    // User probably wants feedback
+    setIsPlayerModalOpen(false);
   };
 
+  // Replay timer
   useEffect(() => {
     if (minute >= 90) {
-      const timeout = setTimeout(() => setIsFinished(true), 0);
-      return () => clearTimeout(timeout);
+      setIsFinished(true);
+      return;
     }
 
-    const interval = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setMinute(prev => {
         if (prev >= 90) {
-          clearInterval(interval);
+          if (timerRef.current) clearInterval(timerRef.current);
           setIsFinished(true);
           return 90;
         }
@@ -68,28 +79,10 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
       });
     }, 100);
 
-    return () => clearInterval(interval);
-  }, [minute]);
-
-  useEffect(() => {
-    const minuteEvents = match.events.filter(e => e.minute === minute);
-    if (minuteEvents.length > 0) {
-      const timeout = setTimeout(() => {
-        setVisibleEvents(prev => [...minuteEvents, ...prev]);
-
-        minuteEvents.forEach(e => {
-          if (e.type === 'GOAL') {
-            if (e.clubId === match.homeClubId) {
-              setCurrentHomeScore(prev => prev + 1);
-            } else {
-              setCurrentAwayScore(prev => prev + 1);
-            }
-          }
-        });
-      }, 0);
-      return () => clearTimeout(timeout);
-    }
-  }, [minute, match.events, match.homeClubId]);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-[#09090b] z-[100] flex flex-col overflow-hidden animate-in fade-in duration-500">

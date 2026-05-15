@@ -20,14 +20,14 @@ import { Button } from './components/ui/button';
 import { formatMoney } from './utils/formatMoney';
 
 const App: React.FC = () => {
-  const { initializeGame, syncData, currentSeason, currentWeek, news, userClubId, clubs, advanceWeek, prepareMatchday, finalizeMatchday, transferRequests, transferBids, hasActiveSession } = useGameStore();
+  const { 
+    initializeGame, syncData, currentSeason, currentWeek, news, userClubId, clubs, 
+    advanceWeek, prepareMatchday, finalizeMatchday, transferRequests, transferBids, 
+    hasActiveSession, isOffline, syncError, isSyncing 
+  } = useGameStore();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeMatchSimulation, setActiveMatchSimulation] = useState<any>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Use store's state to determine initial syncing need
-  const [isSyncing, setIsSyncing] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,8 +44,6 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error("Initialization error:", error);
-      } finally {
-        if (isMounted) setIsSyncing(false);
       }
     };
     init();
@@ -56,7 +54,7 @@ const App: React.FC = () => {
   const pendingRequests = (transferRequests || []).filter(r => String(r.clubId) === String(userClubId) && r.status === 'PENDING');
   const pendingBids = (transferBids || []).filter(b => String(b.toClubId) === String(userClubId) && b.status === 'PENDING');
 
-  if (isSyncing) {
+  if (isSyncing && !clubs.length) {
     return (
       <div className="h-screen bg-[#09090b] flex items-center justify-center">
         <div className="text-center">
@@ -111,6 +109,16 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-[#09090b] text-zinc-100 selection:bg-indigo-500/30">
+      {isOffline && (
+        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-1 z-[100] font-bold text-[10px] uppercase tracking-widest animate-pulse shadow-lg">
+          Connection Lost - Retrying Sync...
+        </div>
+      )}
+      {syncError && !isOffline && (
+        <div className="fixed top-0 left-0 right-0 bg-amber-600 text-white text-center py-1 z-[100] font-bold text-[10px] uppercase tracking-widest shadow-lg">
+          Warning: {syncError}
+        </div>
+      )}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -148,24 +156,19 @@ const App: React.FC = () => {
               <div className="h-10 w-px bg-white/5 hidden sm:block" />
               <Button
                 size="lg"
-                disabled={isProcessing}
+                disabled={isSyncing}
                 onClick={async () => {
                   const match = prepareMatchday();
                   if (match) {
                     const simulated = await (useGameStore.getState() as any).startUserMatch(match.id);
                     setActiveMatchSimulation(simulated || match);
                   } else {
-                    setIsProcessing(true);
-                    try {
-                      await advanceWeek();
-                    } finally {
-                      setIsProcessing(false);
-                    }
+                    await advanceWeek();
                   }
                 }}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 sm:px-8 shadow-lg shadow-indigo-600/20 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isProcessing ? 'PROCESSING...' : 'CONTINUE'}
+                {isSyncing ? 'PROCESSING...' : 'CONTINUE'}
               </Button>
             </div>
           </div>
@@ -195,7 +198,7 @@ const App: React.FC = () => {
         />
       )}
 
-      {isProcessing && (
+      {isSyncing && clubs.length > 0 && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center transition-all duration-500 animate-in fade-in">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />

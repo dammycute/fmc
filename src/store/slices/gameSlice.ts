@@ -11,6 +11,8 @@ export interface GameSlice {
   hasActiveSession: boolean;
   personalBalance: number;
   isSyncing: boolean;
+  isOffline: boolean;
+  syncError: string | null;
   lastSync: number | null;
   initializeGame: () => Promise<void>;
   fetchAllPages: (fetchPage: (params: any) => Promise<any>, params?: any) => Promise<any[]>;
@@ -33,6 +35,8 @@ export const createGameSlice: StateCreator<
   hasActiveSession: false,
   personalBalance: 0,
   isSyncing: false,
+  isOffline: false,
+  syncError: null,
   lastSync: null,
 
   initializeGame: async () => {
@@ -215,11 +219,25 @@ export const createGameSlice: StateCreator<
         scoutAssignments,
         news: normalize(newsData),
         isSyncing: false,
+        isOffline: false,
+        syncError: null,
         lastSync: Date.now()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to sync data with backend:", error);
-      set({ isSyncing: false });
+      
+      const isNetworkError = 
+        error.name === 'TypeError' || 
+        error.message.includes('Failed to fetch') || 
+        error.message.includes('NetworkError') ||
+        error.message.includes('unreachable');
+
+      if (isNetworkError) {
+        set({ isOffline: true, isSyncing: false });
+      } else {
+        // Data/Server error (e.g. 500)
+        set({ syncError: error.message, isSyncing: false });
+      }
     }
   },
 

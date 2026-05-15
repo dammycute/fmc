@@ -21,6 +21,39 @@ from .serializers import (
 from simulation.week_engine import advance_week
 from simulation.match_engine import simulate_match, PlayerSnapshot
 
+FORMATION_CONFIG = {
+    '4-4-2': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('LM', 'MID'), ('CM1', 'MID'), ('CM2', 'MID'), ('RM', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ],
+    '4-3-3': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CM1', 'MID'), ('CM2', 'MID'), ('CM3', 'MID'),
+        ('LW', 'ATT'), ('RW', 'ATT'), ('ST', 'ATT')
+    ],
+    '3-5-2': [
+        ('GK', 'GK'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('CB3', 'DEF'),
+        ('LWB', 'DEF'), ('RWB', 'DEF'), ('CM1', 'MID'), ('CM2', 'MID'), ('CM3', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ],
+    '4-2-3-1': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CDM1', 'MID'), ('CDM2', 'MID'), ('LAM', 'MID'), ('CAM', 'MID'), ('RAM', 'MID'),
+        ('ST', 'ATT')
+    ],
+    '5-4-1': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('CB3', 'DEF'), ('RB', 'DEF'),
+        ('LM', 'MID'), ('CM1', 'MID'), ('CM2', 'MID'), ('RM', 'MID'),
+        ('ST', 'ATT')
+    ],
+    '4-4-2_DIAMOND': [
+        ('GK', 'GK'), ('LB', 'DEF'), ('CB1', 'DEF'), ('CB2', 'DEF'), ('RB', 'DEF'),
+        ('CDM', 'MID'), ('LM', 'MID'), ('RM', 'MID'), ('CAM', 'MID'),
+        ('ST1', 'ATT'), ('ST2', 'ATT')
+    ]
+}
+
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50
     page_size_query_param = 'page_size'
@@ -259,8 +292,44 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['post'])
     def simulate(self, request, pk=None):
         match = self.get_object()
-        h_players = list(match.home_club.players.all())
-        a_players = list(match.away_club.players.all())
+
+        def get_starting_11(club):
+            formation = club.formation or '4-4-2'
+            slots = FORMATION_CONFIG.get(formation, FORMATION_CONFIG['4-4-2'])
+            lineup = club.starting_lineup or {}
+            all_club_players = list(club.players.all())
+            selected_players = []
+            used_ids = set()
+
+            # Pass 1: Lineup selection
+            for slot_name, role in slots:
+                p_id = lineup.get(slot_name)
+                found = None
+                if p_id:
+                    found = next((p for p in all_club_players if str(p.id) == str(p_id)), None)
+                
+                if found and found.id not in used_ids:
+                    selected_players.append(found)
+                    used_ids.add(found.id)
+                else:
+                    selected_players.append(None)
+
+            # Pass 2: Position-based fallback
+            for i, (slot_name, role) in enumerate(slots):
+                if selected_players[i] is None:
+                    available = [p for p in all_club_players if p.position == role and p.id not in used_ids]
+                    if not available:
+                        available = [p for p in all_club_players if p.id not in used_ids]
+                    
+                    if available:
+                        best = max(available, key=lambda p: p.overall_rating)
+                        selected_players[i] = best
+                        used_ids.add(best.id)
+            
+            return [p for p in selected_players if p is not None]
+
+        h_players = get_starting_11(match.home_club)
+        a_players = get_starting_11(match.away_club)
 
         def make_snapshot(p):
             return PlayerSnapshot(
@@ -288,7 +357,23 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
             getattr(match.away_club, 'manager', None),
             match.season, match.week
         )
-        return Response(res)
+        
+        # Structure for frontend expectations (matchSlice.ts)
+        output = {
+            "home_score": res["home_score"],
+            "away_score": res["away_score"],
+            "events": res["events"],
+            "player_ratings": res["player_ratings"],
+            "stats": {
+                "home_possession": res["home_possession"],
+                "away_possession": res["away_possession"],
+                "home_shots": res["home_shots"],
+                "away_shots": res["away_shots"],
+                "home_xg": res["home_xg"],
+                "away_xg": res["away_xg"],
+            }
+        }
+        return Response(output)
 
     @action(detail=True, methods=['post'])
     def finalize(self, request, pk=None):
@@ -336,7 +421,7 @@ class LeagueViewSet(viewsets.ReadOnlyModelViewSet):
                 else:
                     gf += m.away_score; ga += m.home_score
                     if m.away_score > m.home_score: won += 1
-                    elif m.home_score == m.away_score: drawn += 1
+                    elif m.away_score == m.home_score: drawn += 1
                     else: lost += 1
 
             table.append({
