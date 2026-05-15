@@ -1,9 +1,5 @@
 import type { StateCreator } from 'zustand';
 import { type GameState } from '../../types/game';
-import { generateFixtures } from '../../utils/fixtureGenerator';
-import { generateInitialData, generatePlayer, getRandomElement } from '../../utils/dataGenerator';
-
-import { processAITransfers } from '../../utils/transferEngine';
 import { client } from '../../api/client';
 
 
@@ -14,7 +10,10 @@ export interface GameSlice {
   userClubId: string | null;
   hasActiveSession: boolean;
   personalBalance: number;
+  isSyncing: boolean;
+  lastSync: number | null;
   initializeGame: () => Promise<void>;
+  fetchAllPages: (fetchPage: (params: any) => Promise<any>, params?: any) => Promise<any[]>;
   syncData: () => Promise<void>;
   advanceWeek: () => Promise<void>;
   setGameState: (state: Partial<GameState>) => void;
@@ -33,24 +32,19 @@ export const createGameSlice: StateCreator<
   userClubId: null,
   hasActiveSession: false,
   personalBalance: 0,
+  isSyncing: false,
+  lastSync: null,
 
   initializeGame: async () => {
-    // For a fresh start, we still need the backend data (leagues, clubs, players)
-    // but without the user session state.
-    await get().syncData();
-  },
-
-  syncData: async () => {
-    console.log("SYNC STARTING...");
+    const { syncData } = get();
+    set({ isSyncing: true });
+    
     try {
-      const [gameStateResponse, clubsData, playersData, managersData, staffData, newsData, leaguesData] = await Promise.all([
+      console.log("Initializing game state...");
+      const [gameStateResponse, clubsData, leaguesData] = await Promise.all([
         client.getGameState(),
-        client.getClubs({ page_size: 1000 }), // Ensure we get all clubs
-        client.getPlayers({ limit: 1000 }),
-        client.getManagers({ limit: 500 }),
-        client.getStaff({ limit: 500 }),
-        client.getNews({ limit: 100 }),
-        client.getLeagues()
+        get().fetchAllPages(client.getClubs),
+        client.getLeagues(),
       ]);
 
       const normalize = (data: any) => {
@@ -58,48 +52,202 @@ export const createGameSlice: StateCreator<
         return items.map((item: any) => ({ ...item, id: String(item.id) }));
       };
 
-      // API returns a list or a single object for game-state
       const gameState = Array.isArray(gameStateResponse) ? gameStateResponse[0] : gameStateResponse;
-      console.log("SYNC DEBUG - gameStateResponse:", gameStateResponse);
-      console.log("SYNC DEBUG - gameState:", gameState);
-      console.log("SYNC DEBUG - gameState keys:", Object.keys(gameState || {}));
-      console.log("SYNC DEBUG - leaguesData:", leaguesData);
+      const clubs = normalize(clubsData).map((club: any) => ({
+        ...club,
+        leagueId: club.leagueId ? String(club.leagueId) : club.leagueId,
+      }));
+
+      console.log(`Loaded ${clubs.length} clubs and ${Array.isArray(leaguesData) ? leaguesData.length : 0} leagues.`);
 
       set({
-        currentSeason: gameState.currentSeason,
-        currentWeek: gameState.currentWeek,
-        isTransferWindowOpen: gameState.isTransferWindowOpen,
+        currentSeason: gameState.currentSeason || 2024,
+        currentWeek: gameState.currentWeek || 1,
+        isTransferWindowOpen: gameState.isTransferWindowOpen ?? true,
+        personalBalance: gameState.personalBalance || 0,
         userClubId: gameState.userClubId ? String(gameState.userClubId) : null,
-        hasActiveSession: !!gameState.userClubId,
-        personalBalance: gameState.personalBalance || 1000000,
-        shortlist: (gameState.shortlist || []).map(String),
-        clubs: normalize(clubsData),
-        players: normalize(playersData),
-        managers: normalize(managersData),
-        staff: normalize(staffData),
-        news: normalize(newsData),
+        clubs,
         leagues: normalize(leaguesData),
+        hasActiveSession: !!gameState.userClubId,
+        isSyncing: false
       });
+
+      // If we have an active session, sync the rest of the data
+      if (gameState.userClubId) {
+        await syncData();
+      }
     } catch (error) {
-      console.error("Failed to sync data with backend:", error);
+      console.error("Failed to initialize world:", error);
+      set({ isSyncing: false });
+      throw error;
     }
   },
 
-  setGameState: (state) => set((prev) => ({ ...prev, ...state })),
+  fetchAllPages: async (fetchPage: (params: any) => Promise<any>, params: any = {}) => {
+    try {
+      const firstPage = await fetchPage({ ...params, page_size: 1000 });
+      if (Array.isArray(firstPage)) return firstPage;
+
+      const results = [...(firstPage?.results || [])];
+      let next = firstPage?.next;
+      let page = 2;
+
+      while (next) {
+        const pageData = await fetchPage({ ...params, page_size: 1000, page });
+        results.push(...(pageData?.results || []));
+        next = pageData?.next;
+        page += 1;
+        if (page > 10) break; // Safety break
+      }
+
+      return results;
+    } catch (error) {
+      console.error("Error in fetchAllPages:", error);
+      return [];
+    }
+  },
+
+  syncData: async () => {
+    const { fetchAllPages } = get();
+    set({ isSyncing: true });
+    
+    try {
+      console.log("Syncing all game data...");
+      const [
+        gameStateResponse,
+        clubsData,
+        playersData,
+        managersData,
+        staffData,
+        newsData,
+        leaguesData,
+        matchesData,
+        bidsData,
+        requestsData,
+        scoutData
+      ] = await Promise.all([
+        client.getGameState(),
+        fetchAllPages(client.getClubs),
+        fetchAllPages(client.getPlayers),
+        fetchAllPages(client.getManagers),
+        fetchAllPages(client.getStaff),
+        client.getNews({ page_size: 100 }),
+        client.getLeagues(),
+        fetchAllPages(client.getMatches),
+        fetchAllPages(client.getTransferBids),
+        fetchAllPages(client.getTransferRequests),
+        fetchAllPages(client.getScoutAssignments),
+      ]);
+
+      const normalize = (data: any) => {
+        if (!data) return [];
+        const items = Array.isArray(data) ? data : (data?.results || []);
+        return items.map((item: any) => ({ ...item, id: String(item.id) }));
+      };
+
+      const gameState = Array.isArray(gameStateResponse) ? gameStateResponse[0] : gameStateResponse;
+      
+      const players = normalize(playersData).map((player: any) => ({
+        ...player,
+        clubId: player.clubId ? String(player.clubId) : player.clubId,
+      }));
+
+      const managers = normalize(managersData).map((manager: any) => ({
+        ...manager,
+        clubId: manager.clubId ? String(manager.clubId) : manager.clubId,
+        philosophy: manager.preferredStyle || 'BALANCED',
+      }));
+
+      const clubs = normalize(clubsData).map((club: any) => ({
+        ...club,
+        leagueId: club.leagueId ? String(club.leagueId) : club.leagueId,
+      }));
+
+      const staff = normalize(staffData).map((s: any) => ({
+        ...s,
+        clubId: s.clubId ? String(s.clubId) : s.clubId,
+      }));
+
+      const scoutAssignments = normalize(scoutData).map((as: any) => ({
+        ...as,
+        clubId: as.clubId ? String(as.clubId) : null,
+        scoutId: as.scoutId ? String(as.scoutId) : null,
+        reports: (as.reports || []).map((report: any) => ({
+          ...report,
+          id: String(report.id),
+          playerId: report.playerId ? String(report.playerId) : report.playerId,
+          scoutId: report.scoutId ? String(report.scoutId) : report.scoutId,
+        }))
+      }));
+
+      console.log(`Sync complete. Players: ${players.length}, Clubs: ${clubs.length}`);
+
+      set({
+        currentSeason: gameState.currentSeason || 2024,
+        currentWeek: gameState.currentWeek || 1,
+        isTransferWindowOpen: gameState.isTransferWindowOpen ?? true,
+        personalBalance: gameState.personalBalance || 0,
+        userClubId: gameState.userClubId ? String(gameState.userClubId) : null,
+        hasActiveSession: !!gameState.userClubId,
+        shortlist: (gameState.shortlist || []).map(String),
+        clubs,
+        players,
+        managers,
+        staff,
+        leagues: normalize(leaguesData),
+        matches: normalize(matchesData).map((m: any) => ({
+          ...m,
+          homeClubId: String(m.homeClubId),
+          awayClubId: String(m.awayClubId),
+          leagueId: String(m.leagueId),
+        })),
+        transferBids: normalize(bidsData).map((bid: any) => ({
+          ...bid,
+          playerId: String(bid.playerId),
+          fromClubId: String(bid.fromClubId),
+          toClubId: String(bid.toClubId),
+        })),
+        transferRequests: normalize(requestsData).map((request: any) => ({
+          ...request,
+          managerId: String(request.managerId),
+          clubId: String(request.clubId),
+        })),
+        scoutAssignments,
+        news: normalize(newsData),
+        isSyncing: false,
+        lastSync: Date.now()
+      });
+    } catch (error) {
+      console.error("Failed to sync data with backend:", error);
+      set({ isSyncing: false });
+    }
+  },
 
   advanceWeek: async () => {
     try {
+      set({ isSyncing: true });
       await client.advanceWeek();
       await get().syncData();
     } catch (error) {
       console.error("Failed to advance week:", error);
+      set({ isSyncing: false });
     }
   },
 
-
-  skipWeeks: async (weeks) => {
-    for (let i = 0; i < weeks; i++) {
-      await get().advanceWeek();
+  skipWeeks: async (weeks: number) => {
+    try {
+      set({ isSyncing: true });
+      await client.skipWeeks(weeks);
+      await get().syncData();
+    } catch (error) {
+      console.error("Failed to skip weeks:", error);
+      set({ isSyncing: false });
     }
+  },
+
+  setGameState: (state: Partial<GameState>) => {
+    set((prev: any) => ({
+      gameState: { ...prev.gameState, ...state }
+    }));
   },
 });

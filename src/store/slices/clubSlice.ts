@@ -1,15 +1,16 @@
 import type { StateCreator } from 'zustand';
 import type { Club, SeasonTarget } from '../../types/game';
 import { autoPickLineup } from '../../utils/dataGenerator';
+import { client } from '../../api/client';
 
 export interface ClubSlice {
   clubs: Club[];
   updateClub: (clubId: string, updates: Partial<Club>) => void;
-  upgradeFacility: (clubId: string, facilityType: 'stadium' | 'trainingGround' | 'medicalCenter' | 'youthAcademy') => void;
-  buyClub: (clubId: string) => void;
+  upgradeFacility: (clubId: string, facilityType: 'stadium' | 'trainingGround' | 'medicalCenter' | 'youthAcademy') => Promise<void>;
+  buyClub: (clubId: string, newName?: string) => Promise<void>;
   sellClub: (clubId: string) => void;
   renameClub: (clubId: string, newName: string) => void;
-  acceptSponsor: (clubId: string, sponsorId: string) => void;
+  acceptSponsor: (clubId: string, sponsorId: string) => Promise<void>;
   setSeasonTarget: (clubId: string, target: SeasonTarget) => void;
   setTransferBudget: (clubId: string, amount: number) => void;
   setFormation: (clubId: string, formation: string) => void;
@@ -31,7 +32,7 @@ export const createClubSlice: StateCreator<
       clubs: state.clubs.map((club) => club.id === clubId ? { ...club, ...updates } : club),
     })),
 
-  upgradeFacility: (clubId, type) => {
+  upgradeFacility: async (clubId, type) => {
     const state = get();
     const club = state.clubs.find(c => c.id === clubId);
     if (!club) return;
@@ -40,6 +41,20 @@ export const createClubSlice: StateCreator<
     // Use the upgradeCost directly — it is already tier-scaled during data generation
     const upgradeCost = facility.upgradeCost;
     if (club.finances.balance < upgradeCost) return;
+
+    const backendType = {
+      stadium: 'stadium',
+      trainingGround: 'training',
+      medicalCenter: 'medical',
+      youthAcademy: 'youth',
+    }[type];
+
+    try {
+      await client.upgradeFacility(clubId, backendType);
+    } catch (error) {
+      console.error('Failed to upgrade facility:', error);
+      return;
+    }
 
     set({
       clubs: state.clubs.map(c => c.id === clubId ? {
@@ -59,17 +74,15 @@ export const createClubSlice: StateCreator<
     });
   },
 
-  buyClub: async (clubId) => {
+  buyClub: async (clubId, newName) => {
     const state = get();
     const club = state.clubs.find(c => String(c.id) === String(clubId));
     if (!club || state.personalBalance < club.valuation) return;
 
-    const client = (window as any).apiClient;
-    if (client) {
-      await client.buyClub(clubId);
-    }
+    await client.buyClub(clubId, newName);
 
     const remainingBalance = state.personalBalance - club.valuation;
+    const clubName = newName?.trim() || club.name;
 
     set({
       userClubId: clubId,
@@ -78,8 +91,9 @@ export const createClubSlice: StateCreator<
       managers: state.managers.filter(m => m.clubId !== clubId),
       clubs: state.clubs.map(c => c.id === clubId ? {
         ...c,
+        name: clubName,
         isUserControlled: true,
-        finances: { ...c.finances, balance: c.finances.balance + remainingBalance },
+        finances: { ...c.finances },
         history: [...c.history, `Club acquired by new owner`, `Previous manager departed following takeover`]
       } : c)
     });
@@ -99,22 +113,28 @@ export const createClubSlice: StateCreator<
   },
 
   renameClub: (clubId, newName) => {
-    const client = (window as any).apiClient;
-    if (client) {
-      client.updateClub(clubId, { name: newName });
-    }
+    client.updateClub(clubId, { name: newName }).catch((error: unknown) => {
+      console.error('Failed to rename club:', error);
+    });
     set((state) => ({
       clubs: state.clubs.map(c => c.id === clubId ? { ...c, name: newName } : c)
     }));
   },
 
-  acceptSponsor: (clubId, sponsorId) => {
+  acceptSponsor: async (clubId, sponsorId) => {
     const state = get();
     const club = state.clubs.find(c => c.id === clubId);
     const sponsor = club?.availableSponsors.find(s => s.id === sponsorId);
     if (!club || !sponsor) return;
     if (club.activeSponsors.length >= 3) return;
     if (club.reputation < sponsor.reputationRequired) return;
+
+    try {
+      await client.acceptSponsor(clubId, sponsorId);
+    } catch (error) {
+      console.error('Failed to accept sponsor:', error);
+      return;
+    }
 
     const weeklySponsorship = sponsor.amount / Math.max(1, sponsor.duration) / 38;
 
@@ -133,12 +153,18 @@ export const createClubSlice: StateCreator<
   },
 
   setSeasonTarget: (clubId, target) => {
+    client.updateClub(clubId, { seasonTarget: target } as any).catch((error: unknown) => {
+      console.error('Failed to update season target:', error);
+    });
     set((state) => ({
       clubs: state.clubs.map(c => c.id === clubId ? { ...c, seasonTarget: target } : c)
     }));
   },
 
   setTransferBudget: (clubId, amount) => {
+    client.updateClub(clubId, { transferBudget: amount } as any).catch((error: unknown) => {
+      console.error('Failed to update transfer budget:', error);
+    });
     set((state) => ({
       clubs: state.clubs.map(c => c.id === clubId ? {
         ...c,
@@ -152,10 +178,9 @@ export const createClubSlice: StateCreator<
     const players = (state.players || []).filter(p => p.clubId === clubId);
     const lineup = autoPickLineup(formation as any, players);
 
-    const client = (window as any).apiClient;
-    if (client) {
-      client.updateClub(clubId, { formation, starting_lineup: lineup });
-    }
+    client.updateClub(clubId, { formation, startingLineup: lineup }).catch((error: unknown) => {
+      console.error('Failed to update formation:', error);
+    });
 
     set((state) => ({
       clubs: state.clubs.map(c => c.id === clubId ? {
@@ -168,10 +193,9 @@ export const createClubSlice: StateCreator<
 
 
   setTactics: (clubId, tactics) => {
-    const client = (window as any).apiClient;
-    if (client) {
-      client.updateClub(clubId, { tactics });
-    }
+    client.updateClub(clubId, { tactics }).catch((error: unknown) => {
+      console.error('Failed to update tactics:', error);
+    });
 
     set((state) => ({
       clubs: state.clubs.map(c => c.id === clubId ? { ...c, tactics } : c)
@@ -179,10 +203,9 @@ export const createClubSlice: StateCreator<
   },
 
   setTrainingFocus: (clubId, trainingFocus) => {
-    const client = (window as any).apiClient;
-    if (client) {
-      client.updateClub(clubId, { training_focus: trainingFocus });
-    }
+    client.updateClub(clubId, { trainingFocus }).catch((error: unknown) => {
+      console.error('Failed to update training focus:', error);
+    });
 
     set((state) => ({
       clubs: state.clubs.map(c => c.id === clubId ? { ...c, trainingFocus } : c)

@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import Q, F, Case, When
 from game.models import (
     GameState, Match, Player, Club, Manager, Staff,
-    NewsStory, TransferRequest, League
+    NewsStory, TransferRequest, League, PlayerSeasonStats
 )
 from asgiref.sync import async_to_sync
 from .match_engine import simulate_match, PlayerSnapshot
@@ -29,15 +29,18 @@ def advance_week() -> dict:
         involved_players = Player.objects.filter(club_id__in=match_club_ids)
         players_by_club = {}
         for p in involved_players:
-            if p.club_id not in players_by_club:
-                players_by_club[p.club_id] = []
-            players_by_club[p.club_id].append(p)
+            cid = str(p.club_id) if p.club_id else 'none'
+            if cid not in players_by_club:
+                players_by_club[cid] = []
+            players_by_club[cid].append(p)
 
         played_this_week_stats = {} # player_id -> {won, drawn, lost, rating}
 
         for m in matches:
-            home_players = players_by_club.get(m.home_club_id, [])
-            away_players = players_by_club.get(m.away_club_id, [])
+            hc_id = str(m.home_club_id)
+            ac_id = str(m.away_club_id)
+            home_players = players_by_club.get(hc_id, [])
+            away_players = players_by_club.get(ac_id, [])
 
             def make_snapshot(p):
                 return PlayerSnapshot(

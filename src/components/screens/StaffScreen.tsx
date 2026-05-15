@@ -16,7 +16,7 @@ interface StaffScreenProps {
 }
 
 const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActiveTab }) => {
-  const { userClubId, clubs, staff, managers, advertiseStaffRole, hireStaffApplicant, dismissStaff, hireStaff, hireManager } = useGameStore();
+  const { userClubId, clubs, leagues, staff, managers, advertiseStaffRole, hireStaffApplicant, dismissStaff, hireStaff, hireManager } = useGameStore();
   const [activeTab, setActiveTab] = React.useState('overview');
 
   const club = clubs.find(c => c.id === userClubId);
@@ -50,14 +50,9 @@ const StaffScreen: React.FC<StaffScreenProps> = ({ setActiveTab: setGlobalActive
 
   // 1. Managers Scaled to Club League Tier
   const reputation = club.reputation || 50;
-  const clubLeague = (clubs.find(c => c.id === userClubId) || club);
   const leagueTier = (() => {
-    const leagueId = clubLeague.leagueId || '';
-    if (leagueId === 'l1') return 1;
-    if (leagueId === 'l2') return 2;
-    if (leagueId === 'l3') return 3;
-    if (leagueId === 'l4') return 4;
-    return 5;
+    const league = leagues.find(l => String(l.id) === String(club.leagueId));
+    return league?.tier || 5;
   })();
 
   // Tier-based ability ranges for suitable managers

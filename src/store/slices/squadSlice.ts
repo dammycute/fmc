@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { Player, Manager, Staff, StaffRole, TransferBid, TransferRequest } from '../../types/game';
+import { client } from '../../api/client';
 
 export interface SquadSlice {
   players: Player[];
@@ -9,23 +10,23 @@ export interface SquadSlice {
   transferBids: TransferBid[];
   transferRequests: TransferRequest[];
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
-  sackManager: (managerId: string) => void;
-  hireManager: (clubId: string, manager: Manager) => void;
-  hireStaff: (clubId: string, staffMember: Staff) => void;
-  dismissStaff: (staffId: string) => void;
+  sackManager: (managerId: string) => Promise<void>;
+  hireManager: (clubId: string, manager: Manager) => Promise<void>;
+  hireStaff: (clubId: string, staffMember: Staff) => Promise<void>;
+  dismissStaff: (staffId: string) => Promise<void>;
   hireStaffApplicant: (clubId: string, applicantId: string) => void;
   advertiseStaffRole: (clubId: string, role: StaffRole) => void;
-  toggleTransferList: (playerId: string) => void;
-  toggleLoanList: (playerId: string) => void;
-  releasePlayer: (playerId: string) => void;
-  toggleShortlist: (playerId: string) => void;
-  clearScoutAssignment: (clubId: string, scoutId: string) => void;
-  assignScout: (clubId: string, scoutId: string, region: string) => void;
-  respondToTransferRequest: (requestId: string, status: 'APPROVED' | 'REJECTED' | 'DELAYED', budgetLimit?: number) => void;
-  makeTransferBid: (playerId: string, clubId: string, amount: number) => void;
-  respondToTransferBid: (bidId: string, status: 'ACCEPTED' | 'REJECTED' | 'CANCELLED') => void;
-  negotiateBid: (bidId: string, counterAmount: number) => void;
-  finalizeTransfer: (bidId: string) => void;
+  toggleTransferList: (playerId: string) => Promise<void>;
+  toggleLoanList: (playerId: string) => Promise<void>;
+  releasePlayer: (playerId: string) => Promise<void>;
+  toggleShortlist: (playerId: string) => Promise<void>;
+  clearScoutAssignment: (clubId: string, scoutId: string) => Promise<void>;
+  assignScout: (clubId: string, scoutId: string, region: string) => Promise<void>;
+  respondToTransferRequest: (requestId: string, status: 'APPROVED' | 'REJECTED' | 'DELAYED', budgetLimit?: number) => Promise<void>;
+  makeTransferBid: (playerId: string, clubId: string, amount: number) => Promise<void>;
+  respondToTransferBid: (bidId: string, status: 'ACCEPTED' | 'REJECTED' | 'CANCELLED') => Promise<void>;
+  negotiateBid: (bidId: string, counterAmount: number) => Promise<void>;
+  finalizeTransfer: (bidId: string) => Promise<void>;
 }
 
 export const createSquadSlice: StateCreator<
@@ -46,7 +47,7 @@ export const createSquadSlice: StateCreator<
       players: state.players.map((player) => player.id === playerId ? { ...player, ...updates } : player),
     })),
 
-  sackManager: (managerId) => {
+  sackManager: async (managerId) => {
     const state = get();
     const manager = state.managers.find(m => m.id === managerId);
     if (!manager || !manager.clubId) return;
@@ -74,6 +75,13 @@ export const createSquadSlice: StateCreator<
       season: state.currentSeason
     };
 
+    try {
+      await client.sackManager(managerId);
+    } catch (error) {
+      console.error('Failed to sack manager:', error);
+      return;
+    }
+
     set((s) => ({
       managers: s.managers.map((m) => m.id === managerId ? { ...m, clubId: '', relationshipWithChairman: 0, wantsToLeave: false } : m),
       clubs: s.clubs.map(c => c.id === manager.clubId ? {
@@ -85,7 +93,13 @@ export const createSquadSlice: StateCreator<
     }));
   },
 
-  hireManager: (clubId, manager) =>
+  hireManager: async (clubId, manager) => {
+    try {
+      await client.hireManager(clubId, manager.id);
+    } catch (error) {
+      console.error('Failed to hire manager:', error);
+      return;
+    }
     set((state) => {
       const exists = state.managers.some(m => m.id === manager.id);
       const updatedManagers = exists
@@ -101,9 +115,16 @@ export const createSquadSlice: StateCreator<
           tactics: manager.preferredStyle
         } : c)
       };
-    }),
+    });
+  },
 
-  hireStaff: (clubId, staffMember) =>
+  hireStaff: async (clubId, staffMember) => {
+    try {
+      await client.hireStaff(clubId, staffMember.id);
+    } catch (error) {
+      console.error('Failed to hire staff:', error);
+      return;
+    }
     set((state) => {
       const newStaff = [...state.staff.filter(s => s.id !== staffMember.id), { ...staffMember, clubId }];
       const clubStaffWages = newStaff.filter(s => s.clubId === clubId).reduce((sum, s) => sum + (s.salary || 0), 0);
@@ -111,13 +132,21 @@ export const createSquadSlice: StateCreator<
         staff: newStaff,
         clubs: state.clubs.map(c => c.id === clubId ? { ...c, finances: { ...c.finances, weeklyStaffWages: clubStaffWages } } : c)
       };
-    }),
+    });
+  },
 
 
-  dismissStaff: (staffId) =>
+  dismissStaff: async (staffId) => {
+    try {
+      await client.dismissStaff(staffId);
+    } catch (error) {
+      console.error('Failed to dismiss staff:', error);
+      return;
+    }
     set((state) => ({
-      staff: state.staff.filter(s => s.id !== staffId)
-    })),
+      staff: state.staff.map(s => s.id === staffId ? { ...s, clubId: '' } : s)
+    }));
+  },
 
   hireStaffApplicant: (clubId, applicantId) => {
     const state = get();
@@ -157,32 +186,77 @@ export const createSquadSlice: StateCreator<
     });
   },
 
-  toggleTransferList: (playerId) =>
+  toggleTransferList: async (playerId) => {
+    const player = get().players.find((p: Player) => p.id === playerId);
+    if (!player) return;
+    try {
+      await client.updatePlayer(playerId, { isTransferListed: !player.isTransferListed });
+    } catch (error) {
+      console.error('Failed to update transfer listing:', error);
+      return;
+    }
     set((state) => ({
       players: state.players.map(p => p.id === playerId ? { ...p, isTransferListed: !p.isTransferListed } : p)
-    })),
+    }));
+  },
 
-  toggleLoanList: (playerId) =>
+  toggleLoanList: async (playerId) => {
+    const player = get().players.find((p: Player) => p.id === playerId);
+    if (!player) return;
+    try {
+      await client.updatePlayer(playerId, { isLoanListed: !player.isLoanListed });
+    } catch (error) {
+      console.error('Failed to update loan listing:', error);
+      return;
+    }
     set((state) => ({
       players: state.players.map(p => p.id === playerId ? { ...p, isLoanListed: !p.isLoanListed } : p)
-    })),
+    }));
+  },
 
-  toggleShortlist: (playerId) =>
+  toggleShortlist: async (playerId) => {
+    const isShortlisted = get().shortlist?.includes(playerId);
+    try {
+      if (isShortlisted) await client.removeFromShortlist(playerId);
+      else await client.addToShortlist(playerId);
+    } catch (error) {
+      console.error('Failed to update shortlist:', error);
+      return;
+    }
     set((state) => ({
       shortlist: state.shortlist?.includes(playerId)
         ? state.shortlist.filter(id => id !== playerId)
         : [...(state.shortlist || []), playerId]
-    })),
+    }));
+  },
 
-  clearScoutAssignment: (clubId, scoutId) =>
+  clearScoutAssignment: async (clubId, scoutId) => {
+    const assignment = get().clubs
+      .find((c: any) => c.id === clubId)
+      ?.scoutAssignments?.find((a: any) => a.scoutId === scoutId);
+    if (assignment?.id) {
+      try {
+        await client.deleteScoutAssignment(assignment.id);
+      } catch (error) {
+        console.error('Failed to clear scout assignment:', error);
+        return;
+      }
+    }
     set((state) => ({
       clubs: state.clubs.map(c => c.id === clubId ? {
         ...c,
         scoutAssignments: (c.scoutAssignments || []).filter(a => a.scoutId !== scoutId)
       } : c)
-    })),
+    }));
+  },
 
-  releasePlayer: (playerId) =>
+  releasePlayer: async (playerId) => {
+    try {
+      await client.updatePlayer(playerId, { clubId: null, isTransferListed: false, contractYears: 0 });
+    } catch (error) {
+      console.error('Failed to release player:', error);
+      return;
+    }
     set((state) => {
       const player = state.players.find(p => p.id === playerId);
       if (!player) return state;
@@ -194,18 +268,26 @@ export const createSquadSlice: StateCreator<
           history: [...c.history, `Released ${player.firstName} ${player.lastName} from contract.`]
         } : c)
       };
-    }),
+    });
+  },
 
-  assignScout: (clubId, scoutId, region) => {
+  assignScout: async (clubId, scoutId, region) => {
+    let assignment: any = { scoutId, clubId, region, progress: 0, playersFound: [] };
+    try {
+      assignment = await client.createScoutAssignment({ clubId, scoutId, region });
+    } catch (error) {
+      console.error('Failed to assign scout:', error);
+      return;
+    }
     set((state) => ({
       clubs: state.clubs.map(c => c.id === clubId ? {
         ...c,
-        scoutAssignments: [...c.scoutAssignments, { scoutId, region, progress: 0, playersFound: [] }]
+        scoutAssignments: [...(c.scoutAssignments || []), { ...assignment, scoutId, clubId, playersFound: assignment.playersFound || [] }]
       } : c)
     }));
   },
 
-  respondToTransferRequest: (requestId, status, budgetLimit) => {
+  respondToTransferRequest: async (requestId, status, budgetLimit) => {
     const state = get();
     const request = state.transferRequests.find(r => r.id === requestId);
     if (!request) return;
@@ -224,6 +306,13 @@ export const createSquadSlice: StateCreator<
       relationshipChange = -4;
     }
 
+    try {
+      await client.updateTransferRequest(requestId, { status });
+    } catch (error) {
+      console.error('Failed to respond to transfer request:', error);
+      return;
+    }
+
     set({
       transferRequests: state.transferRequests.map(r => r.id === requestId ? { ...r, status, budgetLimit } : r),
       managers: state.managers.map(m => m.id === manager.id ? {
@@ -233,7 +322,7 @@ export const createSquadSlice: StateCreator<
     });
   },
 
-  makeTransferBid: (playerId, clubId, amount) => {
+  makeTransferBid: async (playerId, clubId, amount) => {
     const state = get();
     const player = state.players.find(p => p.id === playerId);
     const club = state.clubs.find(c => c.id === clubId);
@@ -252,30 +341,40 @@ export const createSquadSlice: StateCreator<
       return;
     }
 
-    const bid: TransferBid = {
-      id: Math.random().toString(36).substring(2, 11),
-      playerId,
-      fromClubId: clubId,
-      toClubId: player.clubId,
-      amount: finalAmount,
-      status: 'PENDING',
-      week: state.currentWeek,
-      season: state.currentSeason,
-      isPlayerInterested: true,
-      negotiationCount: 0
-    };
+    let bid: TransferBid;
+    try {
+      bid = await client.makeTransferBid({ player_id: playerId, amount: finalAmount });
+      bid = { ...bid, id: String(bid.id), playerId: String(bid.playerId), fromClubId: String(bid.fromClubId), toClubId: String(bid.toClubId) };
+    } catch (error) {
+      console.error('Failed to make transfer bid:', error);
+      return;
+    }
 
     set({ transferBids: [...state.transferBids, bid] });
   },
 
 
-  respondToTransferBid: (bidId, status) => {
+  respondToTransferBid: async (bidId, status) => {
+    try {
+      if (status === 'ACCEPTED') await client.acceptTransferBid(bidId);
+      else if (status === 'REJECTED') await client.rejectTransferBid(bidId);
+      else await client.updateTransferBid(bidId, { status });
+    } catch (error) {
+      console.error('Failed to respond to transfer bid:', error);
+      return;
+    }
     set((state) => ({
       transferBids: state.transferBids.map(b => b.id === bidId ? { ...b, status } : b)
     }));
   },
 
-  negotiateBid: (bidId, counterAmount) => {
+  negotiateBid: async (bidId, counterAmount) => {
+    try {
+      await client.counterTransferBid(bidId, counterAmount);
+    } catch (error) {
+      console.error('Failed to negotiate bid:', error);
+      return;
+    }
     set((state) => ({
       transferBids: state.transferBids.map(b => b.id === bidId ? {
         ...b,
@@ -285,7 +384,7 @@ export const createSquadSlice: StateCreator<
     }));
   },
 
-  finalizeTransfer: (bidId) => {
+  finalizeTransfer: async (bidId) => {
     const state = get();
     const bid = state.transferBids.find(b => b.id === bidId);
     if (!bid || bid.status !== 'ACCEPTED') return;
@@ -294,6 +393,13 @@ export const createSquadSlice: StateCreator<
     const seller = state.clubs.find(c => c.id === bid.toClubId);
     const buyer = state.clubs.find(c => c.id === bid.fromClubId);
     if (!player || !buyer) return;
+
+    try {
+      await client.finalizeTransfer(bidId);
+    } catch (error) {
+      console.error('Failed to finalize transfer:', error);
+      return;
+    }
 
     set({
       players: state.players.map(p => p.id === bid.playerId ? { ...p, clubId: bid.fromClubId, isTransferListed: false } : p),

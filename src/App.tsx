@@ -17,6 +17,7 @@ import NewsFeed from './components/screens/NewsFeed';
 import LeagueTable from './components/screens/LeagueTable';
 import MatchSimulation from './components/screens/MatchSimulation';
 import { Button } from './components/ui/button';
+import { formatMoney } from './utils/formatMoney';
 
 const App: React.FC = () => {
   const { initializeGame, syncData, currentSeason, currentWeek, news, userClubId, clubs, advanceWeek, prepareMatchday, finalizeMatchday, transferRequests, transferBids, hasActiveSession } = useGameStore();
@@ -67,7 +68,7 @@ const App: React.FC = () => {
   }
 
   if (!userClubId) {
-    return <Onboarding onComplete={() => { }} />;
+    return <Onboarding onComplete={() => { syncData(); }} />;
   }
 
   if (!userClub && !isSyncing) {
@@ -135,34 +136,36 @@ const App: React.FC = () => {
               </button>
               <div className="min-w-0">
                 <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Season {currentSeason} • Week {currentWeek}</h2>
-                <h1 className="text-lg sm:text-2xl font-bold text-white truncate">{userClub.name}</h1>
+                <h1 className="text-lg sm:text-2xl font-bold text-white truncate">{userClub!.name}</h1>
               </div>
             </div>
 
             <div className="flex items-center gap-3 sm:gap-6 flex-shrink-0">
               <div className="text-right hidden sm:block">
                 <p className="text-xs text-zinc-500 uppercase font-bold tracking-tight">Balance</p>
-                <p className="text-lg sm:text-xl font-mono text-emerald-400">£{((userClub.finances.balance || 0) / 1000000).toFixed(1)}M</p>
+                <p className="text-lg sm:text-xl font-mono text-emerald-400">{formatMoney(userClub!.finances.balance || 0)}</p>
               </div>
               <div className="h-10 w-px bg-white/5 hidden sm:block" />
               <Button
                 size="lg"
-                onClick={() => {
+                disabled={isProcessing}
+                onClick={async () => {
                   const match = prepareMatchday();
                   if (match) {
                     const simulated = (useGameStore.getState() as any).startUserMatch(match.id);
                     setActiveMatchSimulation(simulated || match);
                   } else {
                     setIsProcessing(true);
-                    setTimeout(() => {
-                      advanceWeek();
+                    try {
+                      await advanceWeek();
+                    } finally {
                       setIsProcessing(false);
-                    }, 800);
+                    }
                   }
                 }}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 sm:px-8 shadow-lg shadow-indigo-600/20 text-sm sm:text-base"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 sm:px-8 shadow-lg shadow-indigo-600/20 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                CONTINUE
+                {isProcessing ? 'PROCESSING...' : 'CONTINUE'}
               </Button>
             </div>
           </div>
@@ -176,7 +179,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4 text-xs text-zinc-500 overflow-hidden">
           <span className="font-bold text-indigo-400 shrink-0">NEWS TICKET</span>
           <div className="animate-marquee whitespace-nowrap">
-            {news.length > 0 ? news[0].title : `Transfer window ${useGameStore.getState().isTransferWindowOpen ? 'OPEN' : 'CLOSED'} • ${userClub.name} prepared for next week • Manager confidence at ${userClub.boardConfidence}%`}
+            {news.length > 0 ? news[0].title : `Transfer window ${useGameStore.getState().isTransferWindowOpen ? 'OPEN' : 'CLOSED'} • ${userClub!.name} prepared for next week • Manager confidence at ${userClub!.boardConfidence}%`}
           </div>
         </div>
       </footer>

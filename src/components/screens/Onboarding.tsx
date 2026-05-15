@@ -18,7 +18,7 @@ interface OnboardingProps {
 
 
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
-    const { clubs, leagues, buyClub, renameClub, personalBalance } = useGameStore();
+    const { clubs, leagues, buyClub, personalBalance } = useGameStore();
     const [step, setStep] = useState<'welcome' | 'select' | 'rename' | 'confirm'>('welcome');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedLeagueFilter, setSelectedLeagueFilter] = useState<string>('all');
@@ -47,12 +47,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
     const lowerLeagues = leagues.filter(l => l.tier >= 3);
 
-    const handleBuyAndRename = () => {
+    const handleBuyAndRename = async () => {
         if (!selectedClubId || !canAfford) return;
-        buyClub(selectedClubId);
-        if (newName.trim()) {
-            renameClub(selectedClubId, newName.trim());
-        }
+        await buyClub(selectedClubId, newName.trim() || undefined);
         setConfirmed(true);
         setTimeout(() => onComplete(), 1500);
     };

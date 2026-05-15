@@ -1,5 +1,5 @@
 from game.models import Club, Match, NewsStory, Sponsor, Player, Manager
-from django.db.models import Q, Prefetch
+from django.db.models import Q, Prefetch, F
 
 def process_week(week: int, season: int) -> None:
     """

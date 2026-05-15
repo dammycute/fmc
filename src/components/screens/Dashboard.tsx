@@ -5,6 +5,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Trophy, Users, DollarSign, Activity, ChevronRight, MessageSquare, Newspaper } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { formatMoney } from '../../utils/formatMoney';
 
 interface DashboardProps {
   setActiveTab: (tab: string) => void;
@@ -31,7 +32,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
           { label: 'Fan Confidence', value: club.fanConfidence, icon: Users, color: 'text-sky-400' },
           { label: 'Board Confidence', value: club.boardConfidence, icon: Trophy, color: 'text-indigo-400' },
           { label: 'Squad Morale', value: manager?.morale || 70, icon: Activity, color: 'text-emerald-400' },
-          { label: 'Transfer Budget', value: `£${((club.finances.balance || 0) / 1000000).toFixed(1)}M`, icon: DollarSign, color: 'text-amber-400' },
+          { label: 'Balance', value: formatMoney(club.finances.balance || 0), icon: DollarSign, color: 'text-amber-400' },
         ].map((stat, i) => (
           <Card key={i} className="bg-zinc-900 border-white/5 hover:border-indigo-500/30 transition-all shadow-xl group">
             <CardContent className="p-6">
@@ -70,7 +71,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                   <div className="space-y-1">
                     <h3 className="text-2xl font-black text-white tracking-tight">{manager?.name}</h3>
                     <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-400/10 px-2 py-0.5 rounded inline-block">
-                      {(manager?.philosophy || '').replace('_', ' ')} Specialist
+                      {(manager?.philosophy || manager?.preferredStyle || 'No Manager').replace('_', ' ')} Specialist
                     </p>
 
                     <div className="flex items-center gap-6 mt-4">

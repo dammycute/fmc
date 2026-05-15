@@ -53,8 +53,8 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
 
   useEffect(() => {
     if (minute >= 90) {
-      setIsFinished(true);
-      return;
+      const timeout = setTimeout(() => setIsFinished(true), 0);
+      return () => clearTimeout(timeout);
     }
 
     const interval = setInterval(() => {
@@ -74,17 +74,20 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
   useEffect(() => {
     const minuteEvents = match.events.filter(e => e.minute === minute);
     if (minuteEvents.length > 0) {
-      setVisibleEvents(prev => [...minuteEvents, ...prev]);
+      const timeout = setTimeout(() => {
+        setVisibleEvents(prev => [...minuteEvents, ...prev]);
 
-      minuteEvents.forEach(e => {
-        if (e.type === 'GOAL') {
-          if (e.clubId === match.homeClubId) {
-            setCurrentHomeScore(prev => prev + 1);
-          } else {
-            setCurrentAwayScore(prev => prev + 1);
+        minuteEvents.forEach(e => {
+          if (e.type === 'GOAL') {
+            if (e.clubId === match.homeClubId) {
+              setCurrentHomeScore(prev => prev + 1);
+            } else {
+              setCurrentAwayScore(prev => prev + 1);
+            }
           }
-        }
-      });
+        });
+      }, 0);
+      return () => clearTimeout(timeout);
     }
   }, [minute, match.events, match.homeClubId]);
 

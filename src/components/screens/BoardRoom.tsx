@@ -7,10 +7,10 @@ import { Slider } from '../ui/slider';
 import { Input } from '../ui/input';
 import {
   History, Crown, Target, DollarSign,
-  Briefcase, Handshake, ShieldCheck, Dumbbell
+  Briefcase, Handshake, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import type { SeasonTarget, Formation, TrainingFocus } from '../../types/game';
+import type { SeasonTarget, Formation, TrainingFocus, TacticalPhilosophy } from '../../types/game';
 
 const BoardRoom: React.FC = () => {
   const { userClubId, clubs, managers, setSeasonTarget, setTransferBudget, acceptSponsor, renameClub, setFormation, setTactics, setTrainingFocus } = useGameStore();
@@ -125,7 +125,7 @@ const BoardRoom: React.FC = () => {
                   <Badge className="bg-sky-600 text-white font-black text-[10px] px-3 py-1 uppercase">{club.tactics?.replace('_', ' ')}</Badge>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as any[]).map(tactic => (
+                  {(['POSSESSION', 'HIGH_PRESSING', 'COUNTER_ATTACK', 'DEFENSIVE', 'WING_PLAY', 'DIRECT'] as TacticalPhilosophy[]).map(tactic => (
                     <button
                       key={tactic}
                       onClick={() => setTactics(club.id, tactic)}

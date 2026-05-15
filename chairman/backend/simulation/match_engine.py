@@ -108,10 +108,10 @@ def simulate_match(
         active = get_active(players)
         if not active: return 0, 0, 0, 30
 
-        mids = [p for p in active if p.position == 'MID']
-        atts = [p for p in active if p.position == 'ATT']
-        defs = [p for p in active if p.position == 'DEF']
-        gks = [p for p in active if p.position == 'GK']
+        mids = [p for p in active if p.position.upper() == 'MID']
+        atts = [p for p in active if p.position.upper() == 'ATT']
+        defs = [p for p in active if p.position.upper() == 'DEF']
+        gks = [p for p in active if p.position.upper() == 'GK']
 
         # 4a. Possession base: MID player avg passing+vision+stamina
         if mids:
@@ -140,7 +140,7 @@ def simulate_match(
         dfn = def_base * tac['def_mod'] * form['def_mod']
         mid = mid_base * tac['mid_mod'] * form['mid_mod']
 
-        return atk, dfn, mid, gk_rating
+        return max(20, atk), max(20, dfn), max(20, mid), max(20, gk_rating)
 
     # Initial strengths
     h_atk, h_def, h_mid, h_gk = calc_strengths(home_players, home_tac_mod, home_form_mod, True)
@@ -186,10 +186,12 @@ def simulate_match(
         a_def_eff = a_def * a_state_def * fatigue_mod
         a_mid_eff = a_mid * fatigue_mod
 
-        # 4a. Calculate possession from midfield battle
+        # 4a. Calculate possession from midfield battle - Add baseline to prevent 0%
+        # Clamp possession between 25% and 75% for balance
         total_mid = h_mid_eff + a_mid_eff
         if total_mid > 0:
-            block_home_poss = (h_mid_eff / total_mid) * 100
+            raw_h_poss = (h_mid_eff / total_mid) * 100
+            block_home_poss = max(25.0, min(75.0, raw_h_poss))
         else:
             block_home_poss = 50.0
         total_home_poss += block_home_poss
@@ -203,9 +205,10 @@ def simulate_match(
         h_entries = h_mid_eff / (a_def_eff + 1)
         a_entries = a_mid_eff / (h_def_eff + 1)
 
-        # Momentum boosts shot chance by up to 30%
-        h_shot_chance = 0.22 * (block_home_poss / 50) * h_entries * (1 + home_momentum * 0.3)
-        a_shot_chance = 0.22 * ((100 - block_home_poss) / 50) * a_entries * (1 + away_momentum * 0.3)
+        # Momentum boosts shot chance by up to 50%
+        # Combine a baseline chance (0.15) with an efficiency-based chance
+        h_shot_chance = (0.25 + 0.40 * h_entries) * (block_home_poss / 50) * (1 + home_momentum * 0.5)
+        a_shot_chance = (0.25 + 0.40 * a_entries) * ((100 - block_home_poss) / 50) * (1 + away_momentum * 0.5)
 
         for team, chance, atk_eff, def_eff, opp_gk, players, opp_players, club_id, opp_club_id in [
             ('home', h_shot_chance, h_atk_eff, a_def_eff, a_gk, home_players, away_players, home_id, away_id),
@@ -215,21 +218,23 @@ def simulate_match(
             if not active: continue
 
             shots_this_block = 0
+            # Higher base shot counts
             if random.random() < chance: shots_this_block += 1
+            if random.random() < chance * 0.6: shots_this_block += 1
             if random.random() < chance * 0.3: shots_this_block += 1
 
             for _ in range(shots_this_block):
                 match_data[f'{team}_shots'] += 1
-                shooter = random.choices(active, weights=[1.3 if p.position == 'ATT' else 0.9 if p.position == 'MID' else 0.5 for p in active])[0]
+                shooter = random.choices(active, weights=[1.5 if p.position.upper() == 'ATT' else 1.0 if p.position.upper() == 'MID' else 0.4 for p in active])[0]
 
-                # 4c. Calculate xG
-                pos_mod = 1.3 if shooter.position == 'ATT' else 0.9 if shooter.position == 'MID' else 0.5
-                comp_mod = shooter.ment_composure / 50
+                # 4c. Calculate xG - More generous base
+                pos_mod = 1.5 if shooter.position.upper() == 'ATT' else 1.1 if shooter.position.upper() == 'MID' else 0.7
+                comp_mod = 0.6 + (shooter.ment_composure / 100)
                 pressure_ratio = def_eff / (def_eff + atk_eff + 1)
-                gk_mod = 50 / (opp_gk + 1)
+                gk_mod = 75 / (opp_gk + 1)
 
-                xg = 0.12 * pos_mod * comp_mod * (1.2 - pressure_ratio) * gk_mod
-                xg = max(0.01, min(0.75, xg))
+                xg = 0.45 * pos_mod * comp_mod * (1.5 - pressure_ratio) * gk_mod
+                xg = max(0.12, min(0.92, xg)) 
                 match_data[f'{team}_xg'] += xg
 
                 # 4d. Determine goal from xG roll

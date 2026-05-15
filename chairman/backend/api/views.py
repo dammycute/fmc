@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q, F
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from game.models import (
@@ -40,9 +41,13 @@ class GameStateViewSet(viewsets.ViewSet):
         state = GameState.objects.get(pk=1)
         club = get_object_or_404(Club, id=club_id)
 
-        # Simple logic: player buys club
-        # In a real game we'd check personal_balance >= valuation
+        if state.personal_balance < club.valuation:
+            return Response({"error": "Insufficient personal funds", "code": "INSUFFICIENT_FUNDS"}, status=400)
+
+        Club.objects.filter(is_user_controlled=True).update(is_user_controlled=False)
+        Manager.objects.filter(club=club).update(club=None)
         state.user_club = club
+        state.personal_balance -= club.valuation
         state.save()
 
         club.is_user_controlled = True
@@ -51,6 +56,21 @@ class GameStateViewSet(viewsets.ViewSet):
         club.save()
 
         return Response({"status": "Club purchased", "club_id": club.id})
+
+    @action(detail=False, methods=['post'], url_path='reset-career')
+    def reset_career(self, request):
+        with transaction.atomic():
+            state = GameState.objects.select_for_update().get(pk=1)
+            Club.objects.filter(is_user_controlled=True).update(is_user_controlled=False)
+            state.user_club = None
+            state.personal_balance = 1000000
+            state.shortlist = []
+            state.current_season = 2024
+            state.current_week = 1
+            state.is_transfer_window_open = True
+            state.save()
+
+        return Response({"status": "Career reset"})
 
 class AdvanceWeekView(generics.GenericAPIView):
     def post(self, request):
@@ -103,10 +123,47 @@ class ClubViewSet(viewsets.ModelViewSet):
         club = self.get_object()
         sponsor_id = request.data.get('sponsor_id')
         sponsor = get_object_or_404(Sponsor, id=sponsor_id, club=club)
+        if club.sponsors.filter(status='ACTIVE').count() >= 3:
+            return Response({"error": "Maximum active sponsors reached", "code": "SPONSOR_LIMIT"}, status=400)
+        if club.reputation < sponsor.reputation_required:
+            return Response({"error": "Club reputation is too low", "code": "REPUTATION_TOO_LOW"}, status=400)
 
         sponsor.status = 'ACTIVE'
         sponsor.save()
         return Response({"status": "Sponsor accepted"})
+
+    @action(detail=True, methods=['post'], url_path='hire-manager')
+    def hire_manager(self, request, pk=None):
+        club = self.get_object()
+        manager_id = request.data.get('manager_id')
+        manager = get_object_or_404(Manager, id=manager_id)
+
+        Manager.objects.filter(club=club).update(club=None)
+        manager.club = club
+        manager.relationship_with_chairman = 70
+        manager.wants_to_leave = False
+        manager.save()
+
+        club.formation = manager.preferred_formation
+        club.tactics = manager.preferred_style
+        club.weekly_staff_wages = sum(s.salary for s in club.staff.all())
+        club.save()
+
+        return Response(ManagerSerializer(manager).data)
+
+    @action(detail=True, methods=['post'], url_path='hire-staff')
+    def hire_staff(self, request, pk=None):
+        club = self.get_object()
+        staff_id = request.data.get('staff_id')
+        staff = get_object_or_404(Staff, id=staff_id)
+        staff.club = club
+        staff.is_applicant = False
+        staff.save()
+
+        club.weekly_staff_wages = sum(s.salary for s in club.staff.all())
+        club.save(update_fields=['weekly_staff_wages'])
+
+        return Response(StaffSerializer(staff).data)
 
 # ── PLAYERS ──────────────────────────────────────────
 
@@ -172,8 +229,12 @@ class StaffViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['delete'])
     def dismiss(self, request, pk=None):
         staff = self.get_object()
+        club = staff.club
         staff.club = None
         staff.save()
+        if club:
+            club.weekly_staff_wages = sum(s.salary for s in club.staff.all())
+            club.save(update_fields=['weekly_staff_wages'])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 # ── MATCHES ──────────────────────────────────────────
@@ -232,9 +293,16 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['post'])
     def finalize(self, request, pk=None):
         match = self.get_object()
-        match.home_score = request.data.get('home_score')
-        match.away_score = request.data.get('away_score')
-        match.events = request.data.get('events')
+        match.home_score = request.data.get('home_score', request.data.get('homeScore', match.home_score))
+        match.away_score = request.data.get('away_score', request.data.get('awayScore', match.away_score))
+        match.events = request.data.get('events', match.events)
+        stats = request.data.get('stats') or {}
+        match.home_possession = stats.get('homePossession', match.home_possession)
+        match.away_possession = stats.get('awayPossession', match.away_possession)
+        match.home_shots = stats.get('homeShots', match.home_shots)
+        match.away_shots = stats.get('awayShots', match.away_shots)
+        match.home_xg = stats.get('homeXg', match.home_xg)
+        match.away_xg = stats.get('awayXg', match.away_xg)
         match.played = True
         match.save()
         # Post-match logic would go here in a production app

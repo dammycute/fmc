@@ -329,7 +329,7 @@ export interface TransferBid {
   fromClubId: string;
   toClubId: string;
   amount: number;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
   week: number;
   season: number;
   isPlayerInterested: boolean;

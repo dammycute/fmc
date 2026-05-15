@@ -19,7 +19,7 @@ export function useMatchWebSocket() {
 
   useEffect(() => {
     let socket: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout;
+    let reconnectTimeout: ReturnType<typeof setTimeout>;
 
     const connect = () => {
       socket = new WebSocket('ws://localhost:8000/ws/match/');

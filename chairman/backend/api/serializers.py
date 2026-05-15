@@ -67,6 +67,8 @@ class ClubSerializer(serializers.ModelSerializer):
     finances = serializers.SerializerMethodField()
     board = serializers.SerializerMethodField()
     records = serializers.SerializerMethodField()
+    availableSponsors = serializers.SerializerMethodField()
+    activeSponsors = serializers.SerializerMethodField()
 
     class Meta:
         model = Club
@@ -76,7 +78,7 @@ class ClubSerializer(serializers.ModelSerializer):
             'boardConfidence', 'facilities', 'finances', 'board', 'culture',
             'rivals', 'history', 'records', 'transferBudget', 'seasonTarget',
             'valuation', 'isForSale', 'formation', 'tactics', 'startingLineup',
-            'trainingFocus'
+            'trainingFocus', 'availableSponsors', 'activeSponsors'
         ]
 
     def get_finances(self, obj):
@@ -108,6 +110,12 @@ class ClubSerializer(serializers.ModelSerializer):
             "hallOfFame": []
         }
 
+    def get_availableSponsors(self, obj):
+        return SponsorSerializer(obj.sponsors.filter(status='PENDING'), many=True).data
+
+    def get_activeSponsors(self, obj):
+        return SponsorSerializer(obj.sponsors.filter(status='ACTIVE'), many=True).data
+
 class PlayerSerializer(serializers.ModelSerializer):
     firstName = serializers.CharField(source='first_name')
     lastName = serializers.CharField(source='last_name')
@@ -116,7 +124,7 @@ class PlayerSerializer(serializers.ModelSerializer):
     contractYears = serializers.IntegerField(source='contract_years')
     isInjured = serializers.BooleanField(source='is_injured')
     injuryWeeksRemaining = serializers.IntegerField(source='injury_weeks_remaining')
-    clubId = serializers.PrimaryKeyRelatedField(source='club', read_only=True)
+    clubId = serializers.PrimaryKeyRelatedField(source='club', queryset=Club.objects.all(), allow_null=True, required=False)
     isTransferListed = serializers.BooleanField(source='is_transfer_listed')
     isLoanListed = serializers.BooleanField(source='is_loan_listed')
     tacticalFamiliarity = serializers.FloatField(source='tactical_familiarity')
@@ -256,8 +264,8 @@ class MatchSerializer(serializers.ModelSerializer):
     homeClubId = serializers.PrimaryKeyRelatedField(source='home_club', read_only=True)
     awayClubId = serializers.PrimaryKeyRelatedField(source='away_club', read_only=True)
     leagueId = serializers.PrimaryKeyRelatedField(source='league', read_only=True)
-    homeScore = serializers.IntegerField(source='home_score')
-    awayScore = serializers.IntegerField(source='away_score')
+    homeScore = serializers.IntegerField(source='home_score', required=False)
+    awayScore = serializers.IntegerField(source='away_score', required=False)
     stats = serializers.SerializerMethodField()
 
     class Meta:
@@ -298,6 +306,7 @@ class TransferBidSerializer(serializers.ModelSerializer):
 class TransferRequestSerializer(serializers.ModelSerializer):
     managerId = serializers.PrimaryKeyRelatedField(source='manager', read_only=True)
     clubId = serializers.PrimaryKeyRelatedField(source='club', read_only=True)
+    type = serializers.CharField(source='request_type')
     suggestedPosition = serializers.CharField(source='suggested_position')
     weekRequested = serializers.IntegerField(source='week_requested')
     seasonRequested = serializers.IntegerField(source='season_requested')
@@ -305,7 +314,7 @@ class TransferRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = TransferRequest
         fields = [
-            'id', 'managerId', 'clubId', 'request_type', 'priority', 'message',
+            'id', 'managerId', 'clubId', 'type', 'priority', 'message',
             'status', 'suggestedPosition', 'weekRequested', 'seasonRequested'
         ]
 
@@ -332,26 +341,36 @@ class GameStateSerializer(serializers.ModelSerializer):
 
 class ScoutReportSerializer(serializers.ModelSerializer):
     playerId = serializers.PrimaryKeyRelatedField(source='player', read_only=True)
+    scoutId = serializers.SerializerMethodField()
     reportedRating = serializers.FloatField(source='reported_rating')
     week = serializers.IntegerField(source='created_week')
     season = serializers.IntegerField(source='created_season')
 
     class Meta:
         model = ScoutReport
-        fields = ['id', 'playerId', 'reportedRating', 'week', 'season']
+        fields = ['id', 'playerId', 'scoutId', 'reportedRating', 'week', 'season']
+
+    def get_scoutId(self, obj):
+        return obj.assignment.scout_id
 
 class ScoutAssignmentSerializer(serializers.ModelSerializer):
-    scoutId = serializers.PrimaryKeyRelatedField(source='scout', read_only=True)
+    clubId = serializers.PrimaryKeyRelatedField(source='club', queryset=Club.objects.all())
+    scoutId = serializers.PrimaryKeyRelatedField(source='scout', queryset=Staff.objects.all())
+    playersFound = serializers.SerializerMethodField()
     reports = ScoutReportSerializer(many=True, read_only=True)
 
     class Meta:
         model = ScoutAssignment
-        fields = ['id', 'scoutId', 'region', 'progress', 'reports']
+        fields = ['id', 'clubId', 'scoutId', 'region', 'progress', 'playersFound', 'reports']
+
+    def get_playersFound(self, obj):
+        return list(obj.reports.values_list('player_id', flat=True))
 
 class SponsorSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source='sponsor_type')
     duration = serializers.IntegerField(source='duration_seasons')
     reputationRequired = serializers.IntegerField(source='reputation_required')
 
     class Meta:
         model = Sponsor
-        fields = ['id', 'name', 'sponsor_type', 'amount', 'duration', 'reputationRequired', 'status']
+        fields = ['id', 'name', 'type', 'amount', 'duration', 'reputationRequired', 'status']

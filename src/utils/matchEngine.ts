@@ -145,7 +145,7 @@ export function simulateMatch(
   const awayFormBonus = FORMATION_BONUSES[awayClub.formation] || FORMATION_BONUSES['4-4-2'];
 
   let homeMid = homeStats.midfieldControl * homeTacMod.midMod * homeFormBonus.midMod * homeFamMod;
-  let awayMid = awayStats.midfieldControl * awayTacMod.midMod * awayFormBonus.midMod * awayFamMod;
+  const awayMid = awayStats.midfieldControl * awayTacMod.midMod * awayFormBonus.midMod * awayFamMod;
 
   // Home advantage
   const HOME_BONUS = 3;
@@ -236,7 +236,6 @@ export function simulateMatch(
 
     // --- CHANCE CREATION ---
     if (currentZone >= 4) {
-      currentZone = 4;
       const attackingPlayers = possessionTeam === 'home' ? homePlayers : awayPlayers;
 
       // Select shooter

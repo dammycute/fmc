@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { Match, League } from '../../types/game';
 import { simulateMatch } from '../../utils/matchEngine';
+import { client } from '../../api/client';
 
 export interface MatchSlice {
   matches: Match[];
@@ -44,7 +45,6 @@ export const createMatchSlice: StateCreator<
     
     // Require manager for user's matches
     if (isUserMatch) {
-      const userClub = state.clubs.find(c => c.id === userClubId);
       const userManager = state.managers.find((m: any) => m.clubId === userClubId);
       if (!userManager) return null; // Cannot start match without a manager
     }
@@ -206,10 +206,20 @@ export const createMatchSlice: StateCreator<
 
     set({ matches: updatedMatches, players: updatedPlayers });
 
+    if (userMatch) {
+      client.finalizeMatch(userMatch.id, {
+        home_score: userMatch.homeScore,
+        away_score: userMatch.awayScore,
+        events: userMatch.events,
+      }).catch((error: unknown) => {
+        console.error('Failed to persist match result:', error);
+      });
+    }
+
     // --- Post-Match Analyst Report ---
     const userClubId = state.userClubId;
     const matchThisWeek = updatedMatches.find(m => (m.homeClubId === userClubId || m.awayClubId === userClubId) && m.week === currentWeek && m.season === currentSeason);
-    const analyst = state.staff?.find((s: any) => s.clubId === userClubId && s.role === 'DATA_ANALYST');
+    const analyst = state.staff?.find((s: any) => s.clubId === userClubId && s.role === 'ANALYST');
     
     if (matchThisWeek && analyst) {
       const isHome = matchThisWeek.homeClubId === userClubId;
@@ -217,7 +227,7 @@ export const createMatchSlice: StateCreator<
       const oppScore = isHome ? matchThisWeek.awayScore : matchThisWeek.homeScore;
       const oppClub = state.clubs.find((c: any) => c.id === (isHome ? matchThisWeek.awayClubId : matchThisWeek.homeClubId));
       
-      let headline = userScore > oppScore ? 'Dominant Performance' : userScore === oppScore ? 'Tactical Stalemate' : 'Areas for Improvement';
+      const headline = userScore > oppScore ? 'Dominant Performance' : userScore === oppScore ? 'Tactical Stalemate' : 'Areas for Improvement';
       let content = `Analyst ${analyst.name} reports: Our team showed ${userScore > oppScore ? 'excellent control' : 'mixed results'} against ${oppClub?.name}. `;
       
       const goals = (matchThisWeek.events || []).filter((e: any) => e.type === 'GOAL' && e.clubId === userClubId);

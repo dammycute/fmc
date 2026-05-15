@@ -60,7 +60,7 @@ export const processAITransfers = (state: GameState): Partial<GameState> => {
     const isElite = club.reputation > 80;
     const isSmall = club.reputation < 40;
 
-    let targets: Player[] = [];
+    let targets: Player[];
     
     // Prioritize transfer listed players that aren't from the same club
     const listedPool = candidatePool.filter(p => p.isTransferListed);

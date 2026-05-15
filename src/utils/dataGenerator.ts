@@ -3347,6 +3347,7 @@ export const generateInitialData = (): GameState => {
         scoutReports: [],
         formation: '4-4-2',
         tactics: 'DIRECT',
+        trainingFocus: 'BALANCED',
         startingLineup: {},
         history: [`Founded club in ${league.name}`]
       };
