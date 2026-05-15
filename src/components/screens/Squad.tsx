@@ -8,7 +8,7 @@ import { Input } from '../ui/input';
 import PlayerModal from '../ui/PlayerModal';
 
 const Squad: React.FC = () => {
-  const { userClubId, clubs, players, toggleTransferList, toggleLoanList, releasePlayer } = useGameStore();
+  const { userClubId, clubs, players, toggleTransferList, toggleLoanList, releasePlayer, retrainPlayer } = useGameStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
@@ -171,6 +171,7 @@ const Squad: React.FC = () => {
           releasePlayer(id);
           setSelectedPlayerId(null);
         }}
+        onRetrainPlayer={retrainPlayer}
       />
     </div>
   );

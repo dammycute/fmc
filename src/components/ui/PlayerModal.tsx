@@ -21,6 +21,7 @@ interface PlayerModalProps {
   isUserPlayer?: boolean;
   onMakeBid?: (playerId: string) => void;
   onReleasePlayer?: (playerId: string) => void;
+  onRetrainPlayer?: (playerId: string, position: string) => void;
 }
 
 const PlayerModal: React.FC<PlayerModalProps> = ({ 
@@ -32,7 +33,8 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
   onToggleLoanList,
   isUserPlayer = false,
   onMakeBid,
-  onReleasePlayer
+  onReleasePlayer,
+  onRetrainPlayer
 }) => {
   if (!player) return null;
 
@@ -177,6 +179,23 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1.5 px-3 py-1.5">
                     <Activity className="w-3 h-3" /> {player.fitness}%
                   </Badge>
+                  {isUserPlayer && onRetrainPlayer && (
+                    <div className="flex gap-1 ml-4">
+                      {(['GK', 'DEF', 'MID', 'ATT'] as const).map(pos => (
+                        <Button
+                          key={pos}
+                          onClick={() => onRetrainPlayer(player.id, pos)}
+                          variant="outline"
+                          className={cn(
+                            "h-7 px-2 text-[8px] font-black uppercase tracking-widest border-white/10",
+                            player.position === pos ? "bg-indigo-600 border-indigo-500 text-white" : "bg-white/5 text-zinc-500 hover:text-white"
+                          )}
+                        >
+                          {pos}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

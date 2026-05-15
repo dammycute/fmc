@@ -37,11 +37,23 @@ GERMAN_LAST = ['Muller', 'Kroos', 'Reus', 'Werner', 'Sane', 'Kimmich', 'Goretzka
 SCANDINAVIAN_FIRST = ['Erling', 'Martin', 'Kasper', 'Christian', 'Mikkel', 'Victor', 'Andreas', 'Joachim', 'Emil', 'Rasmus', 'Magnus', 'Fredrik', 'Sander', 'Jonas', 'Mathias', 'Henrik', 'Lars', 'Bjorn', 'Erik']
 SCANDINAVIAN_LAST = ['Haaland', 'Odegaard', 'Schmeichel', 'Eriksen', 'Damsgaard', 'Skov Olsen', 'Lindstrom', 'Norgaard', 'Braithwaite', 'Forsberg', 'Larsson', 'Berg', 'Johnsen', 'Hansen', 'Nielsen', 'Andersen']
 
-ASIAN_FIRST = ['Hiroshi', 'Kenji', 'Takashi', 'Min-jun', 'Ji-hoon', 'Wei', 'Li', 'Hao', 'Sunil', 'Arjun', 'Sanjay', 'Yoshi', 'Akira', 'Yuki', 'Binh', 'Duc', 'Ravi', 'Anil']
-ASIAN_LAST = ['Tanaka', 'Sato', 'Suzuki', 'Kim', 'Lee', 'Park', 'Wang', 'Zhang', 'Chen', 'Singh', 'Sharma', 'Patel', 'Nguyen', 'Tran', 'Le', 'Wong', 'Lin', 'Liu']
+ASIAN_FIRST = [
+    'Hiroshi', 'Kenji', 'Takashi', 'Min-jun', 'Ji-hoon', 'Wei', 'Li', 'Hao', 'Sunil', 'Arjun', 'Sanjay', 'Yoshi', 'Akira', 'Yuki', 'Binh', 'Duc', 'Ravi', 'Anil',
+    'Satoshi', 'Takeshi', 'Min-ho', 'Jung-hoon', 'Zhe', 'Hui', 'Rohan', 'Ishaan', 'Thanh', 'Quang', 'Haruki', 'Kaito'
+]
+ASIAN_LAST = [
+    'Tanaka', 'Sato', 'Suzuki', 'Kim', 'Lee', 'Park', 'Wang', 'Zhang', 'Chen', 'Singh', 'Sharma', 'Patel', 'Nguyen', 'Tran', 'Le', 'Wong', 'Lin', 'Liu',
+    'Ito', 'Yamamoto', 'Nakamura', 'Choi', 'Jeong', 'Zhao', 'Sun', 'Gupta', 'Mehta', 'Pham', 'Hoang', 'Kato'
+]
 
-NORTH_AMERICAN_FIRST = ['Christian', 'Weston', 'Tyler', 'Brenden', 'Sergino', 'Alphonso', 'Jonathan', 'Cyle', 'Tajon', 'Landon', 'Clint', 'Tim', 'Miles', 'Walker', 'Antonee']
-NORTH_AMERICAN_LAST = ['Pulisic', 'McKennie', 'Adams', 'Aaronson', 'Dest', 'Davies', 'David', 'Larin', 'Buchanan', 'Donovan', 'Dempsey', 'Howard', 'Robinson', 'Zimmerman', 'Robinson']
+NORTH_AMERICAN_FIRST = [
+    'Christian', 'Weston', 'Tyler', 'Brenden', 'Sergino', 'Alphonso', 'Jonathan', 'Cyle', 'Tajon', 'Landon', 'Clint', 'Tim', 'Miles', 'Walker', 'Antonee',
+    'Zack', 'Ricardo', 'Gio', 'Jesus', 'Jordan', 'DeAndre', 'Miles', 'Aaron', 'Cade', 'Paxton'
+]
+NORTH_AMERICAN_LAST = [
+    'Pulisic', 'McKennie', 'Adams', 'Aaronson', 'Dest', 'Davies', 'David', 'Larin', 'Buchanan', 'Donovan', 'Dempsey', 'Howard', 'Robinson', 'Zimmerman', 'Robinson',
+    'Steffen', 'Pepi', 'Reyna', 'Ferreira', 'Morris', 'Yedlin', 'Long', 'Laryea', 'Miller', 'Johnston'
+]
 
 TIER_RATINGS = {
     1: {'min': 76, 'max': 94, 'variance': 5},
@@ -178,17 +190,23 @@ def pick_nationality(tier):
         if rand < 0.72: return {'first': AFRICAN_FIRST, 'last': AFRICAN_LAST, 'name': 'African'}
         if rand < 0.82: return {'first': SPANISH_FIRST, 'last': SPANISH_LAST, 'name': 'Spanish'}
         if rand < 0.90: return {'first': GERMAN_FIRST, 'last': GERMAN_LAST, 'name': 'German'}
-        return {'first': SCANDINAVIAN_FIRST, 'last': SCANDINAVIAN_LAST, 'name': 'Scandinavian'}
+        if rand < 0.95: return {'first': SCANDINAVIAN_FIRST, 'last': SCANDINAVIAN_LAST, 'name': 'Scandinavian'}
+        if rand < 0.98: return {'first': ASIAN_FIRST, 'last': ASIAN_LAST, 'name': 'Asian'}
+        return {'first': NORTH_AMERICAN_FIRST, 'last': NORTH_AMERICAN_LAST, 'name': 'North American'}
     if tier == 3:
         if rand < 0.70: return {'first': ENGLISH_FIRST, 'last': ENGLISH_LAST, 'name': 'English'}
         if rand < 0.82: return {'first': AFRICAN_FIRST, 'last': AFRICAN_LAST, 'name': 'African'}
         if rand < 0.91: return {'first': FRENCH_FIRST, 'last': FRENCH_LAST, 'name': 'French'}
-        return {'first': SPANISH_FIRST, 'last': SPANISH_LAST, 'name': 'Spanish'}
+        if rand < 0.95: return {'first': SPANISH_FIRST, 'last': SPANISH_LAST, 'name': 'Spanish'}
+        if rand < 0.98: return {'first': ASIAN_FIRST, 'last': ASIAN_LAST, 'name': 'Asian'}
+        return {'first': NORTH_AMERICAN_FIRST, 'last': NORTH_AMERICAN_LAST, 'name': 'North American'}
     if tier == 4:
         if rand < 0.85: return {'first': ENGLISH_FIRST, 'last': ENGLISH_LAST, 'name': 'English'}
         if rand < 0.94: return {'first': AFRICAN_FIRST, 'last': AFRICAN_LAST, 'name': 'African'}
-        return {'first': FRENCH_FIRST, 'last': FRENCH_LAST, 'name': 'French'}
-    return {'first': ENGLISH_FIRST, 'last': ENGLISH_LAST, 'name': 'English'}
+        if rand < 0.97: return {'first': FRENCH_FIRST, 'last': FRENCH_LAST, 'name': 'French'}
+        return {'first': ASIAN_FIRST, 'last': ASIAN_LAST, 'name': 'Asian'}
+    if rand < 0.98: return {'first': ENGLISH_FIRST, 'last': ENGLISH_LAST, 'name': 'English'}
+    return {'first': ASIAN_FIRST, 'last': ASIAN_LAST, 'name': 'Asian'}
 
 def generate_age(tier, is_youth=False):
     if is_youth: return 16 + random.randint(0, 3)

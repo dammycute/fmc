@@ -29,6 +29,7 @@ export interface SquadSlice {
   respondToTransferBid: (bidId: string, status: 'ACCEPTED' | 'REJECTED' | 'CANCELLED') => Promise<void>;
   negotiateBid: (bidId: string, counterAmount: number) => Promise<void>;
   finalizeTransfer: (bidId: string) => Promise<void>;
+  retrainPlayer: (playerId: string, position: string) => Promise<void>;
 }
 
 export const createSquadSlice: StateCreator<
@@ -422,5 +423,14 @@ export const createSquadSlice: StateCreator<
       }),
       transferBids: state.transferBids.filter(b => b.id !== bidId)
     });
+  },
+
+  retrainPlayer: async (playerId: string, position: string) => {
+    try {
+      await client.retrainPlayer(playerId, position);
+      await get().syncData();
+    } catch (error) {
+      console.error('Failed to retrain player:', error);
+    }
   },
 });

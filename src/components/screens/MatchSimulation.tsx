@@ -71,7 +71,7 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
         }
         return next;
       });
-    }, 100);
+    }, 50); // Speed up replay for better UX
 
     return () => clearInterval(interval);
   }, []);
