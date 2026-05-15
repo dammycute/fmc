@@ -19,6 +19,25 @@ def process_week(week: int, season: int) -> None:
         for m in Match.objects.filter(week=week, season=season, played=True)
     }
 
+    # Problem 4: Pre-fetch last 5 home matches for all clubs to avoid N+1 in the loop
+    # We only care about clubs playing at home this week.
+    recent_home_matches_lookup = {}
+    if home_matches:
+        relevant_club_ids = list(home_matches.keys())
+        # Fetch up to 5 previous home matches for each club playing at home this week
+        # This is still a bit tricky with SQL, so we'll fetch them and group in Python.
+        # To keep it efficient, we limit the search space.
+        all_recent_home = Match.objects.filter(
+            home_club_id__in=relevant_club_ids,
+            played=True
+        ).order_by('home_club_id', '-season', '-week')
+
+        for m in all_recent_home:
+            if m.home_club_id not in recent_home_matches_lookup:
+                recent_home_matches_lookup[m.home_club_id] = []
+            if len(recent_home_matches_lookup[m.home_club_id]) < 5:
+                recent_home_matches_lookup[m.home_club_id].append(m)
+
     # Fetch clubs with necessary relations
     clubs = Club.objects.select_related(
         'league',
@@ -47,10 +66,7 @@ def process_week(week: int, season: int) -> None:
 
             # Problem 4: Dynamic Matchday Income (Form Bonus)
             form_bonus = 0
-            last_home_matches = Match.objects.filter(
-                home_club=club,
-                played=True
-            ).order_by('-season', '-week')[:5]
+            last_home_matches = recent_home_matches_lookup.get(club.id, [])
 
             for m in last_home_matches:
                 if m.home_score > m.away_score:
