@@ -82,13 +82,36 @@ class ClubSerializer(serializers.ModelSerializer):
         ]
 
     def get_finances(self, obj):
+        # Calculate weekly financial estimates based on current club state
+        tier = obj.league.tier
+        tv_rights_map = {1: 240000, 2: 120000, 3: 75000, 4: 40000, 5: 15000}
+        maintenance_map = {1: 50000, 2: 25000, 3: 10000, 4: 5000, 5: 2000}
+
+        # Matchday estimate (based on average attendance without form bonus)
+        price = {1: 60, 2: 40, 3: 25, 4: 15, 5: 8}.get(tier, 0)
+        attendance_pct = min(1.0, 0.6 + (obj.reputation / 200))
+        capacity = obj.facilities.stadium_capacity if hasattr(obj, 'facilities') else 0
+        matchday_est = int(capacity * attendance_pct * price)
+
         return {
             "balance": obj.balance,
             "transferBudget": obj.transfer_budget,
             "weeklyWages": obj.weekly_wages,
             "weeklyStaffWages": obj.weekly_staff_wages,
-            "revenue": {"tickets": 0, "sponsorship": 0, "merchandise": 0, "tvRights": 0, "prizeMoney": 0},
-            "expenses": {"playerWages": obj.weekly_wages, "staffWages": obj.weekly_staff_wages, "facilityMaintenance": 0, "loanRepayments": 0, "transfers": 0},
+            "revenue": {
+                "tickets": matchday_est,
+                "sponsorship": sum(s.amount // 38 for s in obj.sponsors.filter(status='ACTIVE')),
+                "merchandise": int(obj.reputation * 300 + (6 - tier) * 200),
+                "tvRights": tv_rights_map.get(tier, 0),
+                "prizeMoney": obj.league.prize_money_champion // 38 if tier <= 3 else 0
+            },
+            "expenses": {
+                "playerWages": obj.weekly_wages,
+                "staffWages": obj.weekly_staff_wages,
+                "facilityMaintenance": maintenance_map.get(tier, 0),
+                "loanRepayments": 0,
+                "transfers": 0
+            },
             "loans": []
         }
 

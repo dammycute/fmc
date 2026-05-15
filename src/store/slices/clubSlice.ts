@@ -51,27 +51,10 @@ export const createClubSlice: StateCreator<
 
     try {
       await client.upgradeFacility(clubId, backendType);
+      await get().syncData();
     } catch (error) {
       console.error('Failed to upgrade facility:', error);
-      return;
     }
-
-    set({
-      clubs: state.clubs.map(c => c.id === clubId ? {
-        ...c,
-        finances: { ...c.finances, balance: c.finances.balance - upgradeCost },
-        facilities: {
-          ...c.facilities,
-          [type]: {
-            ...facility,
-            level: facility.level + 1,
-            upgradeCost: Math.floor(upgradeCost * 1.5),
-            ...(type === 'stadium' ? { capacity: Math.floor(c.facilities.stadium.capacity * 1.15) } : {})
-          }
-        },
-        history: [...c.history, `Upgraded ${type} to level ${facility.level + 1}`]
-      } : c)
-    });
   },
 
   buyClub: async (clubId, newName) => {

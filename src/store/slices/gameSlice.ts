@@ -172,17 +172,24 @@ export const createGameSlice: StateCreator<
         clubId: s.clubId ? String(s.clubId) : s.clubId,
       }));
 
-      const scoutAssignments = normalize(scoutData).map((as: any) => ({
-        ...as,
-        clubId: as.clubId ? String(as.clubId) : null,
-        scoutId: as.scoutId ? String(as.scoutId) : null,
-        reports: (as.reports || []).map((report: any) => ({
+      const scoutAssignments = normalize(scoutData).map((as: any) => {
+        const reports = (as.reports || []).map((report: any) => ({
           ...report,
           id: String(report.id),
           playerId: report.playerId ? String(report.playerId) : report.playerId,
           scoutId: report.scoutId ? String(report.scoutId) : report.scoutId,
-        }))
-      }));
+        }));
+
+        return {
+          ...as,
+          clubId: as.clubId ? String(as.clubId) : null,
+          scoutId: as.scoutId ? String(as.scoutId) : null,
+          playersFound: (as.playersFound && as.playersFound.length > 0)
+            ? as.playersFound.map(String)
+            : reports.map((r: any) => String(r.playerId)),
+          reports
+        };
+      });
 
       console.log(`Sync complete. Players: ${players.length}, Clubs: ${clubs.length}`);
 

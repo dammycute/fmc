@@ -7,7 +7,8 @@ def process_week(week: int, season: int) -> None:
     Core AI transfer logic called weekly.
     """
     state = GameState.objects.get(pk=1)
-    is_window_open = (1 <= week <= 6) or (33 <= week <= 38)
+    # Problem 2: Transfer window weeks are inconsistent. Use state.is_transfer_window_open instead.
+    is_window_open = state.is_transfer_window_open
 
     # PART C — Player happiness impact on transfer requests
     _process_player_unrest(week, season)
@@ -57,6 +58,13 @@ def _resolve_ai_bids(state, week: int, season: int) -> None:
         player = bid.player
         buying_club = bid.from_club
         selling_club = bid.to_club
+
+        # Problem 4: AI BIDS CAN COMPLETE A TRANSFER TO A NULL CLUB OR WITHOUT FUNDS.
+        # Check balance before completing.
+        if buying_club.balance < bid.amount:
+            bid.status = 'REJECTED'
+            bid.save(update_fields=['status'])
+            continue
 
         # 1. Selling club accepts if:
         # - bid_amount >= player.value * 0.85 AND
@@ -145,6 +153,11 @@ def _generate_ai_bids(state, week: int, season: int) -> None:
 
         target_player = random.choice(list(potential_targets))
 
+        # Problem 1: AI Bids Ignore Wage Cap. Check affordability.
+        projected_wages = club.weekly_wages + target_player.wage
+        if projected_wages > club.balance * 0.4:  # wages should not exceed 40% of balance
+            continue
+
         # 2c. Bid amount = player.value * random.uniform(0.9, 1.15)
         bid_amount = int(target_player.value * random.uniform(0.9, 1.15))
 
@@ -159,3 +172,12 @@ def _generate_ai_bids(state, week: int, season: int) -> None:
                 created_week=week,
                 created_season=season
             )
+
+            # Problem 3: AI Bids can target user's players without notification.
+            if target_player.club == state.user_club:
+                NewsStory.objects.create(
+                    title=f"Transfer bid received for {target_player.last_name}",
+                    content=f"{club.name} have submitted a bid of £{bid_amount:,} for {target_player.first_name} {target_player.last_name}.",
+                    category='TRANSFER', importance='HIGH',
+                    club=state.user_club, week=week, season=season
+                )

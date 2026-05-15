@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -15,35 +15,37 @@ const LeagueTable: React.FC = () => {
   const leagueClubs = clubs.filter(c => c.leagueId === userClub.leagueId);
 
   // Calculate Table
-  const table = leagueClubs.map(club => {
-    const clubMatches = matches.filter(m => (m.homeClubId === club.id || m.awayClubId === club.id) && m.played);
-    let played = 0, won = 0, drawn = 0, lost = 0, gf = 0, ga = 0, points = 0;
+  const table = useMemo(() => {
+    return leagueClubs.map(club => {
+      const clubMatches = matches.filter(m => (m.homeClubId === club.id || m.awayClubId === club.id) && m.played);
+      let played = 0, won = 0, drawn = 0, lost = 0, gf = 0, ga = 0, points = 0;
 
-    clubMatches.forEach(m => {
-      played++;
-      const isHome = m.homeClubId === club.id;
-      const goalsFor = isHome ? m.homeScore : m.awayScore;
-      const goalsAgainst = isHome ? m.awayScore : m.homeScore;
-      
-      gf += goalsFor;
-      ga += goalsAgainst;
+      clubMatches.forEach(m => {
+        played++;
+        const isHome = m.homeClubId === club.id;
+        const goalsFor = isHome ? m.homeScore : m.awayScore;
+        const goalsAgainst = isHome ? m.awayScore : m.homeScore;
 
-      if (goalsFor > goalsAgainst) {
-        won++;
-        points += 3;
-      } else if (goalsFor === goalsAgainst) {
-        drawn++;
-        points += 1;
-      } else {
-        lost++;
-      }
-    });
+        gf += goalsFor;
+        ga += goalsAgainst;
 
-    return {
-      ...club,
-      played, won, drawn, lost, gf, ga, gd: gf - ga, points
-    };
-  }).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
+        if (goalsFor > goalsAgainst) {
+          won++;
+          points += 3;
+        } else if (goalsFor === goalsAgainst) {
+          drawn++;
+          points += 1;
+        } else {
+          lost++;
+        }
+      });
+
+      return {
+        ...club,
+        played, won, drawn, lost, gf, ga, gd: gf - ga, points
+      };
+    }).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
+  }, [leagueClubs, matches]);
 
   return (
     <div className="space-y-8">

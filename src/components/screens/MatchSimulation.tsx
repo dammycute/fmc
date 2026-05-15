@@ -63,25 +63,19 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
 
   // Replay timer
   useEffect(() => {
-    if (minute >= 90) {
-      setIsFinished(true);
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
+    const interval = setInterval(() => {
       setMinute(prev => {
-        if (prev >= 90) {
-          if (timerRef.current) clearInterval(timerRef.current);
+        const next = prev + 1;
+        if (next >= 90) {
+          clearInterval(interval);
           setIsFinished(true);
           return 90;
         }
-        return prev + 1;
+        return next;
       });
     }, 100);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   return (

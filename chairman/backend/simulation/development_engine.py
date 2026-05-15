@@ -6,6 +6,22 @@ def develop_player(player, club) -> None:
     """
     changed_fields = set()
 
+    # Problem 4: Injury recovery does not restore fitness gradually.
+    # If a player is no longer injured but fitness is below 100, restore it by 8.0 per week.
+    # This applies to ALL players regardless of age or potential.
+    if not player.is_injured and player.fitness < 100.0:
+        player.fitness = min(100.0, float(player.fitness) + 8.0)
+        changed_fields.add('fitness')
+
+    # Problem 3: Youth development applies to all ages.
+    # Skip players whose potential is already achieved, unless they are young enough to still have variance,
+    # or old enough to be in the decline phase.
+    if player.overall_rating >= player.potential_rating and player.age > 22:
+        if player.age < 31:
+            if changed_fields:
+                player.save(update_fields=list(changed_fields))
+            return
+
     # GROWTH PHASE (age <= 26)
     weekly_growth_cap = 0.0
     if 16 <= player.age <= 20:
@@ -80,37 +96,39 @@ def develop_player(player, club) -> None:
 
         old_pace = player.phys_pace
         player.phys_pace = float(player.phys_pace) * (1 - decline_factor * 0.008)
-        if int(player.phys_pace) != int(old_pace):
+        if player.phys_pace != old_pace:
             changed_fields.add('phys_pace')
 
         old_accel = player.phys_acceleration
         player.phys_acceleration = float(player.phys_acceleration) * (1 - decline_factor * 0.008)
-        if int(player.phys_acceleration) != int(old_accel):
+        if player.phys_acceleration != old_accel:
             changed_fields.add('phys_acceleration')
 
         old_stamina = player.phys_stamina
         player.phys_stamina = float(player.phys_stamina) * (1 - decline_factor * 0.006)
-        if int(player.phys_stamina) != int(old_stamina):
+        if player.phys_stamina != old_stamina:
             changed_fields.add('phys_stamina')
 
         # Mental attributes IMPROVE for age 31-36: composure +0.3/week, decisions +0.3/week
         if player.age <= 36:
             old_comp = player.ment_composure
             player.ment_composure = min(99.0, float(player.ment_composure) + 0.3)
-            if int(player.ment_composure) != int(old_comp):
+            if player.ment_composure != old_comp:
                 changed_fields.add('ment_composure')
 
             old_dec = player.ment_decisions
             player.ment_decisions = min(99.0, float(player.ment_decisions) + 0.3)
-            if int(player.ment_decisions) != int(old_dec):
+            if player.ment_decisions != old_dec:
                 changed_fields.add('ment_decisions')
 
-    # Recalculate overall_rating after any changes
-    if changed_fields or effective_amount > 0:
-        new_overall = _calculate_overall(player)
-        if new_overall != player.overall_rating:
-            player.overall_rating = new_overall
-            changed_fields.add('overall_rating')
+    # Problems 1 & 2: Recalculate overall unconditionally and enforce potential ceiling.
+    new_overall = _calculate_overall(player)
+    if new_overall > player.potential_rating:
+        new_overall = float(player.potential_rating)
+
+    if new_overall != player.overall_rating:
+        player.overall_rating = new_overall
+        changed_fields.add('overall_rating')
 
     if changed_fields:
         player.save(update_fields=list(changed_fields))

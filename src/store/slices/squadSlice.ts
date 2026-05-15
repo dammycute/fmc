@@ -63,59 +63,58 @@ export const createSquadSlice: StateCreator<
     // Block sacking if it would exceed overdraft limit
     if (newBalance < -500000) return;
 
-    // Generate news story
-    const newsItem = {
-      id: Math.random().toString(36).substring(2, 11),
-      title: `${club.name} Sack ${manager.name}`,
-      content: `${manager.name} has been sacked as manager of ${club.name}. Compensation of $${compensationCost.toLocaleString()} was paid for the remaining contract.`,
-      category: 'CLUB' as const,
-      importance: 'HIGH' as const,
-      clubId: club.id,
-      week: state.currentWeek,
-      season: state.currentSeason
-    };
-
     try {
       await client.sackManager(managerId);
+
+      // Generate news story
+      const newsItem = {
+        id: Math.random().toString(36).substring(2, 11),
+        title: `${club.name} Sack ${manager.name}`,
+        content: `${manager.name} has been sacked as manager of ${club.name}. Compensation of $${compensationCost.toLocaleString()} was paid for the remaining contract.`,
+        category: 'CLUB' as const,
+        importance: 'HIGH' as const,
+        clubId: club.id,
+        week: state.currentWeek,
+        season: state.currentSeason
+      };
+
+      set((s) => ({
+        managers: s.managers.map((m) => m.id === managerId ? { ...m, clubId: '', relationshipWithChairman: 0, wantsToLeave: false } : m),
+        clubs: s.clubs.map(c => c.id === manager.clubId ? {
+          ...c,
+          history: [...c.history, `Manager sacked by the chairman - compensation paid: $${compensationCost.toLocaleString()}`],
+          finances: { ...c.finances, balance: newBalance }
+        } : c),
+        news: [newsItem, ...s.news].slice(0, 100)
+      }));
     } catch (error) {
       console.error('Failed to sack manager:', error);
-      return;
     }
-
-    set((s) => ({
-      managers: s.managers.map((m) => m.id === managerId ? { ...m, clubId: '', relationshipWithChairman: 0, wantsToLeave: false } : m),
-      clubs: s.clubs.map(c => c.id === manager.clubId ? {
-        ...c,
-        history: [...c.history, `Manager sacked by the chairman - compensation paid: $${compensationCost.toLocaleString()}`],
-        finances: { ...c.finances, balance: newBalance }
-      } : c),
-      news: [newsItem, ...s.news].slice(0, 100)
-    }));
   },
 
   hireManager: async (clubId, manager) => {
     try {
       await client.hireManager(clubId, manager.id);
+
+      set((state) => {
+        const exists = state.managers.some(m => m.id === manager.id);
+        const updatedManagers = exists
+          ? state.managers.map((m) => m.id === manager.id ? { ...m, clubId, relationshipWithChairman: 70, wantsToLeave: false } : m)
+          : [...state.managers, { ...manager, clubId, relationshipWithChairman: 70, wantsToLeave: false }];
+
+        return {
+          managers: updatedManagers,
+          clubs: state.clubs.map(c => c.id === clubId ? {
+            ...c,
+            history: [...c.history, `Hired new manager: ${manager.name}`],
+            formation: manager.preferredFormation,
+            tactics: manager.preferredStyle
+          } : c)
+        };
+      });
     } catch (error) {
       console.error('Failed to hire manager:', error);
-      return;
     }
-    set((state) => {
-      const exists = state.managers.some(m => m.id === manager.id);
-      const updatedManagers = exists
-        ? state.managers.map((m) => m.id === manager.id ? { ...m, clubId, relationshipWithChairman: 70, wantsToLeave: false } : m)
-        : [...state.managers, { ...manager, clubId, relationshipWithChairman: 70, wantsToLeave: false }];
-
-      return {
-        managers: updatedManagers,
-        clubs: state.clubs.map(c => c.id === clubId ? {
-          ...c,
-          history: [...c.history, `Hired new manager: ${manager.name}`],
-          formation: manager.preferredFormation,
-          tactics: manager.preferredStyle
-        } : c)
-      };
-    });
   },
 
   hireStaff: async (clubId, staffMember) => {
@@ -139,13 +138,12 @@ export const createSquadSlice: StateCreator<
   dismissStaff: async (staffId) => {
     try {
       await client.dismissStaff(staffId);
+      set((state) => ({
+        staff: state.staff.map(s => s.id === staffId ? { ...s, clubId: '' } : s)
+      }));
     } catch (error) {
       console.error('Failed to dismiss staff:', error);
-      return;
     }
-    set((state) => ({
-      staff: state.staff.map(s => s.id === staffId ? { ...s, clubId: '' } : s)
-    }));
   },
 
   hireStaffApplicant: (clubId, applicantId) => {
@@ -191,13 +189,12 @@ export const createSquadSlice: StateCreator<
     if (!player) return;
     try {
       await client.updatePlayer(playerId, { isTransferListed: !player.isTransferListed });
+      set((state) => ({
+        players: state.players.map(p => p.id === playerId ? { ...p, isTransferListed: !p.isTransferListed } : p)
+      }));
     } catch (error) {
       console.error('Failed to update transfer listing:', error);
-      return;
     }
-    set((state) => ({
-      players: state.players.map(p => p.id === playerId ? { ...p, isTransferListed: !p.isTransferListed } : p)
-    }));
   },
 
   toggleLoanList: async (playerId) => {
