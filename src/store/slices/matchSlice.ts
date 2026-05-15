@@ -73,8 +73,6 @@ export const createMatchSlice: StateCreator<
 
   finalizeMatchday: async (userMatch: Match | null) => {
     const state = get();
-    const currentWeek = state.currentWeek;
-    const currentSeason = state.currentSeason;
 
     // Step 2: Call Django API to finalize the user's match result
     if (userMatch) {

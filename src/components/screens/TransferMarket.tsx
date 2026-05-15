@@ -270,7 +270,7 @@ const TransferMarket: React.FC = () => {
               Transfer Bargaining
             </DialogTitle>
             <DialogDescription className="text-zinc-500 font-medium pt-2">
-              Bargaining attempt <span className="text-white font-bold">{selectedBid?.negotiationCount + 1} of 3</span>. Be realistic: extreme demands will cause the other club to walk away immediately.
+              Bargaining attempt <span className="text-white font-bold">{(selectedBid?.negotiationCount ?? 0) + 1} of 3</span>. Be realistic: extreme demands will cause the other club to walk away immediately.
             </DialogDescription>
           </DialogHeader>
 
@@ -278,7 +278,7 @@ const TransferMarket: React.FC = () => {
             <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
               <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] font-black text-zinc-500 uppercase">Current Offer</span>
-                <span className="text-lg font-black text-indigo-400 italic">£{(selectedBid?.amount / 1000000).toFixed(1)}M</span>
+                <span className="text-lg font-black text-indigo-400 italic">£{((selectedBid?.amount ?? 0) / 1000000).toFixed(1)}M</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black text-zinc-500 uppercase">Player Value</span>

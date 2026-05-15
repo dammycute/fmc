@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { Club, SeasonTarget, Formation } from '../../types/game';
+import type { Club, SeasonTarget, Formation, TacticalPhilosophy, TrainingFocus } from '../../types/game';
 import type { StoreState } from '../types';
 import { autoPickLineup } from '../../utils/dataGenerator';
 import { client } from '../../api/client';
@@ -199,7 +199,7 @@ export const createClubSlice: StateCreator<
     try {
       await client.updateClub(clubId, { tactics });
       set((state) => ({
-        clubs: state.clubs.map(c => c.id === clubId ? { ...c, tactics } : c)
+        clubs: state.clubs.map(c => c.id === clubId ? { ...c, tactics: tactics as TacticalPhilosophy } : c)
       }));
     } catch (error) {
       console.error('Failed to update tactics:', error);
@@ -210,7 +210,7 @@ export const createClubSlice: StateCreator<
     try {
       await client.updateClub(clubId, { trainingFocus });
       set((state) => ({
-        clubs: state.clubs.map(c => c.id === clubId ? { ...c, trainingFocus } : c)
+        clubs: state.clubs.map(c => c.id === clubId ? { ...c, trainingFocus: trainingFocus as TrainingFocus } : c)
       }));
     } catch (error) {
       console.error('Failed to update training focus:', error);

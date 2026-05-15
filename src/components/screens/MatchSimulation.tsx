@@ -9,7 +9,7 @@ import {
   TrendingUp, TrendingDown, Users
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { type Match, type MatchEvent, type Player } from '../../types/game';
+import { type Match, type Player } from '../../types/game';
 import TacticsBoard from '../ui/TacticsBoard';
 import PlayerModal from '../ui/PlayerModal';
 import Pitch2D from '../ui/Pitch2D';
