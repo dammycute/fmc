@@ -12,7 +12,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
-  const { userClubId, clubs, managers, players, matches, news } = useGameStore();
+  const { userClubId, clubs, managers, players, matches, news, transferRequests } = useGameStore();
 
   const club = clubs.find(c => c.id === userClubId);
   if (!club) return null;
@@ -227,22 +227,41 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
           {/* Pending Tasks */}
           <div className="space-y-4">
             <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">URGENT DIRECTIVES</h4>
-            <div className="p-6 rounded-3xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-4 group hover:bg-amber-500/10 transition-all cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-black text-white tracking-tight">Manager Request</p>
-                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">The manager has requested a meeting regarding the transfer budget.</p>
-                <Button 
+            {(() => {
+              const pendingRequests = (transferRequests || []).filter(
+                r => String(r.clubId) === String(userClubId) && r.status === 'PENDING'
+              );
+
+              if (pendingRequests.length === 0) {
+                return <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest py-8 text-center border border-white/5 border-dashed rounded-2xl italic">No pending directives</p>;
+              }
+
+              const request = pendingRequests[0];
+              return (
+                <div
+                  key={request.id}
                   onClick={() => setActiveTab('manager')}
-                  variant="ghost" 
-                  className="mt-4 p-0 text-[10px] font-black text-amber-500 uppercase tracking-widest hover:text-amber-400 hover:bg-transparent h-auto"
+                  className="p-6 rounded-3xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-4 group hover:bg-amber-500/10 transition-all cursor-pointer"
                 >
-                  Review Directive <ChevronRight className="w-3 h-3 ml-1" />
-                </Button>
-              </div>
-            </div>
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-black text-white tracking-tight">Manager Request</p>
+                      <Badge className="bg-amber-500/20 text-amber-500 border-none text-[8px] font-black px-1.5 h-4 uppercase">{request.priority}</Badge>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1 leading-relaxed line-clamp-2">{request.message}</p>
+                    <Button
+                      variant="ghost"
+                      className="mt-4 p-0 text-[10px] font-black text-amber-500 uppercase tracking-widest hover:text-amber-400 hover:bg-transparent h-auto"
+                    >
+                      Review Directive <ChevronRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

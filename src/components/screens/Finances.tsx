@@ -57,25 +57,33 @@ const Finances: React.FC = () => {
             <ArrowUpRight className="w-4 h-4 text-emerald-500" /> WEEKLY REVENUE
           </h3>
           <div className="rounded-2xl border border-white/5 bg-white/[0.01] overflow-hidden">
-            {[
-              { label: 'Matchday Tickets', value: club.finances.revenue.tickets, icon: Ticket },
-              { label: 'Sponsorships', value: club.finances.revenue.sponsorship, icon: Briefcase },
-              { label: 'Merchandise', value: club.finances.revenue.merchandise, icon: ShoppingCart },
-              { label: 'TV Rights', value: club.finances.revenue.tvRights, icon: Tv },
-              { label: 'Prize Money', value: club.finances.revenue.prizeMoney, icon: Building2 },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-4 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
-                <div className="flex items-center gap-3">
-                  <item.icon className="w-4 h-4 text-zinc-500" />
-                  <span className="text-sm font-bold text-zinc-300">{item.label}</span>
-                </div>
-                <span className="text-sm font-mono text-emerald-400">+£{((item.value || 0) / 1000).toFixed(1)}K</span>
+            {totalRevenue === 0 ? (
+              <div className="p-12 text-center">
+                <p className="text-xs text-zinc-500 font-black uppercase tracking-widest italic">Revenue data updates weekly</p>
               </div>
-            ))}
-            <div className="bg-emerald-500/5 p-4 flex justify-between items-center">
-              <span className="text-xs font-black text-emerald-400 uppercase">Total Revenue</span>
-              <span className="text-sm font-black text-emerald-400">£{((totalRevenue || 0) / 1000).toFixed(1)}K</span>
-            </div>
+            ) : (
+              <>
+                {[
+                  { label: 'Matchday Tickets', value: club.finances.revenue.tickets, icon: Ticket },
+                  { label: 'Sponsorships', value: club.finances.revenue.sponsorship, icon: Briefcase },
+                  { label: 'Merchandise', value: club.finances.revenue.merchandise, icon: ShoppingCart },
+                  { label: 'TV Rights', value: club.finances.revenue.tvRights, icon: Tv },
+                  { label: 'Prize Money', value: club.finances.revenue.prizeMoney, icon: Building2 },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <item.icon className="w-4 h-4 text-zinc-500" />
+                      <span className="text-sm font-bold text-zinc-300">{item.label}</span>
+                    </div>
+                    <span className="text-sm font-mono text-emerald-400">+£{((item.value || 0) / 1000).toFixed(1)}K</span>
+                  </div>
+                ))}
+                <div className="bg-emerald-500/5 p-4 flex justify-between items-center">
+                  <span className="text-xs font-black text-emerald-400 uppercase">Total Revenue</span>
+                  <span className="text-sm font-black text-emerald-400">£{((totalRevenue || 0) / 1000).toFixed(1)}K</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
