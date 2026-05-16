@@ -51,6 +51,11 @@ export const createMatchSlice: StateCreator<
         description: e.description,
         playerId: e.player_id != null ? String(e.player_id) : undefined,
         clubId: e.club_id != null ? String(e.club_id) : undefined,
+        assisterId: e.assister_id != null ? String(e.assister_id) : undefined,
+        subOnId: e.sub_on_id != null ? String(e.sub_on_id) : undefined,
+        subOffId: e.sub_off_id != null ? String(e.sub_off_id) : undefined,
+        shootingClubId: e.shooting_club_id != null ? String(e.shooting_club_id) : undefined,
+        shotXg: e.shot_xg,
         homeScore: e.home_score,
         awayScore: e.away_score,
       }));

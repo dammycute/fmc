@@ -114,11 +114,23 @@ const Pitch2D: React.FC<Pitch2DProps> = ({
                     setGoalFlash(null);
                     setFlashMsg(null);
                 }, 2200);
-            } else if (e.type === 'CARD') {
+            } else if (e.type === 'YELLOW' || e.type === 'RED' || e.type === 'CARD') {
                 setFlashMsg(e.description);
                 setTimeout(() => setFlashMsg(null), 2000);
             } else if (e.type === 'INJURY') {
                 setFlashMsg(`⚠ ${e.description}`);
+                setTimeout(() => setFlashMsg(null), 2000);
+            } else if (e.type === 'SAVE') {
+                setFlashMsg(`🧤 ${e.description}`);
+                setTimeout(() => setFlashMsg(null), 1500);
+            } else if (e.type === 'WOODWORK') {
+                setFlashMsg(`💥 ${e.description}`);
+                setTimeout(() => setFlashMsg(null), 1800);
+            } else if (e.type === 'BIG_CHANCE') {
+                setFlashMsg(`❌ ${e.description}`);
+                setTimeout(() => setFlashMsg(null), 1500);
+            } else if (e.type === 'SUBSTITUTION') {
+                setFlashMsg(`🔄 ${e.description}`);
                 setTimeout(() => setFlashMsg(null), 2000);
             }
         });

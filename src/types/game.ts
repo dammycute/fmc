@@ -89,6 +89,11 @@ export interface Player {
     positioning: number;
     vision: number;
     finishing: number;
+    crossing: number;
+    heading: number;
+    firstTouch: number;
+    technique: number;
+    longShots: number;
     handling?: number; // GK only
     commandOfArea?: number; // GK only
     eccentricity?: number; // GK only
@@ -101,6 +106,9 @@ export interface Player {
     stamina: number;
     agility: number;
     acceleration: number;
+    jumpingReach: number;
+    balance: number;
+    naturalFitness: number;
   };
   mental: {
     leadership: number;
@@ -109,6 +117,11 @@ export interface Player {
     workRate: number;
     decisions: number;
     determination: number;
+    concentration: number;
+    offTheBall: number;
+    teamwork: number;
+    bravery: number;
+    anticipation: number;
   };
   hidden: {
     professionalism: number;
@@ -303,10 +316,21 @@ export interface Match {
 
 export interface MatchEvent {
   minute: number;
-  type: 'GOAL' | 'CARD' | 'INJURY' | 'COMMENTARY';
+  type: 'GOAL' | 'BIG_CHANCE' | 'SAVE' | 'WOODWORK' | 'OFF_TARGET' | 'BLOCK'
+      | 'SUBSTITUTION' | 'PENALTY_AWARDED' | 'PENALTY_MISSED' | 'FOUL'
+      | 'YELLOW' | 'RED' | 'INJURY' | 'OFFSIDE' | 'CORNER' | 'FREE_KICK'
+      | 'HALFTIME' | 'FULLTIME' | 'COMMENTARY' | 'MOMENTUM_SHIFT' | 'TACTICAL_CHANGE';
   description: string;
   playerId?: string;
   clubId?: string;
+  assisterId?: string;
+  subOnId?: string;
+  subOffId?: string;
+  shotXg?: number;
+  homeScore?: number;
+  awayScore?: number;
+  attackingClubId?: string;
+  shooterId?: string;
 }
 
 export interface TransferRequest {

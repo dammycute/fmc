@@ -180,6 +180,11 @@ class PlayerSerializer(serializers.ModelSerializer):
             "positioning": obj.tech_positioning,
             "vision": obj.tech_vision,
             "finishing": obj.tech_finishing,
+            "crossing": obj.tech_crossing,
+            "heading": obj.tech_heading,
+            "firstTouch": obj.tech_first_touch,
+            "technique": obj.tech_technique,
+            "longShots": obj.tech_long_shots,
             "handling": obj.tech_handling,
             "reflexes": obj.tech_reflexes,
             "commandOfArea": obj.tech_command_of_area,
@@ -192,7 +197,10 @@ class PlayerSerializer(serializers.ModelSerializer):
             "strength": obj.phys_strength,
             "stamina": obj.phys_stamina,
             "agility": obj.phys_agility,
-            "acceleration": obj.phys_acceleration
+            "acceleration": obj.phys_acceleration,
+            "jumpingReach": obj.phys_jumping_reach,
+            "balance": obj.phys_balance,
+            "naturalFitness": obj.phys_natural_fitness,
         }
 
     def get_mental(self, obj):
@@ -202,7 +210,12 @@ class PlayerSerializer(serializers.ModelSerializer):
             "aggression": obj.ment_aggression,
             "workRate": obj.ment_work_rate,
             "decisions": obj.ment_decisions,
-            "determination": obj.ment_determination
+            "determination": obj.ment_determination,
+            "concentration": obj.ment_concentration,
+            "offTheBall": obj.ment_off_the_ball,
+            "teamwork": obj.ment_teamwork,
+            "bravery": obj.ment_bravery,
+            "anticipation": obj.ment_anticipation,
         }
 
     def get_hidden(self, obj):

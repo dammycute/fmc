@@ -218,6 +218,11 @@ class Player(Model):
     tech_positioning = IntegerField(default=50)
     tech_vision = IntegerField(default=50)
     tech_finishing = IntegerField(default=50)
+    tech_crossing = IntegerField(default=50)
+    tech_heading = IntegerField(default=50)
+    tech_first_touch = IntegerField(default=50)
+    tech_technique = IntegerField(default=50)
+    tech_long_shots = IntegerField(default=50)
     # GK specific
     tech_handling = IntegerField(default=50)
     tech_reflexes = IntegerField(default=50)
@@ -230,6 +235,9 @@ class Player(Model):
     phys_stamina = IntegerField(default=50)
     phys_agility = IntegerField(default=50)
     phys_acceleration = IntegerField(default=50)
+    phys_jumping_reach = IntegerField(default=50)
+    phys_balance = IntegerField(default=50)
+    phys_natural_fitness = IntegerField(default=50)
 
     # Mental attributes
     ment_leadership = IntegerField(default=50)
@@ -238,6 +246,11 @@ class Player(Model):
     ment_work_rate = IntegerField(default=50)
     ment_decisions = IntegerField(default=50)
     ment_determination = IntegerField(default=50)
+    ment_concentration = IntegerField(default=50)
+    ment_off_the_ball = IntegerField(default=50)
+    ment_teamwork = IntegerField(default=50)
+    ment_bravery = IntegerField(default=50)
+    ment_anticipation = IntegerField(default=50)
 
     # Hidden attributes (drive behavior, not shown to player unless scouted)
     hidden_professionalism = IntegerField(default=50)   # drives development rate

@@ -32,18 +32,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      try {
-        if (hasActiveSession || userClubId) {
-          await syncData();
-        } else {
-          // If no session/userClubId, we might still need to init the game state
-          // (fetching leagues/clubs for onboarding)
-          if (!userClubId) {
-            await initializeGame();
-          }
+      if (hasActiveSession || userClubId) {
+        await syncData();
+      } else {
+        if (!userClubId) {
+          await initializeGame();
         }
-      } catch (error) {
-        console.error("Initialization error:", error);
       }
     };
     init();
@@ -58,6 +52,18 @@ const App: React.FC = () => {
     (transferBids || []).filter(b => String(b.toClubId) === String(userClubId) && b.status === 'PENDING'),
     [transferBids, userClubId]
   );
+
+  if (isOffline && !clubs.length) {
+    return (
+      <div className="h-screen bg-[#09090b] flex flex-col items-center justify-center text-white p-8 text-center">
+        <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+        <h2 className="text-2xl font-bold mb-2">Cannot Connect</h2>
+        <p className="text-zinc-500 max-w-md mb-8">{syncError || 'The game server is not reachable.'}</p>
+        <p className="text-zinc-600 text-sm mb-6">Run <code className="bg-zinc-800 px-2 py-1 rounded text-indigo-400">python manage.py runserver</code> in the <code className="bg-zinc-800 px-2 py-1 rounded">chairman/backend</code> directory, then refresh.</p>
+        <Button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-500 font-bold">RETRY CONNECTION</Button>
+      </div>
+    );
+  }
 
   if (isSyncing && !clubs.length) {
     return (
@@ -77,8 +83,8 @@ const App: React.FC = () => {
   if (!userClub && !isSyncing) {
     return (
       <div className="h-screen bg-[#09090b] flex flex-col items-center justify-center text-white p-8 text-center">
-        <h2 className="text-2xl font-bold mb-4">Incompatible Save Data Detected</h2>
-        <p className="text-zinc-500 max-w-md mb-8">We've updated the game engine with new financial and facility systems. Your previous save is no longer compatible.</p>
+        <h2 className="text-2xl font-bold mb-4">Session Expired</h2>
+        <p className="text-zinc-500 max-w-md mb-8">Your previous save data is no longer available. This can happen after the database is reset or a new world is generated.</p>
         <Button
           onClick={() => {
             localStorage.clear();

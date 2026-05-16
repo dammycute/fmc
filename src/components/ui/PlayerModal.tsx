@@ -214,6 +214,8 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                             {renderStat('Area Command', player.technical.commandOfArea || 50)}
                             {renderStat('Eccentricity', player.technical.eccentricity || 50)}
                             {renderStat('Rushing Out', player.technical.rushingOut || 50)}
+                            {renderStat('Passing', player.technical.passing)}
+                            {renderStat('First Touch', player.technical.firstTouch)}
                           </>
                         ) : (
                           <>
@@ -222,6 +224,11 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                             {renderStat('Dribbling', player.technical.dribbling)}
                             {renderStat('Tackling', player.technical.tackling)}
                             {renderStat('Vision', player.technical.vision)}
+                            {renderStat('Crossing', player.technical.crossing)}
+                            {renderStat('Heading', player.technical.heading)}
+                            {renderStat('First Touch', player.technical.firstTouch)}
+                            {renderStat('Technique', player.technical.technique)}
+                            {renderStat('Long Shots', player.technical.longShots)}
                           </>
                         )}
                       </div>
@@ -237,6 +244,9 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                         {renderStat('Stamina', player.physical.stamina)}
                         {renderStat('Agility', player.physical.agility)}
                         {renderStat('Acceleration', player.physical.acceleration)}
+                        {renderStat('Jumping', player.physical.jumpingReach)}
+                        {renderStat('Balance', player.physical.balance)}
+                        {renderStat('Natural Fitness', player.physical.naturalFitness)}
                       </div>
                     </div>
 
@@ -250,6 +260,11 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                         {renderStat('Work Rate', player.mental.workRate)}
                         {renderStat('Decisions', player.mental.decisions)}
                         {renderStat('Determination', player.mental.determination)}
+                        {renderStat('Concentration', player.mental.concentration)}
+                        {renderStat('Off The Ball', player.mental.offTheBall)}
+                        {renderStat('Teamwork', player.mental.teamwork)}
+                        {renderStat('Bravery', player.mental.bravery)}
+                        {renderStat('Anticipation', player.mental.anticipation)}
                       </div>
                     </div>
 

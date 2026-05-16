@@ -178,22 +178,36 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
                   isFinished={isFinished}
                 />
                 {/* Mini event feed below pitch */}
-                {visibleEvents.length > 0 && (
+                  {visibleEvents.length > 0 && (
                   <div className="mt-4 space-y-2">
-                    {visibleEvents.slice(0, 5).map((event, i) => (
+                    {visibleEvents.slice(0, 5).map((event, i) => {
+                      const isGoal = event.type === 'GOAL';
+                      const isInjury = event.type === 'INJURY';
+                      const isCard = event.type === 'YELLOW' || event.type === 'RED';
+                      const isSave = event.type === 'SAVE';
+                      const isWoodwork = event.type === 'WOODWORK';
+                      const isSub = event.type === 'SUBSTITUTION';
+                      const isBigChance = event.type === 'BIG_CHANCE';
+                      return (
                       <div key={i} className={cn(
                         "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm",
-                        event.type === 'GOAL' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" :
-                          event.type === 'INJURY' ? "bg-rose-500/10 border-rose-500/20 text-rose-300" :
+                        isGoal ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" :
+                          isInjury ? "bg-rose-500/10 border-rose-500/20 text-rose-300" :
+                          isCard ? "bg-amber-500/10 border-amber-500/20 text-amber-300" :
+                          isSave ? "bg-sky-500/10 border-sky-500/20 text-sky-300" :
+                          isWoodwork ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-300" :
+                          isSub ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-300" :
+                          isBigChance ? "bg-orange-500/10 border-orange-500/20 text-orange-300" :
                             "bg-zinc-900/60 border-white/5 text-zinc-400"
                       )}>
                         <span className="text-xs font-black text-white/30 w-8 shrink-0">{event.minute}'</span>
-                        {event.type === 'GOAL' ? <Zap className="w-3.5 h-3.5 shrink-0" /> :
-                          event.type === 'INJURY' ? <AlertCircle className="w-3.5 h-3.5 shrink-0" /> :
+                        {isGoal ? <Zap className="w-3.5 h-3.5 shrink-0" /> :
+                          isInjury || isCard ? <AlertCircle className="w-3.5 h-3.5 shrink-0" /> :
                             <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
                         <span className="font-semibold text-xs">{event.description}</span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -204,31 +218,55 @@ const MatchSimulation: React.FC<MatchSimulationProps> = ({ match, onComplete }) 
                   <Activity className="w-3 h-3" /> MATCHDAY LOG
                 </h3>
                 <div className="flex-1 overflow-y-auto space-y-4 pr-4 custom-scrollbar">
-                  {visibleEvents.map((event, i) => (
+                  {visibleEvents.map((event, i) => {
+                    const isGoal = event.type === 'GOAL';
+                    const isInjury = event.type === 'INJURY';
+                    const isCard = event.type === 'YELLOW' || event.type === 'RED';
+                    const isSave = event.type === 'SAVE';
+                    const isWoodwork = event.type === 'WOODWORK';
+                    const isSub = event.type === 'SUBSTITUTION';
+                    const isBigChance = event.type === 'BIG_CHANCE';
+                    return (
                     <div key={i} className={cn(
                       "p-6 rounded-3xl border animate-in slide-in-from-right-4 duration-500",
-                      event.type === 'GOAL' ? "bg-emerald-500/10 border-emerald-500/20" :
-                        event.type === 'INJURY' ? "bg-rose-500/10 border-rose-500/20" : "bg-zinc-900 border-white/5"
+                      isGoal ? "bg-emerald-500/10 border-emerald-500/20" :
+                        isInjury ? "bg-rose-500/10 border-rose-500/20" :
+                        isCard ? "bg-amber-500/10 border-amber-500/20" :
+                        isSave ? "bg-sky-500/10 border-sky-500/20" :
+                        isWoodwork ? "bg-yellow-500/10 border-yellow-500/20" :
+                        isSub ? "bg-indigo-500/10 border-indigo-500/20" :
+                        isBigChance ? "bg-orange-500/10 border-orange-500/20" :
+                          "bg-zinc-900 border-white/5"
                     )}>
                       <div className="flex items-center gap-4">
                         <span className="text-xl font-black text-white/20 italic">{event.minute}'</span>
                         <div className={cn(
                           "w-10 h-10 rounded-xl flex items-center justify-center",
-                          event.type === 'GOAL' ? "bg-emerald-500/20 text-emerald-400" :
-                            event.type === 'INJURY' ? "bg-rose-500/10 border-rose-500/20" : "bg-white/5 text-zinc-500"
+                          isGoal ? "bg-emerald-500/20 text-emerald-400" :
+                            isInjury ? "bg-rose-500/10 border-rose-500/20" :
+                            isCard ? "bg-amber-500/20 text-amber-400" :
+                            isSave ? "bg-sky-500/20 text-sky-400" :
+                            isWoodwork ? "bg-yellow-500/20 text-yellow-400" :
+                            isSub ? "bg-indigo-500/20 text-indigo-400" :
+                            isBigChance ? "bg-orange-500/20 text-orange-400" :
+                              "bg-white/5 text-zinc-500"
                         )}>
-                          {event.type === 'GOAL' ? <Zap className="w-5 h-5 fill-current" /> :
-                            event.type === 'INJURY' ? <AlertCircle className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                          {isGoal ? <Zap className="w-5 h-5 fill-current" /> :
+                            isInjury || isCard ? <AlertCircle className="w-5 h-5" /> :
+                            isSave ? <TrendingUp className="w-5 h-5" /> :
+                            isSub ? <Users className="w-5 h-5" /> :
+                              <ChevronRight className="w-5 h-5" />}
                         </div>
                         <p className={cn(
                           "font-black text-lg tracking-tight",
-                          event.type === 'GOAL' ? "text-white" : "text-zinc-400"
+                          isGoal ? "text-white" : "text-zinc-400"
                         )}>
                           {event.description}
                         </p>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   {visibleEvents.length === 0 && (
                     <div className="h-full flex items-center justify-center py-20 text-center opacity-20 grayscale">
                       <div className="space-y-4">

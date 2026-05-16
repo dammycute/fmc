@@ -43,7 +43,7 @@ export const createGameSlice: StateCreator<
 
   initializeGame: async () => {
     const { syncData } = get();
-    set({ isSyncing: true });
+    set({ isSyncing: true, isOffline: false, syncError: null });
     
     try {
       console.log("Initializing game state...");
@@ -73,14 +73,24 @@ export const createGameSlice: StateCreator<
         isSyncing: false
       });
 
-      // If we have an active session, sync the rest of the data
       if (gameState.userClubId) {
         await syncData();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to initialize world:", error);
-      set({ isSyncing: false });
-      throw error;
+      const isNetworkError = 
+        error.name === 'TypeError' || 
+        error.message?.includes('Failed to fetch') || 
+        error.message?.includes('NetworkError') ||
+        error.message?.includes('unreachable') ||
+        error.message?.includes('ENOTFOUND') ||
+        error.message?.includes('ECONNREFUSED');
+
+      if (isNetworkError) {
+        set({ isOffline: true, isSyncing: false, syncError: 'Cannot connect to the game server. Make sure the backend is running on port 8000.' });
+      } else {
+        set({ isSyncing: false, syncError: error.message || 'Failed to initialize game data' });
+      }
     }
   },
 
